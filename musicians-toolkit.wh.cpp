@@ -1,0 +1,7973 @@
+// ==WindhawkMod==
+// @id              musicians-toolkit
+// @name            Musician's Toolkit
+// @description     A Win+Y flyout with a chord library, a tap tempo calculator, a metronome and a tuner for guitar, ukulele and piano
+// @version         1.0.0
+// @author          DpakB
+// @homepage        https://dpakb.com
+// @github          https://github.com/DeepakBalaraman
+// @twitter         https://twitter.com/dpakb_
+// @license         MIT
+// @include         windhawk.exe
+// @compilerOptions -luser32 -lgdi32 -lshell32 -ladvapi32 -lole32 -lwinmm
+// ==/WindhawkMod==
+
+// ==WindhawkModReadme==
+/*
+# Musician's Toolkit
+
+Press **Win+Y** to open a handy utility panel in the corner of your screen. It includes a built-in chord library, a tap tempo calculator, a metronome, and an instrument tuner.
+
+Click the picker at the top left to switch tools, or press **Ctrl+Tab** to cycle through them using your keyboard.
+
+## Chords
+
+Type to instantly search for chords. As you type, the list narrows down, and the selected chord appears right below. 
+- **Guitar and Ukulele:** Displays a visual fretboard showing barre positions, open strings, and muted strings.
+- **Piano:** Highlights the exact keys to hold down.
+- **Fingerings:** Use the arrow keys or the slider underneath the diagram to cycle through different finger variations.
+
+## Tap Tempo
+
+Tap the big circle using your mouse, touchpad, or **Spacebar**. The panel automatically calculates your tempo based on the timing of your taps, displaying your rhythm consistency as a row of bars.
+- **Half** and **Double:** Nudge the tempo value.
+- **Reset:** Clears current taps to start over.
+- **Scroll Wheel:** Fine-tunes the BPM one unit at a time.
+
+## Metronome
+
+Quickly switch between common time signatures or access compound meters like 5/8, 11/8, and 7/16 with just a couple of clicks. 
+- The beat counter gives strong clicks on downbeats and softer clicks on subdivisions to keep you on track.
+- The metronome can continue playing even after you close the panel (configurable in settings), making it easy to practice uninterrupted.
+
+## Tuner
+
+Open the tuner and let your microphone listen. A smooth needle sweeps across an arc while the main display shows the note you are playing. 
+- Supports standard guitars, drop tunings, open tunings, multi-string basses, ukuleles, mandolins, banjos, the violin family, and more.
+- Built with a chromatic scale fallback so it works seamlessly even for restrung or custom instruments.
+
+## Keyboard Shortcuts
+
+- **Win+Y:** Open or close the panel.
+- **Ctrl+Tab:** Switch between tools.
+- **Tab:** Switch instruments (in the chord library or tuner).
+- **Up / Down:** Navigate search results or adjust metronome BPM.
+- **Left / Right:** Step through chord fingerings, halve/double tap tempo, or change metronome signatures.
+- **Esc:** Clear search, or close the panel if the search is empty.
+
+## Settings
+
+- **Appearance & Behavior:** Match Windows dark/light themes, pick custom accent colors, adjust panel opacity, and choose screen placement.
+- **Startup:** Choose which tool and instrument open by default when you press Win+Y.
+- **Metronome Options:** Select default time signatures, click sounds (tick-tock, woodblock, or beep), volume, and background playback behavior.
+- **Tap Tempo & Tuner:** Customize responsiveness, tap keys, and reference pitch (A4 = 440 Hz standard).
+
+The chord data is powered by [chords-db](https://github.com/tombatossals/chords-db) by David Rubert (MIT), packed directly into the mod so it requires no external files or internet connection.
+*/
+// ==/WindhawkModReadme==
+
+// ==WindhawkModSettings==
+/*
+- Startup:
+  - DefaultTool: chords
+    $name: Default tool on open
+    $description: "The tool the panel opens on when you press Win+Y."
+    $options:
+      - chords: Chords
+      - tempo: Tap tempo
+      - metronome: Metronome
+      - tuner: Tuner
+  - DefaultInstrument: guitar
+    $name: Default instrument
+    $description: "The starting instrument for chords and tuning."
+    $options:
+      - guitar: Guitar
+      - ukulele: Ukulele
+      - piano: Piano
+- Appearance:
+  - Theme: auto
+    $name: Theme
+    $description: "Choose whether the panel matches Windows or uses a fixed theme."
+    $options:
+      - auto: Follow Windows
+      - light: Light
+      - dark: Dark
+  - AccentColor: accent
+    $name: Accent color
+    $description: "Color used for chord dots, selected items, and sliders."
+    $options:
+      - accent: Windows Accent Color
+      - custom: Custom (Pick A Color Below)
+      - blue: Blue
+      - green: Green
+      - teal: Teal
+      - purple: Purple
+      - pink: Pink
+      - orange: Orange
+      - red: Red
+      - gold: Gold
+      - mint: Mint
+  - CustomAccentColor: "#4285F4"
+    $name: Custom accent color
+    $description: "Custom color value when Accent color is set to Custom (e.g. #4285F4)."
+    #! $format: colorRgb
+    #! $showIf: {AccentColor: custom}
+  - Opacity: 100
+    $name: Opacity (%)
+    $description: "Transparency level of the panel background."
+    #! $min: 70
+    #! $max: 100
+- Placement:
+  - Position: right
+    $name: Screen position
+    $description: "Where the panel pops up on your screen."
+    $options:
+      - topleft: Top Left
+      - top: Top
+      - topright: Top Right
+      - left: Left
+      - center: Center
+      - right: Right
+      - bottomleft: Bottom Left
+      - bottom: Bottom
+      - bottomright: Bottom Right
+  - Monitor: pointer
+    $name: Target monitor
+    $description: "Open on the monitor under your mouse cursor or on the primary display."
+    $options:
+      - pointer: Monitor With The Pointer
+      - primary: Primary Monitor
+  - HorizontalOffset: 0
+    $name: Horizontal offset (pixels)
+    $description: "Fine-tune horizontal position."
+    #! $min: -2000
+    #! $max: 2000
+  - VerticalOffset: 0
+    $name: Vertical offset (pixels)
+    $description: "Fine-tune vertical position."
+    #! $min: -2000
+    #! $max: 2000
+- Metronome:
+  - Volume: 70
+    $name: Volume (%)
+    $description: "Loudness of the metronome clicks."
+    #! $min: 0
+    #! $max: 100
+  - ClickSound: ticktock
+    $name: Click sound
+    $description: "Audio style for the beat clicks."
+    $options:
+      - ticktock: Tick-tock
+      - wood: Woodblock
+      - beep: Beep
+  - KeepPlaying: true
+    $name: Keep playing when panel closes
+    $description: "Keep the metronome running in the background while you play."
+  - Signature: four-four
+    $name: Default time signature
+    $description: "Starting meter for the metronome."
+    $options:
+      - four-four: 4/4
+      - three-four: 3/4
+      - two-four: 2/4
+      - five-four: 5/4
+      - six-eight: 6/8
+      - seven-eight: 7/8
+      - nine-eight: 9/8
+      - twelve-eight: 12/8
+  - Subdivision: off
+    $name: Subdivision
+    $description: "Extra background subdivisions between main beats."
+    $options:
+      - off: Off
+      - eighth: Eighth Notes
+      - triplet: Triplets
+      - sixteenth: Sixteenth Notes
+- Chords:
+  - HideFingerings: false
+    $name: Hide finger numbers
+    $description: "Hides the suggested finger numbers inside dots and barre markers."
+- TapTempo:
+  - ResetAfter: 3
+    $name: Reset after (seconds)
+    $description: "Time of inactivity before a tap sequence resets."
+    #! $min: 1
+    #! $max: 10
+  - TapKeys: both
+    $name: Tap keys
+    $description: "Keyboard keys accepted as taps."
+    $options:
+      - space: Space
+      - enter: Enter
+      - both: Space Or Enter
+- Tuner:
+  - ReferencePitch: 440
+    $name: Reference pitch (Hz)
+    $description: "Frequency of A4 concert pitch."
+    #! $min: 415
+    #! $max: 466
+*/
+// ==/WindhawkModSettings==
+
+#include <windows.h>
+#include <windowsx.h>
+
+#include <windhawk_utils.h>
+
+#include <mmreg.h>
+#include <mmsystem.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <cwchar>
+#include <cwctype>
+#include <string>
+#include <vector>
+
+////////////////////////////////////////////////////////////////////////////////
+// Small helpers
+
+inline float Clamp01(float v) {
+    return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+}
+
+inline double NowMs() {
+    static const ULONGLONG start = GetTickCount64();
+    return static_cast<double>(GetTickCount64() - start);
+}
+
+inline double EaseOutCubic(double t) {
+    t = std::clamp(t, 0.0, 1.0);
+    const double u = 1.0 - t;
+    return 1.0 - u * u * u;
+}
+
+// Arrives past its size and settles back, which is what makes a mark worth
+// looking at.
+inline float EaseOutBack(float t) {
+    constexpr float c1 = 1.70158f;
+    constexpr float c3 = c1 + 1.0f;
+    const float u = Clamp01(t) - 1.0f;
+    return 1.0f + c3 * u * u * u + c1 * u * u;
+}
+
+template <typename T>
+T GetProc(PCWSTR module, const char* name) {
+    HMODULE handle = GetModuleHandleW(module);
+    if (!handle) {
+        handle = LoadLibraryExW(module, nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    }
+    if (!handle) {
+        return nullptr;
+    }
+    return reinterpret_cast<T>(GetProcAddress(handle, name));
+}
+
+std::wstring Trim(const std::wstring& text) {
+    size_t begin = 0;
+    size_t end = text.size();
+    while (begin < end && iswspace(text[begin])) {
+        begin++;
+    }
+    while (end > begin && iswspace(text[end - 1])) {
+        end--;
+    }
+    return text.substr(begin, end - begin);
+}
+
+std::wstring Lower(std::wstring text) {
+    for (wchar_t& c : text) {
+        c = static_cast<wchar_t>(towlower(c));
+    }
+    return text;
+}
+
+struct OsVersion {
+    DWORD major;
+    DWORD minor;
+    DWORD build;
+};
+
+struct OsVersionInfo {
+    ULONG size;
+    ULONG major;
+    ULONG minor;
+    ULONG build;
+    ULONG platform;
+    WCHAR servicePack[128];
+};
+
+const OsVersion& GetOsVersion() {
+    static const OsVersion version = [] {
+        OsVersion v{10, 0, 0};
+        using RtlGetVersion_t = LONG(WINAPI*)(OsVersionInfo*);
+        auto rtlGetVersion = GetProc<RtlGetVersion_t>(L"ntdll.dll", "RtlGetVersion");
+        if (rtlGetVersion) {
+            OsVersionInfo info{};
+            info.size = sizeof(info);
+            if (rtlGetVersion(&info) == 0) {
+                v.major = info.major;
+                v.minor = info.minor;
+                v.build = info.build;
+            }
+        }
+        return v;
+    }();
+    return version;
+}
+
+bool IsWindows10Build(DWORD build) {
+    const OsVersion& v = GetOsVersion();
+    return v.major > 10 || (v.major == 10 && v.build >= build);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Colors
+
+struct Color {
+    float r, g, b, a;
+};
+
+constexpr Color Rgb(int r, int g, int b, float a = 1.0f) {
+    return {r / 255.0f, g / 255.0f, b / 255.0f, a};
+}
+
+inline Color WithAlpha(Color c, float a) {
+    c.a = a;
+    return c;
+}
+
+inline Color Mix(const Color& x, const Color& y, float t) {
+    return {x.r + (y.r - x.r) * t, x.g + (y.g - x.g) * t,
+            x.b + (y.b - x.b) * t, x.a + (y.a - x.a) * t};
+}
+
+constexpr Color kWhite = Rgb(255, 255, 255);
+constexpr Color kBlack = Rgb(0, 0, 0);
+constexpr Color kFallbackAccent = Rgb(66, 133, 244);
+
+inline uint32_t PackPremultiplied(const Color& c, float coverage) {
+    const float a = Clamp01(c.a * coverage);
+    if (a <= 0.0f) {
+        return 0;
+    }
+    const uint32_t alpha = static_cast<uint32_t>(a * 255.0f + 0.5f);
+    auto channel = [&](float v) {
+        return std::min(alpha,
+                        static_cast<uint32_t>(Clamp01(v) * a * 255.0f + 0.5f));
+    };
+    return (alpha << 24) | (channel(c.r) << 16) | (channel(c.g) << 8) |
+           channel(c.b);
+}
+
+inline void BlendOver(uint32_t& dst, uint32_t src) {
+    const uint32_t sa = src >> 24;
+    if (sa == 0) {
+        return;
+    }
+    if (sa == 255) {
+        dst = src;
+        return;
+    }
+    const uint32_t inv = 255 - sa;
+    const uint32_t d = dst;
+    uint32_t rb = (d & 0x00FF00FF) * inv + 0x00800080;
+    rb = ((rb + ((rb >> 8) & 0x00FF00FF)) >> 8) & 0x00FF00FF;
+    uint32_t ag = ((d >> 8) & 0x00FF00FF) * inv + 0x00800080;
+    ag = (ag + ((ag >> 8) & 0x00FF00FF)) & 0xFF00FF00;
+    dst = src + (rb | ag);
+}
+
+inline void BlendColor(uint32_t& dst, const Color& c, float coverage) {
+    BlendOver(dst, PackPremultiplied(c, coverage));
+}
+
+// ClearType reports a coverage value per channel, so text is blended channel by
+// channel: the destination is un-premultiplied, mixed and premultiplied again.
+inline void BlendText(uint32_t& dst,
+                      const Color& c,
+                      uint32_t covR,
+                      uint32_t covG,
+                      uint32_t covB) {
+    const float alpha = static_cast<float>(dst >> 24) / 255.0f;
+    if (alpha <= 0.0f || (covR | covG | covB) == 0) {
+        return;
+    }
+    auto channel = [&](int shift, float color, uint32_t coverage) {
+        const uint32_t value = (dst >> shift) & 0xFF;
+        if (coverage == 0) {
+            return value;
+        }
+        const float straight =
+            Clamp01(static_cast<float>(value) / 255.0f / alpha);
+        const float t = static_cast<float>(coverage) / 255.0f;
+        const float out = color * t + straight * (1.0f - t);
+        return static_cast<uint32_t>(Clamp01(out * alpha) * 255.0f + 0.5f);
+    };
+    dst = (dst & 0xFF000000u) | (channel(16, c.r, covR) << 16) |
+          (channel(8, c.g, covG) << 8) | channel(0, c.b, covB);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Surfaces
+
+class Surface {
+  public:
+    Surface() = default;
+    ~Surface() { Reset(); }
+    Surface(const Surface&) = delete;
+    Surface& operator=(const Surface&) = delete;
+
+    bool Resize(int width, int height) {
+        width = std::max(width, 1);
+        height = std::max(height, 1);
+        if (!bits_ || width > stride_ || height > capacityHeight_) {
+            Reset();
+            const int capacityWidth = (width + 63) & ~63;
+            const int capacityHeight = (height + 63) & ~63;
+
+            BITMAPINFO info{};
+            info.bmiHeader.biSize = sizeof(info.bmiHeader);
+            info.bmiHeader.biWidth = capacityWidth;
+            info.bmiHeader.biHeight = -capacityHeight;  // Top-down.
+            info.bmiHeader.biPlanes = 1;
+            info.bmiHeader.biBitCount = 32;
+            info.bmiHeader.biCompression = BI_RGB;
+
+            dc_ = CreateCompatibleDC(nullptr);
+            if (!dc_) {
+                return false;
+            }
+            void* bits = nullptr;
+            bitmap_ = CreateDIBSection(dc_, &info, DIB_RGB_COLORS, &bits,
+                                       nullptr, 0);
+            if (!bitmap_ || !bits) {
+                Reset();
+                return false;
+            }
+            oldBitmap_ = SelectObject(dc_, bitmap_);
+            bits_ = static_cast<uint32_t*>(bits);
+            stride_ = capacityWidth;
+            capacityHeight_ = capacityHeight;
+        }
+        width_ = width;
+        height_ = height;
+        Clear();
+        return true;
+    }
+
+    void Reset() {
+        if (dc_) {
+            if (oldBitmap_) {
+                SelectObject(dc_, oldBitmap_);
+            }
+            DeleteDC(dc_);
+        }
+        if (bitmap_) {
+            DeleteObject(bitmap_);
+        }
+        dc_ = nullptr;
+        bitmap_ = nullptr;
+        oldBitmap_ = nullptr;
+        bits_ = nullptr;
+        width_ = height_ = stride_ = capacityHeight_ = 0;
+    }
+
+    void Clear() {
+        for (int y = 0; y < height_; y++) {
+            memset(Row(y), 0, static_cast<size_t>(width_) * 4);
+        }
+    }
+
+    bool Valid() const { return bits_ != nullptr; }
+    int Width() const { return width_; }
+    int Height() const { return height_; }
+    HDC Dc() const { return dc_; }
+    uint32_t* Row(int y) { return bits_ + static_cast<size_t>(y) * stride_; }
+    const uint32_t* Row(int y) const {
+        return bits_ + static_cast<size_t>(y) * stride_;
+    }
+
+  private:
+    HDC dc_ = nullptr;
+    HBITMAP bitmap_ = nullptr;
+    HGDIOBJ oldBitmap_ = nullptr;
+    uint32_t* bits_ = nullptr;
+    int width_ = 0;
+    int height_ = 0;
+    int stride_ = 0;
+    int capacityHeight_ = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Signed distance shapes
+
+struct Vec2 {
+    float x, y;
+};
+
+inline float SdRoundRect(float px,
+                         float py,
+                         float left,
+                         float top,
+                         float right,
+                         float bottom,
+                         float radius) {
+    const float hw = (right - left) * 0.5f;
+    const float hh = (bottom - top) * 0.5f;
+    const float r = std::max(0.0f, std::min(radius, std::min(hw, hh)));
+    const float qx = fabsf(px - (left + hw)) - hw + r;
+    const float qy = fabsf(py - (top + hh)) - hh + r;
+    const float ox = std::max(qx, 0.0f);
+    const float oy = std::max(qy, 0.0f);
+    return sqrtf(ox * ox + oy * oy) + std::min(std::max(qx, qy), 0.0f) - r;
+}
+
+inline float SdSegment(Vec2 p, Vec2 a, Vec2 b) {
+    const Vec2 pa{p.x - a.x, p.y - a.y};
+    const Vec2 ba{b.x - a.x, b.y - a.y};
+    const float lengthSq = ba.x * ba.x + ba.y * ba.y;
+    const float h =
+        lengthSq > 0 ? Clamp01((pa.x * ba.x + pa.y * ba.y) / lengthSq) : 0.0f;
+    const float dx = pa.x - ba.x * h;
+    const float dy = pa.y - ba.y * h;
+    return sqrtf(dx * dx + dy * dy);
+}
+
+inline float Erfc(float x) {
+    const float z = fabsf(x);
+    const float t = 1.0f / (1.0f + 0.3275911f * z);
+    const float y =
+        t *
+        (0.254829592f +
+         t * (-0.284496736f +
+              t * (1.421413741f + t * (-1.453152027f + t * 1.061405429f)))) *
+        expf(-z * z);
+    return x >= 0 ? y : 2.0f - y;
+}
+
+inline float SoftCoverage(float distance, float sigma) {
+    return 0.5f * Erfc(distance / (sigma * 1.41421356f));
+}
+
+template <typename DistanceFn, typename ColorFn>
+void FillShape(Surface& s,
+               float x0,
+               float y0,
+               float x1,
+               float y1,
+               DistanceFn distance,
+               ColorFn color) {
+    const int ix0 = std::max(0, static_cast<int>(floorf(x0)));
+    const int iy0 = std::max(0, static_cast<int>(floorf(y0)));
+    const int ix1 = std::min(s.Width(), static_cast<int>(ceilf(x1)));
+    const int iy1 = std::min(s.Height(), static_cast<int>(ceilf(y1)));
+    for (int y = iy0; y < iy1; y++) {
+        uint32_t* row = s.Row(y);
+        const float py = y + 0.5f;
+        for (int x = ix0; x < ix1; x++) {
+            const float px = x + 0.5f;
+            const float coverage = Clamp01(0.5f - distance(px, py));
+            if (coverage > 0.0f) {
+                BlendColor(row[x], color(px, py), coverage);
+            }
+        }
+    }
+}
+
+void FillRoundRect(Surface& s,
+                   float l,
+                   float t,
+                   float r,
+                   float b,
+                   float radius,
+                   Color c) {
+    FillShape(
+        s, l - 1, t - 1, r + 1, b + 1,
+        [&](float x, float y) { return SdRoundRect(x, y, l, t, r, b, radius); },
+        [&](float, float) { return c; });
+}
+
+void FillRoundRectGradient(Surface& s,
+                           float l,
+                           float t,
+                           float r,
+                           float b,
+                           float radius,
+                           Color top,
+                           Color bottom) {
+    const float height = std::max(1.0f, b - t);
+    FillShape(
+        s, l - 1, t - 1, r + 1, b + 1,
+        [&](float x, float y) { return SdRoundRect(x, y, l, t, r, b, radius); },
+        [&](float, float y) { return Mix(top, bottom, Clamp01((y - t) / height)); });
+}
+
+void StrokeRoundRect(Surface& s,
+                     float l,
+                     float t,
+                     float r,
+                     float b,
+                     float radius,
+                     float width,
+                     Color c) {
+    FillShape(
+        s, l - width, t - width, r + width, b + width,
+        [&](float x, float y) {
+            return fabsf(SdRoundRect(x, y, l, t, r, b, radius)) - width * 0.5f;
+        },
+        [&](float, float) { return c; });
+}
+
+void FillCircle(Surface& s, float cx, float cy, float radius, Color c) {
+    FillShape(
+        s, cx - radius - 1, cy - radius - 1, cx + radius + 1, cy + radius + 1,
+        [&](float x, float y) {
+            return sqrtf((x - cx) * (x - cx) + (y - cy) * (y - cy)) - radius;
+        },
+        [&](float, float) { return c; });
+}
+
+void StrokeCircle(Surface& s,
+                  float cx,
+                  float cy,
+                  float radius,
+                  float width,
+                  Color c) {
+    FillShape(
+        s, cx - radius - width, cy - radius - width, cx + radius + width,
+        cy + radius + width,
+        [&](float x, float y) {
+            return fabsf(sqrtf((x - cx) * (x - cx) + (y - cy) * (y - cy)) -
+                         radius) -
+                   width * 0.5f;
+        },
+        [&](float, float) { return c; });
+}
+
+void StrokeLine(Surface& s, Vec2 a, Vec2 b, float width, Color c) {
+    const float half = width * 0.5f;
+    FillShape(
+        s, std::min(a.x, b.x) - width, std::min(a.y, b.y) - width,
+        std::max(a.x, b.x) + width, std::max(a.y, b.y) + width,
+        [&](float x, float y) { return SdSegment({x, y}, a, b) - half; },
+        [&](float, float) { return c; });
+}
+
+void DrawShadow(Surface& s,
+                float l,
+                float t,
+                float r,
+                float b,
+                float radius,
+                float sigma,
+                Color c) {
+    const float reach = sigma * 3.0f;
+    const int ix0 = std::max(0, static_cast<int>(floorf(l - reach)));
+    const int iy0 = std::max(0, static_cast<int>(floorf(t - reach)));
+    const int ix1 = std::min(s.Width(), static_cast<int>(ceilf(r + reach)));
+    const int iy1 = std::min(s.Height(), static_cast<int>(ceilf(b + reach)));
+    for (int y = iy0; y < iy1; y++) {
+        uint32_t* row = s.Row(y);
+        for (int x = ix0; x < ix1; x++) {
+            const float d = SdRoundRect(x + 0.5f, y + 0.5f, l, t, r, b, radius);
+            const float coverage = SoftCoverage(d, sigma);
+            if (coverage > 0.002f) {
+                BlendColor(row[x], c, coverage);
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Text
+
+class FontCache {
+  public:
+    void Init() {
+        static const PCWSTR kUiFaces[] = {L"Segoe UI Variable Text",
+                                          L"Segoe UI", L"Tahoma"};
+        face_ = PickFace(kUiFaces, ARRAYSIZE(kUiFaces));
+    }
+
+    HFONT Get(int px, int weight) { return Find(px, weight); }
+
+    void Clear() {
+        for (const Entry& entry : entries_) {
+            DeleteObject(entry.font);
+        }
+        entries_.clear();
+    }
+
+  private:
+    struct Entry {
+        int px;
+        int weight;
+        HFONT font;
+    };
+
+    HFONT Find(int px, int weight) {
+        px = std::max(px, 6);
+        for (const Entry& entry : entries_) {
+            if (entry.px == px && entry.weight == weight) {
+                return entry.font;
+            }
+        }
+        HFONT font = CreateFontW(-px, 0, 0, 0, weight, FALSE, FALSE, FALSE,
+                                 DEFAULT_CHARSET, OUT_TT_PRECIS,
+                                 CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                                 DEFAULT_PITCH | FF_DONTCARE, face_.c_str());
+        if (font) {
+            entries_.push_back({px, weight, font});
+        }
+        return font ? font : static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+    }
+
+    static int CALLBACK EnumFontProc(const LOGFONTW*,
+                                     const TEXTMETRICW*,
+                                     DWORD,
+                                     LPARAM param) {
+        *reinterpret_cast<bool*>(param) = true;
+        return 0;
+    }
+
+    static std::wstring PickFace(const PCWSTR* faces, size_t count) {
+        HDC dc = GetDC(nullptr);
+        for (size_t i = 0; i < count; i++) {
+            LOGFONTW lf{};
+            lf.lfCharSet = DEFAULT_CHARSET;
+            wcsncpy_s(lf.lfFaceName, faces[i], _TRUNCATE);
+            bool found = false;
+            EnumFontFamiliesExW(dc, &lf, EnumFontProc,
+                                reinterpret_cast<LPARAM>(&found), 0);
+            if (found) {
+                ReleaseDC(nullptr, dc);
+                return faces[i];
+            }
+        }
+        ReleaseDC(nullptr, dc);
+        return faces[count - 1];
+    }
+
+    std::vector<Entry> entries_;
+    std::wstring face_ = L"Segoe UI";
+};
+
+FontCache g_fonts;
+
+class TextPainter {
+  public:
+    SIZE Measure(HFONT font, const std::wstring& text,
+                 UINT flags = DT_SINGLELINE) {
+        EnsureMeasureDc();
+        HGDIOBJ old = SelectObject(measureDc_, font);
+        RECT rc{0, 0, 0, 0};
+        DrawTextW(measureDc_, text.empty() ? L" " : text.c_str(),
+                  text.empty() ? 1 : static_cast<int>(text.size()), &rc,
+                  flags | DT_CALCRECT | DT_NOPREFIX);
+        SelectObject(measureDc_, old);
+        return {rc.right - rc.left, rc.bottom - rc.top};
+    }
+
+    int Width(HFONT font, const wchar_t* text, int length) {
+        if (length <= 0) {
+            return 0;
+        }
+        EnsureMeasureDc();
+        HGDIOBJ old = SelectObject(measureDc_, font);
+        SIZE size{};
+        GetTextExtentPoint32W(measureDc_, text, length, &size);
+        SelectObject(measureDc_, old);
+        return size.cx;
+    }
+
+    // Shortens the text until it fits, ending it with an ellipsis.
+    std::wstring Ellipsize(HFONT font, std::wstring text, int width) {
+        if (width <= 0) {
+            return std::wstring();
+        }
+        if (Width(font, text.c_str(), static_cast<int>(text.size())) <= width) {
+            return text;
+        }
+        while (!text.empty()) {
+            text.pop_back();
+            std::wstring candidate = text + L"\x2026";
+            if (Width(font, candidate.c_str(), static_cast<int>(candidate.size())) <=
+                width) {
+                return candidate;
+            }
+        }
+        return std::wstring();
+    }
+
+    void Draw(Surface& dst,
+              HFONT font,
+              const std::wstring& text,
+              RECT layout,
+              RECT clip,
+              UINT flags,
+              Color color) {
+        RECT bounds{0, 0, dst.Width(), dst.Height()};
+        if (!IntersectRect(&clip, &clip, &bounds)) {
+            return;
+        }
+        const int w = clip.right - clip.left;
+        const int h = clip.bottom - clip.top;
+        if (text.empty() || w <= 0 || h <= 0 || !mask_.Resize(w, h)) {
+            return;
+        }
+        HDC dc = mask_.Dc();
+        HGDIOBJ old = SelectObject(dc, font);
+        SetTextColor(dc, RGB(255, 255, 255));
+        SetBkMode(dc, TRANSPARENT);
+        OffsetRect(&layout, -clip.left, -clip.top);
+        DrawTextW(dc, text.c_str(), static_cast<int>(text.size()), &layout,
+                  flags | DT_NOPREFIX);
+        SelectObject(dc, old);
+        GdiFlush();  // Finish GDI text before reading the mask.
+
+        const float luminance = color.r * 0.3f + color.g * 0.59f + color.b * 0.11f;
+        const float gamma = luminance < 0.5f ? 0.8f : 0.9f;
+        uint32_t lut[256];
+        for (int i = 0; i < 256; i++) {
+            lut[i] = static_cast<uint32_t>(powf(i / 255.0f, gamma) * 255.0f + 0.5f);
+        }
+        for (int y = 0; y < h; y++) {
+            const uint32_t* src = mask_.Row(y);
+            uint32_t* row = dst.Row(clip.top + y) + clip.left;
+            for (int x = 0; x < w; x++) {
+                const uint32_t m = src[x];
+                if (m & 0x00FFFFFFu) {
+                    BlendText(row[x], color, lut[(m >> 16) & 0xFF],
+                              lut[(m >> 8) & 0xFF], lut[m & 0xFF]);
+                }
+            }
+        }
+    }
+
+    void Draw(Surface& dst,
+              HFONT font,
+              const std::wstring& text,
+              RECT layout,
+              UINT flags,
+              Color color) {
+        Draw(dst, font, text, layout, layout, flags, color);
+    }
+
+    ~TextPainter() {
+        if (measureDc_) {
+            DeleteDC(measureDc_);
+        }
+    }
+
+  private:
+    void EnsureMeasureDc() {
+        if (!measureDc_) {
+            measureDc_ = CreateCompatibleDC(nullptr);
+        }
+    }
+
+    Surface mask_;
+    HDC measureDc_ = nullptr;
+};
+
+TextPainter g_text;
+
+////////////////////////////////////////////////////////////////////////////////
+// Layered windows
+
+HINSTANCE g_instance;
+
+constexpr WCHAR kPanelClass[] = L"MusiciansToolkitPanel_" WH_MOD_ID;
+constexpr WCHAR kShadowClass[] = L"MusiciansToolkitShadow_" WH_MOD_ID;
+constexpr WCHAR kMessageClass[] = L"MusiciansToolkitMessages_" WH_MOD_ID;
+
+bool TransparencyEnabled() {
+    DWORD value = 1;
+    DWORD size = sizeof(value);
+    RegGetValueW(
+        HKEY_CURRENT_USER,
+        L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+        L"EnableTransparency", RRF_RT_REG_DWORD, nullptr, &value, &size);
+    return value != 0;
+}
+
+void SetDwmAttribute(HWND hwnd, DWORD attribute, const void* value, DWORD size) {
+    using DwmSetWindowAttribute_t = HRESULT(WINAPI*)(HWND, DWORD, LPCVOID, DWORD);
+    static auto setAttribute =
+        GetProc<DwmSetWindowAttribute_t>(L"dwmapi.dll", "DwmSetWindowAttribute");
+    if (setAttribute) {
+        setAttribute(hwnd, attribute, value, size);
+    }
+}
+
+struct AccentPolicy {
+    int state;
+    int flags;
+    DWORD gradientColor;  // 0xAABBGGRR.
+    int animationId;
+};
+
+struct WindowCompositionAttributeData {
+    int attribute;
+    PVOID data;
+    SIZE_T size;
+};
+
+using SetWindowCompositionAttribute_t =
+    BOOL(WINAPI*)(HWND, WindowCompositionAttributeData*);
+
+SetWindowCompositionAttribute_t GetSetWindowCompositionAttribute() {
+    static auto function = GetProc<SetWindowCompositionAttribute_t>(
+        L"user32.dll", "SetWindowCompositionAttribute");
+    return function;
+}
+
+// Keeps the panel free of non-client chrome, rounds it like a shell flyout and
+// gives it the acrylic blur Windows uses for its own.
+void ConfigureGlassWindow(HWND hwnd, const Color* tint) {
+    const DWORD nonClient = 1;  // DWMNCRP_DISABLED.
+    SetDwmAttribute(hwnd, 2 /* DWMWA_NCRENDERING_POLICY */, &nonClient,
+                    sizeof(nonClient));
+    const BOOL noTransitions = TRUE;
+    SetDwmAttribute(hwnd, 3 /* DWMWA_TRANSITIONS_FORCEDISABLED */,
+                    &noTransitions, sizeof(noTransitions));
+    if (IsWindows10Build(22621)) {
+        const DWORD backdrop = 1;  // DWMSBT_NONE.
+        SetDwmAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &backdrop,
+                        sizeof(backdrop));
+    }
+    if (auto setAttribute = GetSetWindowCompositionAttribute()) {
+        auto channel = [](float v) { return static_cast<DWORD>(v * 255.0f + 0.5f); };
+        AccentPolicy policy{
+            tint ? 4 /* ACCENT_ENABLE_ACRYLICBLURBEHIND */ : 0, 0,
+            tint ? 0x01000000 | channel(tint->b) << 16 |
+                       channel(tint->g) << 8 | channel(tint->r)
+                 : 0,
+            0};
+        WindowCompositionAttributeData data{19 /* WCA_ACCENT_POLICY */, &policy,
+                                            sizeof(policy)};
+        setAttribute(hwnd, &data);
+    }
+    if (IsWindows10Build(22000)) {
+        const DWORD corners = 2;  // DWMWCP_ROUND.
+        SetDwmAttribute(hwnd, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &corners,
+                        sizeof(corners));
+        const COLORREF border = 0xFFFFFFFE;  // DWMWA_COLOR_NONE.
+        SetDwmAttribute(hwnd, 34 /* DWMWA_BORDER_COLOR */, &border,
+                        sizeof(border));
+    }
+}
+
+class LayeredWindow {
+  public:
+    bool Create(DWORD exStyle, PCWSTR className, PCWSTR title, void* param) {
+        hwnd_ = CreateWindowExW(exStyle | WS_EX_LAYERED | WS_EX_TOPMOST |
+                                    WS_EX_TOOLWINDOW,
+                                className, title, WS_POPUP, 0, 0, 1, 1, nullptr,
+                                nullptr, g_instance, param);
+        return hwnd_ != nullptr;
+    }
+
+    void Destroy() {
+        if (hwnd_) {
+            DestroyWindow(hwnd_);
+            hwnd_ = nullptr;
+        }
+        visible_ = false;
+    }
+
+    bool Present(Surface& surface, int x, int y, BYTE alpha) {
+        if (!hwnd_ || !surface.Valid()) {
+            return false;
+        }
+        POINT dst{x, y};
+        SIZE size{surface.Width(), surface.Height()};
+        POINT src{0, 0};
+        BLENDFUNCTION blend{AC_SRC_OVER, 0, alpha, AC_SRC_ALPHA};
+        GdiFlush();  // Finish GDI drawing before uploading the pixels.
+        if (!UpdateLayeredWindow(hwnd_, nullptr, &dst, &size, surface.Dc(), &src,
+                                 0, &blend, ULW_ALPHA)) {
+            return false;
+        }
+        x_ = x;
+        y_ = y;
+        width_ = size.cx;
+        height_ = size.cy;
+        alpha_ = alpha;
+        return true;
+    }
+
+    void SetAlpha(BYTE alpha) {
+        if (hwnd_ && alpha != alpha_) {
+            BLENDFUNCTION blend{AC_SRC_OVER, 0, alpha, AC_SRC_ALPHA};
+            UpdateLayeredWindow(hwnd_, nullptr, nullptr, nullptr, nullptr,
+                                nullptr, 0, &blend, ULW_ALPHA);
+            alpha_ = alpha;
+        }
+    }
+
+    void Move(int x, int y) {
+        if (hwnd_ && (x != x_ || y != y_)) {
+            SetWindowPos(hwnd_, nullptr, x, y, 0, 0,
+                         SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE |
+                             SWP_NOOWNERZORDER);
+            x_ = x;
+            y_ = y;
+        }
+    }
+
+    void Show(bool activate) {
+        if (hwnd_ && !visible_) {
+            SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW |
+                             (activate ? 0 : SWP_NOACTIVATE));
+            visible_ = true;
+        }
+    }
+
+    void Hide() {
+        if (hwnd_ && visible_) {
+            ShowWindow(hwnd_, SW_HIDE);
+            visible_ = false;
+        }
+    }
+
+    HWND Hwnd() const { return hwnd_; }
+    bool Visible() const { return visible_; }
+    int X() const { return x_; }
+    int Y() const { return y_; }
+    BYTE Alpha() const { return alpha_; }
+    void SetPosition(int x, int y) {
+        x_ = x;
+        y_ = y;
+    }
+
+  private:
+    HWND hwnd_ = nullptr;
+    bool visible_ = false;
+    int x_ = 0;
+    int y_ = 0;
+    int width_ = 0;
+    int height_ = 0;
+    BYTE alpha_ = 255;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Accent color
+
+std::wstring GetStringSetting(PCWSTR name) {
+    PCWSTR value = Wh_GetStringSetting(name);
+    std::wstring result = value ? value : L"";
+    if (value) {
+        Wh_FreeStringSetting(value);
+    }
+    return Trim(result);
+}
+
+Color WindowsAccentColor() {
+    DWORD value = 0;
+    DWORD size = sizeof(value);
+    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\DWM",
+                     L"AccentColor", RRF_RT_REG_DWORD, nullptr, &value,
+                     &size) == ERROR_SUCCESS) {
+        // Stored as 0xAABBGGRR.
+        return Rgb(value & 0xFF, (value >> 8) & 0xFF, (value >> 16) & 0xFF);
+    }
+    return kFallbackAccent;
+}
+
+Color ParseColorText(std::wstring text, Color fallback) {
+    text = Lower(Trim(text));
+    if (text.empty()) {
+        return fallback;
+    }
+    if (text[0] == L'#') {
+        text.erase(0, 1);
+    } else if (text.rfind(L"0x", 0) == 0) {
+        text.erase(0, 2);
+    }
+    const bool isHex =
+        (text.size() == 3 || text.size() == 6) &&
+        text.find_first_not_of(L"0123456789abcdef") == std::wstring::npos;
+    if (isHex) {
+        const unsigned long v = wcstoul(text.c_str(), nullptr, 16);
+        if (text.size() == 3) {
+            return Rgb(static_cast<int>(((v >> 8) & 0xF) * 17),
+                       static_cast<int>(((v >> 4) & 0xF) * 17),
+                       static_cast<int>((v & 0xF) * 17));
+        }
+        return Rgb(static_cast<int>((v >> 16) & 0xFF),
+                   static_cast<int>((v >> 8) & 0xFF),
+                   static_cast<int>(v & 0xFF));
+    }
+
+    int values[3] = {0, 0, 0};
+    int count = 0;
+    for (size_t i = 0; i < text.size() && count < 3;) {
+        if (iswdigit(text[i])) {
+            values[count++] = std::min(255, _wtoi(text.c_str() + i));
+            while (i < text.size() && iswdigit(text[i])) {
+                i++;
+            }
+        } else {
+            i++;
+        }
+    }
+    if (count == 3) {
+        return Rgb(values[0], values[1], values[2]);
+    }
+    return fallback;
+}
+
+Color ResolveAccent(const std::wstring& choice, const std::wstring& custom) {
+    static const struct {
+        PCWSTR name;
+        Color color;
+    } kPresets[] = {
+        {L"blue", Rgb(66, 133, 244)},   {L"red", Rgb(234, 67, 53)},
+        {L"green", Rgb(52, 168, 83)},   {L"teal", Rgb(0, 168, 158)},
+        {L"purple", Rgb(150, 92, 255)}, {L"pink", Rgb(255, 92, 170)},
+        {L"orange", Rgb(255, 138, 32)}, {L"gold", Rgb(240, 180, 40)},
+        {L"mint", Rgb(64, 220, 160)},
+    };
+    const std::wstring key = Lower(Trim(choice));
+    if (key == L"custom") {
+        return ParseColorText(custom, WindowsAccentColor());
+    }
+    for (const auto& preset : kPresets) {
+        if (key == preset.name) {
+            return preset.color;
+        }
+    }
+    return WindowsAccentColor();
+}
+
+bool SystemUsesDarkTheme() {
+    DWORD value = 1;
+    DWORD size = sizeof(value);
+    if (RegGetValueW(
+            HKEY_CURRENT_USER,
+            L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+            L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &value,
+            &size) != ERROR_SUCCESS) {
+        return true;
+    }
+    return value == 0;
+}
+
+// End of the shared toolkit. The chord library follows.
+////////////////////////////////////////////////////////////////////////////////
+// Chord data
+//
+// The library is packed into one blob per instrument and decoded once, the
+// first time the instrument is used. Records are byte streams, so nothing is
+// parsed from text at runtime:
+//
+//   key, suffix, voicingCount, then the voicings:
+//     fretted: baseFret, frets[strings], fingers[strings],
+//              barreCount, then per barre: fret, fromString, toString
+//     piano:   noteCount, then midi[noteCount]
+//
+// tools/build-chord-data.js produces the tables at the end of this file from the
+// chords-db JSON files.
+
+namespace chorddata {
+
+enum Kind {
+    kFretted,
+    kPiano,
+};
+
+struct InstrumentData {
+    PCWSTR name;
+    Kind kind;
+    int strings;
+    const int* tuning;          // Midi note of every open string.
+    const PCWSTR* keys;
+    int keyCount;
+    const PCWSTR* suffixes;     // Raw suffixes, for searching.
+    const PCWSTR* suffixNames;  // How a suffix is written on screen.
+    int suffixCount;
+    const char* const* chunks;  // Base64 pieces of the packed voicings.
+    int chunkCount;
+};
+
+extern const InstrumentData kInstruments[];
+extern const int kInstrumentsSize;
+
+}  // namespace chorddata
+
+enum Instrument {
+    kInstrumentGuitar,
+    kInstrumentUkulele,
+    kInstrumentPiano,
+    kInstrumentCount,
+};
+
+constexpr int kMutedFret = 0xFF;
+constexpr int kMaxStrings = 8;
+constexpr int kMaxBarres = 8;
+constexpr int kMaxNotes = 16;
+
+struct ChordEntry {
+    uint8_t key = 0;
+    uint8_t suffix = 0;
+    uint32_t offset = 0;  // Byte offset of the record in the blob.
+    std::wstring name;    // "C#m7".
+    std::wstring search;  // Lowercase text that searches match against.
+};
+
+struct Library {
+    bool loaded = false;
+    std::vector<uint8_t> data;
+    std::vector<ChordEntry> chords;
+};
+
+Library g_libraries[kInstrumentCount];
+
+struct Barre {
+    int fret = 0;  // Relative to baseFret.
+    int from = 0;
+    int to = 0;
+};
+
+struct Voicing {
+    bool valid = false;
+    int baseFret = 1;
+    int stringCount = 0;
+    int frets[kMaxStrings] = {};
+    int fingers[kMaxStrings] = {};
+    Barre barres[kMaxBarres];
+    int barreCount = 0;
+    int notes[kMaxNotes] = {};  // Midi notes, held keys for the piano.
+    int noteCount = 0;
+};
+
+int Base64Value(char c) {
+    if (c >= 'A' && c <= 'Z') {
+        return c - 'A';
+    }
+    if (c >= 'a' && c <= 'z') {
+        return c - 'a' + 26;
+    }
+    if (c >= '0' && c <= '9') {
+        return c - '0' + 52;
+    }
+    if (c == '+' || c == '-') {
+        return 62;
+    }
+    if (c == '/' || c == '_') {
+        return 63;
+    }
+    return -1;
+}
+
+void AppendBase64(const char* text, std::vector<uint8_t>& out) {
+    uint32_t buffer = 0;
+    int bits = 0;
+    for (const char* p = text; *p; p++) {
+        const int value = Base64Value(*p);
+        if (value < 0) {
+            continue;
+        }
+        buffer = (buffer << 6) | static_cast<uint32_t>(value);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<uint8_t>((buffer >> bits) & 0xFF));
+        }
+    }
+}
+
+size_t VoicingSize(const chorddata::InstrumentData& info,
+                   const uint8_t* p,
+                   size_t available) {
+    if (available < 1) {
+        return available;
+    }
+    if (info.kind == chorddata::kFretted) {
+        const size_t body = 1 + static_cast<size_t>(info.strings) * 2;
+        if (available < body + 1) {
+            return available;
+        }
+        return body + 1 + static_cast<size_t>(p[body]) * 3;
+    }
+    return 1 + static_cast<size_t>(p[0]);
+}
+
+bool EnsureLibrary(int instrument) {
+    if (instrument < 0 || instrument >= kInstrumentCount ||
+        instrument >= chorddata::kInstrumentsSize) {
+        return false;
+    }
+    Library& library = g_libraries[instrument];
+    if (library.loaded) {
+        return true;
+    }
+    if (!library.chords.empty()) {
+        library.loaded = true;
+        return true;
+    }
+
+    const chorddata::InstrumentData& info = chorddata::kInstruments[instrument];
+    library.data.clear();
+    for (int i = 0; i < info.chunkCount; i++) {
+        AppendBase64(info.chunks[i], library.data);
+    }
+    if (library.data.empty()) {
+        Wh_Log(L"No chord data for instrument %d", instrument);
+        return false;
+    }
+
+    const uint8_t* bytes = library.data.data();
+    const size_t size = library.data.size();
+    size_t offset = 0;
+    while (offset + 3 <= size) {
+        ChordEntry entry;
+        entry.key = bytes[offset];
+        entry.suffix = bytes[offset + 1];
+        entry.offset = static_cast<uint32_t>(offset);
+        const int voicings = bytes[offset + 2];
+        if (entry.key < info.keyCount && entry.suffix < info.suffixCount) {
+            entry.name = std::wstring(info.keys[entry.key]) +
+                         info.suffixNames[entry.suffix];
+            // Searched without spaces, so "c m7" and "c# maj7" both land.
+            entry.search = Lower(entry.name + info.keys[entry.key] +
+                                 info.suffixes[entry.suffix]);
+            library.chords.push_back(std::move(entry));
+        }
+        size_t next = offset + 3;
+        for (int i = 0; i < voicings && next < size; i++) {
+            next += VoicingSize(info, bytes + next, size - next);
+        }
+        if (next <= offset) {
+            break;  // Corrupt data: stop rather than spin.
+        }
+        offset = next;
+    }
+    library.loaded = !library.chords.empty();
+    return library.loaded;
+}
+
+int VoicingCount(int instrument, const ChordEntry& entry) {
+    if (instrument < 0 || instrument >= kInstrumentCount) {
+        return 0;
+    }
+    const Library& library = g_libraries[instrument];
+    if (entry.offset + 3 > library.data.size()) {
+        return 0;
+    }
+    return library.data[entry.offset + 2];
+}
+
+bool ReadVoicing(int instrument, const ChordEntry& entry, int index, Voicing& out) {
+    out = Voicing();
+    if (instrument < 0 || instrument >= kInstrumentCount) {
+        return false;
+    }
+    const chorddata::InstrumentData& info = chorddata::kInstruments[instrument];
+    const Library& library = g_libraries[instrument];
+    if (entry.offset + 3 > library.data.size()) {
+        return false;
+    }
+    const uint8_t* bytes = library.data.data();
+    const size_t size = library.data.size();
+    const int voicings = bytes[entry.offset + 2];
+    if (index < 0 || index >= voicings) {
+        return false;
+    }
+    size_t offset = entry.offset + 3;
+    for (int i = 0; i < index; i++) {
+        offset += VoicingSize(info, bytes + offset, size - offset);
+        if (offset >= size) {
+            return false;
+        }
+    }
+
+    out.valid = true;
+    if (info.kind == chorddata::kFretted) {
+        if (offset + 1 + static_cast<size_t>(info.strings) * 2 + 1 > size) {
+            return false;
+        }
+        out.stringCount = info.strings;
+        out.baseFret = bytes[offset++];
+        for (int i = 0; i < info.strings; i++) {
+            out.frets[i] = bytes[offset + i];
+        }
+        offset += info.strings;
+        for (int i = 0; i < info.strings; i++) {
+            out.fingers[i] = bytes[offset + i];
+        }
+        offset += info.strings;
+        const int barres = bytes[offset++];
+        out.barreCount = std::min(barres, kMaxBarres);
+        for (int i = 0; i < out.barreCount; i++) {
+            if (offset + 3 > size) {
+                out.barreCount = i;
+                break;
+            }
+            out.barres[i].fret = bytes[offset];
+            out.barres[i].from = bytes[offset + 1];
+            out.barres[i].to = bytes[offset + 2];
+            offset += 3;
+        }
+        for (int i = 0; i < info.strings && i < kMaxNotes; i++) {
+            const int fret = out.frets[i];
+            if (fret == kMutedFret) {
+                continue;
+            }
+            out.notes[out.noteCount++] =
+                info.tuning[i] + (fret == 0 ? 0 : out.baseFret + fret - 1);
+        }
+    } else {
+        const int notes = bytes[offset++];
+        out.noteCount = std::min(notes, kMaxNotes);
+        for (int i = 0; i < out.noteCount; i++) {
+            if (offset + i >= size) {
+                out.noteCount = i;
+                break;
+            }
+            out.notes[i] = bytes[offset + i];
+        }
+    }
+    return true;
+}
+
+// Absolute fret of a string in the drawn window, or a negative value for an
+// open or muted string.
+int AbsoluteFret(const Voicing& voicing, int string) {
+    const int fret = voicing.frets[string];
+    if (fret == kMutedFret || fret == 0) {
+        return -1;
+    }
+    return voicing.baseFret + fret - 1;
+}
+
+int KeyPitchClass(PCWSTR key) {
+    if (!key || !*key) {
+        return 0;
+    }
+    int pitch = 0;
+    switch (key[0]) {
+        case L'C':
+            pitch = 0;
+            break;
+        case L'D':
+            pitch = 2;
+            break;
+        case L'E':
+            pitch = 4;
+            break;
+        case L'F':
+            pitch = 5;
+            break;
+        case L'G':
+            pitch = 7;
+            break;
+        case L'A':
+            pitch = 9;
+            break;
+        case L'B':
+            pitch = 11;
+            break;
+        default:
+            return 0;
+    }
+    for (PCWSTR p = key + 1; *p; p++) {
+        if (*p == L'#') {
+            pitch++;
+        } else if (*p == L'b') {
+            pitch--;
+        }
+    }
+    return ((pitch % 12) + 12) % 12;
+}
+
+PCWSTR PitchClassName(int pitchClass) {
+    static const PCWSTR kNames[12] = {L"C", L"C#", L"D", L"D#", L"E", L"F",
+                                      L"F#", L"G", L"G#", L"A", L"A#", L"B"};
+    return kNames[((pitchClass % 12) + 12) % 12];
+}
+
+// The notes of the chord, starting at its root, without repeated pitch classes.
+std::wstring ChordTones(int instrument, const ChordEntry& entry,
+                        const Voicing& voicing) {
+    bool used[12] = {};
+    for (int i = 0; i < voicing.noteCount; i++) {
+        used[((voicing.notes[i] % 12) + 12) % 12] = true;
+    }
+    int root = 0;
+    if (instrument >= 0 && instrument < chorddata::kInstrumentsSize) {
+        const auto& info = chorddata::kInstruments[instrument];
+        if (entry.key < info.keyCount) {
+            root = KeyPitchClass(info.keys[entry.key]);
+        }
+    }
+    std::wstring tones;
+    for (int step = 0; step < 12; step++) {
+        const int pitch = (root + step) % 12;
+        if (!used[pitch]) {
+            continue;
+        }
+        if (!tones.empty()) {
+            tones += L" \x00B7 ";
+        }
+        tones += PitchClassName(pitch);
+    }
+    return tones;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Settings
+
+enum ThemeMode {
+    kThemeAuto,
+    kThemeLight,
+    kThemeDark,
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Time signatures
+//
+// The panel offers the eight below as one click presets. The beat count and the
+// note value beside them reach the rest of the meters, from 1/2 to 16/16.
+
+constexpr int kSignatureCount = 8;
+
+struct Signature {
+    int beats;
+    int unit;
+};
+
+constexpr Signature kSignatures[kSignatureCount] = {
+    {4, 4}, {3, 4}, {2, 4}, {5, 4}, {6, 8}, {7, 8}, {9, 8}, {12, 8},
+};
+
+PCWSTR SignatureId(int index) {
+    switch (index) {
+        case 1:
+            return L"three-four";
+        case 2:
+            return L"two-four";
+        case 3:
+            return L"five-four";
+        case 4:
+            return L"six-eight";
+        case 5:
+            return L"seven-eight";
+        case 6:
+            return L"nine-eight";
+        case 7:
+            return L"twelve-eight";
+        default:
+            break;
+    }
+    return L"four-four";
+}
+
+// Compound meters are felt in threes, so 6/8, 9/8 and 12/8 take a second accent
+// on the first beat of every group; the plain meters only accent the downbeat.
+int DefaultGrouping(int beats, int unit) {
+    return unit >= 8 && beats > 3 && beats % 3 == 0 ? 3 : 1;
+}
+
+std::wstring MeterLabel(int beats, int unit) {
+    return std::to_wstring(beats) + L"/" + std::to_wstring(unit);
+}
+
+// The note values the meter row offers, from half notes down to sixteenths.
+constexpr int kBeatUnits[4] = {2, 4, 8, 16};
+
+PCWSTR SubdivisionLabel(int subdivision) {
+    switch (subdivision) {
+        case 2:
+            return L"8ths";
+        case 3:
+            return L"Triplet";
+        case 4:
+            return L"16ths";
+        default:
+            break;
+    }
+    return L"Off";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Tunings
+//
+// The tuner works from the note each string is meant to sound, so a tuning is a
+// name and a list of MIDI notes, low string first. The five string banjo keeps
+// its drone at the end of the list, which is where a player reads it.
+
+constexpr int kTunerStringMax = 8;
+
+struct Tuning {
+    int instrument;
+    PCWSTR name;
+    int strings;
+    int notes[kTunerStringMax];
+};
+
+constexpr PCWSTR kTunerInstruments[] = {
+    L"Guitar",  L"Bass",   L"Ukulele", L"Mandolin",  L"Banjo",
+    L"Violin",  L"Viola",   L"Cello",   L"Double bass", L"Bouzouki",
+    L"Lap steel", L"Dobro",
+};
+constexpr int kTunerInstrumentCount =
+    static_cast<int>(sizeof(kTunerInstruments) / sizeof(kTunerInstruments[0]));
+
+constexpr Tuning kTunings[] = {
+    // Guitar, from the book tunings out to the extended range ones.
+    {0, L"Standard", 6, {40, 45, 50, 55, 59, 64}},
+    {0, L"Drop D", 6, {38, 45, 50, 55, 59, 64}},
+    {0, L"Half step down", 6, {39, 44, 49, 54, 58, 63}},
+    {0, L"Whole step down", 6, {38, 43, 48, 53, 57, 62}},
+    {0, L"Drop C", 6, {36, 43, 48, 53, 57, 62}},
+    {0, L"DADGAD", 6, {38, 45, 50, 55, 57, 62}},
+    {0, L"Open D", 6, {38, 45, 50, 54, 57, 62}},
+    {0, L"Open G", 6, {38, 43, 50, 55, 59, 62}},
+    {0, L"Open E", 6, {40, 47, 52, 56, 59, 64}},
+    {0, L"Open C", 6, {36, 43, 48, 52, 55, 60}},
+    {0, L"All fourths", 6, {40, 45, 50, 55, 60, 65}},
+    {0, L"Baritone", 6, {35, 40, 45, 50, 54, 59}},
+    {0, L"7 string", 7, {35, 40, 45, 50, 55, 59, 64}},
+    {0, L"8 string", 8, {30, 35, 40, 45, 50, 55, 59, 64}},
+    // Bass.
+    {1, L"4 string", 4, {28, 33, 38, 43}},
+    {1, L"Drop D", 4, {26, 33, 38, 43}},
+    {1, L"Half step down", 4, {27, 32, 37, 42}},
+    {1, L"5 string", 5, {23, 28, 33, 38, 43}},
+    {1, L"6 string", 6, {23, 28, 33, 38, 43, 48}},
+    // Ukulele.
+    {2, L"Standard (high G)", 4, {67, 60, 64, 69}},
+    {2, L"Low G", 4, {55, 60, 64, 69}},
+    {2, L"Baritone", 4, {50, 55, 59, 64}},
+    {2, L"D tuning", 4, {69, 62, 66, 71}},
+    // Mandolin.
+    {3, L"Standard", 4, {55, 62, 69, 76}},
+    {3, L"Cross AEAE", 4, {57, 64, 69, 76}},
+    {3, L"GDAD (Irish)", 4, {55, 62, 69, 74}},
+    // Five string banjo, drone last.
+    {4, L"Open G", 5, {50, 55, 59, 62, 67}},
+    {4, L"Double C", 5, {48, 55, 60, 62, 67}},
+    {4, L"G modal", 5, {50, 55, 60, 62, 67}},
+    // The violin family, low to high.
+    {5, L"Standard", 4, {55, 62, 69, 76}},
+    {6, L"Standard", 4, {48, 55, 62, 69}},
+    {7, L"Standard", 4, {36, 43, 50, 57}},
+    {8, L"Standard", 4, {28, 33, 38, 43}},
+    // Bouzouki.
+    {9, L"GDAD", 4, {43, 50, 57, 62}},
+    {9, L"GDAE", 4, {43, 50, 57, 64}},
+    // Lap steel and dobro.
+    {10, L"C6", 6, {48, 52, 55, 57, 60, 64}},
+    {10, L"Open G", 6, {43, 47, 50, 55, 59, 62}},
+    {11, L"Open G", 6, {43, 47, 50, 55, 59, 62}},
+};
+
+constexpr int kTuningCount =
+    static_cast<int>(sizeof(kTunings) / sizeof(kTunings[0]));
+
+PCWSTR TunerInstrumentName(int instrument) {
+    return instrument >= 0 && instrument < kTunerInstrumentCount
+               ? kTunerInstruments[instrument]
+               : L"Guitar";
+}
+
+int TunerStringCount(int tuning) {
+    return tuning >= 0 && tuning < kTuningCount ? kTunings[tuning].strings : 0;
+}
+
+PCWSTR TunerTuningName(int tuning) {
+    return tuning >= 0 && tuning < kTuningCount ? kTunings[tuning].name
+                                                : L"Standard";
+}
+
+// The first tuning of an instrument, or -1 when it has none.
+int TunerInstrumentFirst(int instrument) {
+    for (int i = 0; i < kTuningCount; i++) {
+        if (kTunings[i].instrument == instrument) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// How many tunings an instrument offers, and the entry at a list position.
+// The select lists work in these positions, so they stay short no matter how
+// many tunings the whole table holds.
+int TunerTuningCount(int instrument) {
+    const int first = TunerInstrumentFirst(instrument);
+    int count = 0;
+    if (first >= 0) {
+        while (first + count < kTuningCount &&
+               kTunings[first + count].instrument == instrument) {
+            count++;
+        }
+    }
+    return count;
+}
+
+int TunerTuningAt(int instrument, int index) {
+    const int first = TunerInstrumentFirst(instrument);
+    if (first < 0 || index < 0 || index >= TunerTuningCount(instrument)) {
+        return -1;
+    }
+    return first + index;
+}
+
+// Where the current tuning sits in its instrument's list, so the select can
+// open with its cursor on the row already chosen.
+int TunerTuningPosition(int instrument, int tuning) {
+    for (int i = 0; i < TunerTuningCount(instrument); i++) {
+        if (TunerTuningAt(instrument, i) == tuning) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+// The tallest list the tuner can show: guitar's fourteen tunings.
+constexpr int kTunerMenuMax = 14;
+
+constexpr PCWSTR kNoteNames[12] = {L"C", L"C#", L"D", L"D#", L"E", L"F",
+                                   L"F#", L"G", L"G#", L"A", L"A#", L"B"};
+
+std::wstring NoteLabel(int midi) {
+    if (midi < 0) {
+        return L"\u2014";
+    }
+    return std::wstring(kNoteNames[midi % 12]) +
+           std::to_wstring(midi / 12 - 1);
+}
+
+// The nearest note to a frequency, and how far off it is in cents. The panel
+// works this out from the reading, so the needle and the note always agree.
+int NoteFromFrequency(float frequency, int reference, int& cents) {
+    cents = 0;
+    if (frequency <= 0.0f || reference <= 0) {
+        return -1;
+    }
+    const double exact =
+        69.0 + 12.0 * std::log2(static_cast<double>(frequency) /
+                                 static_cast<double>(reference));
+    const int nearest = static_cast<int>(lround(exact));
+    cents = static_cast<int>(
+        lround((exact - static_cast<double>(nearest)) * 100.0));
+    return nearest;
+}
+
+// Tuner state. The audio thread owns the microphone; everything here is the
+// panel's own view of the last reading it drew.
+struct TunerState {
+    int instrument = 0;
+    int tuning = 0;
+    int reference = 440;  // A4 in Hz, from the settings.
+    bool listening = false;
+    bool micFailed = false;
+    float frequency = 0.0f;  // Smoothed, 0 when nothing is sounding.
+    float level = 0.0f;
+    double heardAt = 0.0;
+    unsigned reading = 0;    // Counts the analyses the panel has drawn.
+    int lock = -1;           // A string picked by hand, -1 to read them all.
+    double lockAt = 0.0;     // When a string was picked by hand.
+    bool tuned[kTunerStringMax] = {};  // Strings that have settled in tune.
+    double stringAt[kTunerStringMax] = {};  // When each mark landed.
+    float needle = 0.0f;    // Display cents, eased toward the reading.
+    bool pulsing = false;   // The ring the needle plays when it lands in tune.
+    double pulseAt = 0.0;
+    int shownNote = -1;      // The note the panel is drawing.
+    int fadingNote = -1;     // The note sliding out behind it.
+    int pendingNote = -1;    // A note seen once, not yet believed.
+    double noteAt = 0.0;     // When the shown note last changed.
+};
+
+TunerState g_tuner;
+
+// The reading as the panel shows it: the note heard, and the cents the needle
+// is drawn against. A locked string reads against its own target note, so
+// tuning one string on demand works even next to a chord.
+int TunerDisplayReading(int& cents) {
+    int nearestCents = 0;
+    const int midi =
+        NoteFromFrequency(g_tuner.frequency, g_tuner.reference, nearestCents);
+    cents = nearestCents;
+    if (midi < 0) {
+        return midi;
+    }
+    const int strings = TunerStringCount(g_tuner.tuning);
+    if (g_tuner.lock >= 0 && g_tuner.lock < strings) {
+        const int target = kTunings[g_tuner.tuning].notes[g_tuner.lock];
+        const double expected =
+            g_tuner.reference * std::pow(2.0, (target - 69) / 12.0);
+        cents = static_cast<int>(
+            lround(1200.0 * std::log2(g_tuner.frequency / expected)));
+    }
+    return midi;
+}
+
+// The string of the tuning the reading is closest to, or -1 when the note is
+// more than a semitone from every one of them.
+int TunerNearestString(int midi) {
+    const int strings = TunerStringCount(g_tuner.tuning);
+    int nearest = -1;
+    int best = 100;
+    for (int i = 0; i < strings; i++) {
+        const int distance = midi - kTunings[g_tuner.tuning].notes[i];
+        const int spread = distance < 0 ? -distance : distance;
+        if (spread < best) {
+            best = spread;
+            nearest = i;
+        }
+    }
+    return best > 1 ? -1 : nearest;
+}
+
+struct Settings {
+    int theme = kThemeAuto;
+    std::wstring accentChoice = L"accent";
+    std::wstring customAccent;
+    int opacity = 100;
+    std::wstring position = L"right";
+    int offsetX = 0;
+    int offsetY = 0;
+    bool primaryMonitorOnly = false;
+    // The order matches the Tool enum: chords, tempo, metronome, tuner.
+    int defaultTool = 0;
+    bool showFingerings = false;
+    int defaultInstrument = 0;
+    int tapResetMs = 3000;
+    bool tapKeySpace = true;
+    bool tapKeyEnter = true;
+    int metronomeBeats = 4;
+    int metronomeUnit = 4;
+    int metronomeSubdivision = 1;
+    int metronomeSound = 0;
+    int metronomeVolume = 70;
+    bool metronomeKeepPlaying = true;
+    int tunerReference = 440;  // A4 in Hz.
+};
+
+Settings LoadSettings() {
+    Settings s;
+    const std::wstring startTool = GetStringSetting(L"Startup.DefaultTool");
+    s.defaultTool = startTool == L"tempo" ? 1
+                    : startTool == L"metronome" ? 2
+                    : startTool == L"tuner" ? 3
+                                            : 0;
+    const std::wstring theme = GetStringSetting(L"Appearance.Theme");
+    s.theme = theme == L"light" ? kThemeLight
+              : theme == L"dark" ? kThemeDark
+                                 : kThemeAuto;
+    s.accentChoice = GetStringSetting(L"Appearance.AccentColor");
+    if (s.accentChoice.empty()) {
+        s.accentChoice = L"accent";
+    }
+    s.customAccent = GetStringSetting(L"Appearance.CustomAccentColor");
+    s.opacity = std::clamp(Wh_GetIntSetting(L"Appearance.Opacity"), 40, 100);
+
+    s.position = GetStringSetting(L"Placement.Position");
+    if (s.position.empty()) {
+        s.position = L"right";
+    }
+    s.offsetX = std::clamp(Wh_GetIntSetting(L"Placement.HorizontalOffset"),
+                           -4000, 4000);
+    s.offsetY = std::clamp(Wh_GetIntSetting(L"Placement.VerticalOffset"),
+                           -4000, 4000);
+    s.primaryMonitorOnly =
+        GetStringSetting(L"Placement.Monitor") == L"primary";
+    // Opt out, so numbers stay on even where an older settings file is kept.
+    s.showFingerings = Wh_GetIntSetting(L"Chords.HideFingerings") == 0;
+    const std::wstring instrument = GetStringSetting(L"Chords.DefaultInstrument");
+    s.defaultInstrument = 0;
+    for (int i = 0; i < chorddata::kInstrumentsSize; i++) {
+        std::wstring name = chorddata::kInstruments[i].name;
+        for (wchar_t& letter : name) {
+            letter = static_cast<wchar_t>(towlower(letter));
+        }
+        if (name == instrument) {
+            s.defaultInstrument = i;
+            break;
+        }
+    }
+
+    // A settings file written before the tap tempo tool has no value here, and
+    // a missing one reads back as zero, so fall back to the documented default.
+    int resetAfter = Wh_GetIntSetting(L"TapTempo.ResetAfter");
+    if (resetAfter <= 0) {
+        resetAfter = 3;
+    }
+    s.tapResetMs = std::clamp(resetAfter, 1, 10) * 1000;
+    const std::wstring tapKeys = GetStringSetting(L"TapTempo.TapKeys");
+    s.tapKeySpace = tapKeys != L"enter";
+    s.tapKeyEnter = tapKeys != L"space";
+
+    const std::wstring signature = GetStringSetting(L"Metronome.Signature");
+    s.metronomeBeats = 4;
+    s.metronomeUnit = 4;
+    for (int i = 0; i < kSignatureCount; i++) {
+        if (signature == SignatureId(i)) {
+            s.metronomeBeats = kSignatures[i].beats;
+            s.metronomeUnit = kSignatures[i].unit;
+            break;
+        }
+    }
+    const std::wstring subdivision = GetStringSetting(L"Metronome.Subdivision");
+    s.metronomeSubdivision = subdivision == L"eighth" ? 2
+                             : subdivision == L"triplet" ? 3
+                             : subdivision == L"sixteenth" ? 4
+                                                           : 1;
+    const std::wstring sound = GetStringSetting(L"Metronome.ClickSound");
+    s.metronomeSound = sound == L"wood" ? 1 : sound == L"beep" ? 2 : 0;
+    // A settings file written before the metronome exists has neither value, so
+    // fall back to the documented defaults rather than to silence.
+    const std::wstring volume = GetStringSetting(L"Metronome.Volume");
+    s.metronomeVolume =
+        volume.empty()
+            ? 70
+            : std::clamp(static_cast<int>(wcstol(volume.c_str(), nullptr, 10)),
+                         0, 100);
+    const std::wstring keepPlaying = GetStringSetting(L"Metronome.KeepPlaying");
+    s.metronomeKeepPlaying =
+        keepPlaying.empty() ? true
+                            : Wh_GetIntSetting(L"Metronome.KeepPlaying") != 0;
+    // A settings file written before the tuner exists reads back as zero, so
+    // fall back to the concert standard rather than to nonsense.
+    const int reference = Wh_GetIntSetting(L"Tuner.ReferencePitch");
+    s.tunerReference = reference == 0 ? 440 : std::clamp(reference, 415, 466);
+    return s;
+}
+
+Settings g_settings;
+Color g_accent = kFallbackAccent;
+
+bool UseDarkTheme() {
+    switch (g_settings.theme) {
+        case kThemeLight:
+            return false;
+        case kThemeDark:
+            return true;
+        default:
+            break;
+    }
+    return SystemUsesDarkTheme();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Theme
+
+struct Theme {
+    bool dark = true;
+    Color text;
+    Color textMuted;
+    Color textFaint;
+    Color card;
+    Color control;
+    Color controlHover;
+    Color selection;
+    Color stroke;
+    Color menu;  // Opaque, so an open list hides the panel behind it.
+    Color accent;
+    Color onAccent;
+    Color panelTop;
+    Color panelBottom;
+    Color grid;
+    Color shadow;
+};
+
+float Luminance(const Color& c) {
+    return c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
+}
+
+Theme MakeTheme(bool dark, Color accent) {
+    Theme t;
+    t.dark = dark;
+    t.accent = accent;
+    t.onAccent = Luminance(accent) > 0.62f ? kBlack : kWhite;
+    if (dark) {
+        t.text = WithAlpha(kWhite, 0.96f);
+        t.textMuted = WithAlpha(kWhite, 0.62f);
+        t.textFaint = WithAlpha(kWhite, 0.40f);
+        t.card = WithAlpha(kWhite, 0.045f);
+        t.control = WithAlpha(kWhite, 0.065f);
+        t.controlHover = WithAlpha(kWhite, 0.11f);
+        t.selection = WithAlpha(accent, 0.22f);
+        t.stroke = WithAlpha(kWhite, 0.09f);
+        t.menu = Rgb(42, 44, 51, 1.0f);
+        t.grid = WithAlpha(kWhite, 0.30f);
+        t.panelTop = Rgb(30, 31, 37, 0.88f);
+        t.panelBottom = Rgb(22, 23, 28, 0.90f);
+        t.shadow = WithAlpha(kBlack, 0.40f);
+    } else {
+        t.text = Rgb(16, 18, 22, 0.96f);
+        t.textMuted = Rgb(32, 36, 44, 0.62f);
+        t.textFaint = Rgb(32, 36, 44, 0.42f);
+        t.card = Rgb(0, 0, 0, 0.035f);
+        t.control = Rgb(0, 0, 0, 0.05f);
+        t.controlHover = Rgb(0, 0, 0, 0.09f);
+        t.selection = WithAlpha(accent, 0.18f);
+        t.stroke = Rgb(0, 0, 0, 0.08f);
+        t.menu = Rgb(252, 252, 255, 1.0f);
+        t.grid = Rgb(0, 0, 0, 0.28f);
+        t.panelTop = Rgb(250, 250, 253, 0.90f);
+        t.panelBottom = Rgb(243, 244, 248, 0.92f);
+        t.shadow = WithAlpha(kBlack, 0.22f);
+    }
+    return t;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Flyout geometry
+
+// Everything below is laid out in device independent pixels and scaled by the
+// DPI of the monitor the panel opens on.
+constexpr int kPanelWidth = 452;
+constexpr int kPanelHeight = 520;
+constexpr int kPanelPad = 14;
+constexpr float kPanelRadius = 12.0f;
+constexpr int kHeaderTop = 12;
+constexpr int kHeaderHeight = 26;
+constexpr int kSearchTop = 44;
+constexpr int kSearchHeight = 34;
+constexpr float kControlRadius = 8.0f;
+constexpr int kListTop = 86;
+constexpr int kRowHeight = 30;
+constexpr int kVisibleRows = 5;
+constexpr int kCardTop = 242;
+constexpr int kCardHeight = 240;
+constexpr float kCardRadius = 10.0f;
+constexpr int kVoicingStripHeight = 26;
+constexpr int kFootTop = 490;
+constexpr int kFootHeight = 16;
+
+constexpr int kFontTab = 11;
+constexpr int kFontSearch = 13;
+constexpr int kFontRow = 13;
+constexpr int kFontChord = 22;
+constexpr int kFontTone = 11;
+constexpr int kFontFoot = 10;
+constexpr int kFontFret = 9;
+constexpr int kFontBpm = 46;
+constexpr int kFontBpmUnit = 11;
+constexpr int kWeightSemiBold = 600;
+
+float g_scale = 1.0f;
+
+enum Tool {
+    kToolChords,
+    kToolTempo,
+    kToolMetronome,
+    kToolTuner,
+    kToolCount,
+};
+
+PCWSTR ToolLabel(int tool) {
+    switch (tool) {
+        case kToolTempo:
+            return L"Tap tempo";
+        case kToolMetronome:
+            return L"Metronome";
+        case kToolTuner:
+            return L"Tuner";
+        default:
+            break;
+    }
+    return L"Chords";
+}
+
+enum Hit {
+    kHitNone,
+    kHitHeader,
+    kHitClose,
+    kHitTab,
+    kHitToolSelect,
+    kHitToolMenuItem,
+    kHitSearch,
+    kHitRow,
+    kHitPrevious,
+    kHitNext,
+    kHitDot,
+    kHitDiagram,
+    kHitTapPad,
+    kHitTapReset,
+    kHitTapHalf,
+    kHitTapDouble,
+    kHitMetroStart,
+    kHitMetroTap,
+    kHitMetroPreset,
+    kHitMetroBeatsDown,
+    kHitMetroBeatsUp,
+    kHitMetroUnit,
+    kHitMetroSubdivision,
+    kHitMetroGroup,
+    kHitTunerInst,
+    kHitTunerTune,
+    kHitTunerMenuRow,
+    kHitTunerString,
+};
+
+struct HitResult {
+    int id = kHitNone;
+    int index = -1;
+};
+
+struct Layout {
+    int width = 0;
+    int height = 0;
+    RECT header{};
+    RECT close{};
+    RECT tabs[kInstrumentCount]{};
+    RECT search{};
+    RECT searchText{};
+    RECT list{};
+    RECT rows{};
+    RECT card{};
+    RECT chordName{};
+    RECT tones{};
+    RECT diagram{};
+    RECT previous{};
+    RECT next{};
+    RECT dots[8]{};
+    int dotCount = 0;
+    RECT foot{};
+    int rowHeight = 0;
+
+    // The tool picker in the header: one button, and the list it opens.
+    RECT toolSelect{};
+    RECT toolMenu{};
+    RECT toolMenuRows[kToolCount]{};
+
+    // Tap tempo tool. The pad covers the space the search, list and card take
+    // in the chord tool, so the panel keeps one size.
+    RECT tapPad{};
+    RECT tapValue{};
+    RECT tapName{};
+    RECT tapBars{};
+    RECT tapHint{};
+    RECT tapHalf{};
+    RECT tapReset{};
+    RECT tapDouble{};
+
+    // Metronome tool, laid out inside the same card rectangle.
+    RECT metroPad{};
+    RECT metroValue{};
+    RECT metroMeta{};
+    RECT metroDots{};
+    RECT metroPreset[kSignatureCount]{};
+    RECT metroBeatsDown{};
+    RECT metroBeatsLabel{};
+    RECT metroBeatsUp{};
+    RECT metroUnit[4]{};
+    RECT metroSub[4]{};
+    RECT metroGroup{};
+    RECT metroTap{};
+    RECT metroStart{};
+    RECT metroHint{};
+
+    // Tuner tool, in the same rectangle once more. The needle sweeps the arc
+    // in the middle, the note and the cents sit inside it, and the instrument
+    // and tuning are two labelled listbox selects whose lists drop over the
+    // arc.
+    RECT tunerPad{};
+    RECT tunerArc{};
+    RECT tunerNote{};
+    RECT tunerCents{};
+    RECT tunerMeta{};
+    RECT tunerStrings{};
+    RECT tunerStringChip[kTunerStringMax]{};
+    RECT tunerInstCaption{};
+    RECT tunerTuneCaption{};
+    RECT tunerInstSelect{};
+    RECT tunerTuneSelect{};
+    RECT tunerInstMenu{};
+    RECT tunerInstMenuRow[kTunerMenuMax]{};
+    RECT tunerTuneMenu{};
+    RECT tunerTuneMenuRow[kTunerMenuMax]{};
+    RECT tunerHint{};
+};
+
+int S(float dip) {
+    return static_cast<int>(lroundf(dip * g_scale));
+}
+
+Layout g_layout;
+
+void ComputeLayout() {
+    Layout& l = g_layout;
+    l.width = S(static_cast<float>(kPanelWidth));
+    l.height = S(static_cast<float>(kPanelHeight));
+    const int pad = S(static_cast<float>(kPanelPad));
+
+    l.header = {pad, S(static_cast<float>(kHeaderTop)), l.width - pad,
+                S(static_cast<float>(kHeaderTop + kHeaderHeight))};
+    l.search = {pad, S(static_cast<float>(kSearchTop)), l.width - pad,
+                S(static_cast<float>(kSearchTop + kSearchHeight))};
+    l.searchText = {l.search.left + S(38), l.search.top,
+                    l.search.right - S(14), l.search.bottom};
+
+    l.list = {pad, S(static_cast<float>(kListTop)), l.width - pad,
+              S(static_cast<float>(kListTop + kRowHeight * kVisibleRows))};
+    l.rows = l.list;
+    l.rowHeight = S(static_cast<float>(kRowHeight));
+
+    l.card = {pad, S(static_cast<float>(kCardTop)), l.width - pad,
+              S(static_cast<float>(kCardTop + kCardHeight))};
+    l.chordName = {l.card.left + S(16), l.card.top + S(6),
+                   l.card.right - S(16), l.card.top + S(34)};
+    l.tones = {l.card.left + S(16), l.card.top + S(34), l.card.right - S(16),
+               l.card.top + S(52)};
+
+    const int stripTop = l.card.bottom - S(10) - S(kVoicingStripHeight);
+    const int diagramTop = l.tones.bottom + S(4);
+    const int diagramBottom = stripTop - S(4);
+    const int chevronWidth = S(28);
+    l.diagram = {l.card.left + S(16) + chevronWidth, diagramTop,
+                 l.card.right - S(16) - chevronWidth, diagramBottom};
+    l.previous = {l.card.left + S(10), diagramTop,
+                  l.card.left + S(10) + chevronWidth, diagramBottom};
+    l.next = {l.card.right - S(10) - chevronWidth, diagramTop, l.card.right - S(10),
+              diagramBottom};
+
+    l.foot = {pad, S(static_cast<float>(kFootTop)), l.width - pad,
+              S(static_cast<float>(kFootTop + kFootHeight))};
+    l.dotCount = 0;
+
+    // The close button sits at the far right of the header, tabs beside it.
+    const int tabHeight = S(static_cast<float>(kHeaderHeight));
+    const int closeSize = S(24.0f);
+    const int closeTop = l.header.top + (tabHeight - closeSize) / 2;
+    l.close = {l.header.right - closeSize, closeTop, l.header.right,
+               closeTop + closeSize};
+
+    // Tabs are measured, then right aligned in the header strip.
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    const int instruments =
+        std::min(static_cast<int>(kInstrumentCount), chorddata::kInstrumentsSize);
+    int x = l.close.left - S(6);
+    for (int i = instruments - 1; i >= 0; i--) {
+        const std::wstring label = chorddata::kInstruments[i].name;
+        const int textWidth = g_text.Measure(font, label).cx;
+        const int width = textWidth + S(16);
+        l.tabs[i] = {x - width, l.header.top, x, l.header.top + tabHeight};
+        x -= width + S(2);
+    }
+
+    // The tool picker takes the left of the header, where three chips used to
+    // crowd the instrument chips on the right. It is measured for the longest
+    // label, so it never changes width as the tool changes.
+    int toolWidth = 0;
+    for (int i = 0; i < kToolCount; i++) {
+        toolWidth = std::max(
+            toolWidth,
+            static_cast<int>(g_text.Measure(font, ToolLabel(i)).cx));
+    }
+    l.toolSelect = {l.header.left, l.header.top,
+                    l.header.left + toolWidth + S(30), l.header.top + tabHeight};
+    const int menuRowHeight = S(26);
+    const int menuTop = l.toolSelect.bottom + S(4);
+    int menuWidth = static_cast<int>(l.toolSelect.right - l.toolSelect.left);
+    for (int i = 0; i < kToolCount; i++) {
+        menuWidth = std::max(
+            menuWidth,
+            static_cast<int>(g_text.Measure(font, ToolLabel(i)).cx) + S(46));
+    }
+    l.toolMenu = {l.toolSelect.left, menuTop, l.toolSelect.left + menuWidth,
+                  menuTop + menuRowHeight * kToolCount + S(8)};
+    for (int i = 0; i < kToolCount; i++) {
+        const int top = menuTop + S(4) + i * menuRowHeight;
+        l.toolMenuRows[i] = {l.toolMenu.left + S(4), top,
+                             l.toolMenu.right - S(4), top + menuRowHeight};
+    }
+
+    // The tap tempo pad covers the search, list and card at once, so the panel
+    // keeps a single size for all three tools.
+    l.tapPad = {pad, l.search.top, l.width - pad, l.card.bottom};
+    l.tapValue = {l.tapPad.left, l.tapPad.top + S(84), l.tapPad.right,
+                  l.tapPad.top + S(140)};
+    l.tapName = {l.tapPad.left, l.tapPad.top + S(210), l.tapPad.right,
+                 l.tapPad.top + S(232)};
+    l.tapBars = {l.tapPad.left + S(80), l.tapPad.top + S(240),
+                 l.tapPad.right - S(80), l.tapPad.top + S(276)};
+    l.tapHint = {l.tapPad.left, l.tapPad.top + S(288), l.tapPad.right,
+                 l.tapPad.top + S(306)};
+
+    const int buttonHeight = S(32);
+    const int buttonTop = l.tapPad.bottom - S(20) - buttonHeight;
+    const int buttonGap = S(8);
+    auto buttonWidth = [&](PCWSTR label) {
+        return g_text.Measure(font, label).cx + S(30);
+    };
+    const int halfWidth = buttonWidth(L"Half");
+    const int resetWidth = buttonWidth(L"Reset");
+    const int doubleWidth = buttonWidth(L"Double");
+    int buttonX =
+        (l.width - (halfWidth + resetWidth + doubleWidth + buttonGap * 2)) / 2;
+    l.tapHalf = {buttonX, buttonTop, buttonX + halfWidth,
+                 buttonTop + buttonHeight};
+    buttonX += halfWidth + buttonGap;
+    l.tapReset = {buttonX, buttonTop, buttonX + resetWidth,
+                  buttonTop + buttonHeight};
+    buttonX += resetWidth + buttonGap;
+    l.tapDouble = {buttonX, buttonTop, buttonX + doubleWidth,
+                   buttonTop + buttonHeight};
+
+    // The metronome uses the same rectangle as the tap tempo pad, so all three
+    // tools keep one panel size. Everything below is measured from its top.
+    l.metroPad = l.tapPad;
+    const int metroTop = l.metroPad.top;
+    l.metroValue = {l.metroPad.left, metroTop + S(20), l.metroPad.right,
+                    metroTop + S(72)};
+    l.metroMeta = {l.metroPad.left, metroTop + S(72), l.metroPad.right,
+                   metroTop + S(90)};
+    l.metroDots = {l.metroPad.left + S(20), metroTop + S(104),
+                   l.metroPad.right - S(20), metroTop + S(152)};
+
+    const int presetGap = S(6);
+    const int presetWidth =
+        (l.metroPad.right - l.metroPad.left - S(32) - presetGap * 3) / 4;
+    for (int i = 0; i < kSignatureCount; i++) {
+        const int column = i % 4;
+        const int row = i / 4;
+        const int x =
+            l.metroPad.left + S(16) + column * (presetWidth + presetGap);
+        const int y = metroTop + S(168) + row * S(28);
+        l.metroPreset[i] = {x, y, x + presetWidth, y + S(24)};
+    }
+
+    const int meterRow = metroTop + S(240);
+    int stepX = l.metroPad.left + S(16);
+    l.metroBeatsDown = {stepX, meterRow, stepX + S(28), meterRow + S(24)};
+    stepX += S(28) + S(4);
+    l.metroBeatsLabel = {stepX, meterRow, stepX + S(96), meterRow + S(24)};
+    stepX += S(96) + S(4);
+    l.metroBeatsUp = {stepX, meterRow, stepX + S(28), meterRow + S(24)};
+    stepX += S(28) + S(10);
+    const int unitWidth = (l.metroPad.right - S(16) - stepX - S(6) * 3) / 4;
+    for (int i = 0; i < 4; i++) {
+        const int x = stepX + i * (unitWidth + S(6));
+        l.metroUnit[i] = {x, meterRow, x + unitWidth, meterRow + S(24)};
+    }
+
+    const int subRow = metroTop + S(276);
+    const int subGap = S(6);
+    const int subWidth =
+        (l.metroPad.right - l.metroPad.left - S(32) - subGap * 4) / 5;
+    int subX = l.metroPad.left + S(16);
+    for (int i = 0; i < 5; i++) {
+        const RECT chip{subX, subRow, subX + subWidth, subRow + S(24)};
+        if (i < 4) {
+            l.metroSub[i] = chip;
+        } else {
+            l.metroGroup = chip;
+        }
+        subX += subWidth + subGap;
+    }
+
+    const int transportY = metroTop + S(340);
+    l.metroTap = {l.metroPad.left + S(16), transportY,
+                  l.metroPad.left + S(104), transportY + S(38)};
+    l.metroStart = {l.metroTap.right + S(8), transportY,
+                    l.metroPad.right - S(16), transportY + S(38)};
+    l.metroHint = {l.metroPad.left, metroTop + S(396), l.metroPad.right,
+                   metroTop + S(414)};
+
+    // The tuner takes the same rectangle a third time. Two labelled selects
+    // fill the first row, each opening a listbox over the arc, which is the
+    // bulk of the card with the note inside it.
+    l.tunerPad = l.metroPad;
+    const int tunerTop = l.tunerPad.top;
+    const int tunerLeft = l.tunerPad.left + S(16);
+    const int tunerRight = l.tunerPad.right - S(16);
+    const int tunerGap = S(8);
+    const int instWidth = (tunerRight - tunerLeft - tunerGap) * 45 / 100;
+    const int instRight = tunerLeft + instWidth;
+    const int tuneLeft = instRight + tunerGap;
+    l.tunerInstCaption = {tunerLeft + S(2), tunerTop + S(5), instRight,
+                          tunerTop + S(17)};
+    l.tunerInstSelect = {tunerLeft, tunerTop + S(19), instRight,
+                         tunerTop + S(47)};
+    l.tunerTuneCaption = {tuneLeft + S(2), tunerTop + S(5), tunerRight,
+                          tunerTop + S(17)};
+    l.tunerTuneSelect = {tuneLeft, tunerTop + S(19), tunerRight,
+                         tunerTop + S(47)};
+    l.tunerArc = {tunerLeft, tunerTop + S(56), tunerRight, tunerTop + S(236)};
+    l.tunerNote = {l.tunerArc.left, tunerTop + S(80), l.tunerArc.right,
+                   tunerTop + S(146)};
+    l.tunerCents = {l.tunerArc.left, tunerTop + S(148), l.tunerArc.right,
+                    tunerTop + S(166)};
+    l.tunerMeta = {l.tunerArc.left, tunerTop + S(170), l.tunerArc.right,
+                   tunerTop + S(188)};
+    l.tunerStrings = {tunerLeft, tunerTop + S(246), tunerRight,
+                      tunerTop + S(278)};
+    const int stringCount =
+        std::clamp(TunerStringCount(g_tuner.tuning), 1, kTunerStringMax);
+    const int stringGap = S(6);
+    const int stringWidth =
+        (l.tunerStrings.right - l.tunerStrings.left -
+         stringGap * (stringCount - 1)) /
+        stringCount;
+    int stringX = l.tunerStrings.left;
+    for (int i = 0; i < stringCount; i++) {
+        l.tunerStringChip[i] = {stringX, l.tunerStrings.top,
+                                stringX + stringWidth, l.tunerStrings.bottom};
+        stringX += stringWidth + stringGap;
+    }
+    // The lists drop over whatever is underneath, opaque, so they read as
+    // popups. Both span the row they belong to.
+    const int tunerRowHeight = S(26);
+    const int instMenuTop = l.tunerInstSelect.bottom + S(4);
+    l.tunerInstMenu = {tunerLeft, instMenuTop, tunerRight,
+                       instMenuTop + S(8) +
+                           kTunerInstrumentCount * tunerRowHeight};
+    for (int i = 0; i < kTunerInstrumentCount; i++) {
+        const int rowTop = instMenuTop + S(4) + i * tunerRowHeight;
+        l.tunerInstMenuRow[i] = {l.tunerInstMenu.left + S(4), rowTop,
+                                 l.tunerInstMenu.right - S(4),
+                                 rowTop + tunerRowHeight};
+    }
+    const int tuneCount = std::clamp(TunerTuningCount(g_tuner.instrument), 0,
+                                     kTunerMenuMax);
+    const int tuneMenuTop = l.tunerTuneSelect.bottom + S(4);
+    l.tunerTuneMenu = {tunerLeft, tuneMenuTop, tunerRight,
+                       tuneMenuTop + S(8) + tuneCount * tunerRowHeight};
+    for (int i = 0; i < tuneCount; i++) {
+        const int rowTop = tuneMenuTop + S(4) + i * tunerRowHeight;
+        l.tunerTuneMenuRow[i] = {l.tunerTuneMenu.left + S(4), rowTop,
+                                 l.tunerTuneMenu.right - S(4),
+                                 rowTop + tunerRowHeight};
+    }
+    l.tunerHint = {l.tunerPad.left, tunerTop + S(396), l.tunerPad.right,
+                   tunerTop + S(414)};
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Application state
+
+enum Phase {
+    kPhaseClosed,
+    kPhaseOpening,
+    kPhaseOpen,
+    kPhaseClosing,
+};
+
+struct AppState {
+    Tool tool = kToolChords;
+    Instrument instrument = kInstrumentGuitar;
+    std::wstring query;
+    std::vector<int> results;  // Indices into the instrument's chord list.
+    int selected = 0;          // Index into results.
+    int voicing = 0;
+    int scroll = 0;            // First visible result.
+};
+
+AppState g_app;
+
+// Tap tempo. The intervals are kept rather than just the last one, so a couple
+// of steady taps settle the number and the bars can show how even they were.
+constexpr int kMaxTapIntervals = 7;
+constexpr double kMinBpm = 20.0;
+constexpr double kMaxBpm = 400.0;
+constexpr double kMinTapIntervalMs = 120.0;
+
+struct TapState {
+    double intervals[kMaxTapIntervals] = {};
+    int intervalCount = 0;
+    double lastTap = 0.0;   // 0 until the first tap of a measurement.
+    double bpm = 0.0;
+    double flashAt = -1000.0;
+    bool hasValue = false;
+};
+
+TapState g_tap;
+
+double TapAverageInterval() {
+    double sum = 0.0;
+    for (int i = 0; i < g_tap.intervalCount; i++) {
+        sum += g_tap.intervals[i];
+    }
+    return g_tap.intervalCount > 0 ? sum / g_tap.intervalCount : 0.0;
+}
+
+PCWSTR TempoName(double bpm) {
+    if (bpm < 40.0) {
+        return L"Grave";
+    }
+    if (bpm < 60.0) {
+        return L"Largo";
+    }
+    if (bpm < 66.0) {
+        return L"Adagio";
+    }
+    if (bpm < 76.0) {
+        return L"Andante";
+    }
+    if (bpm < 108.0) {
+        return L"Moderato";
+    }
+    if (bpm < 120.0) {
+        return L"Allegro";
+    }
+    if (bpm < 168.0) {
+        return L"Vivace";
+    }
+    return L"Presto";
+}
+
+// "Space", "Enter" or "Space or Enter", for the hint lines.
+PCWSTR TapKeyLabel() {
+    if (g_settings.tapKeySpace && g_settings.tapKeyEnter) {
+        return L"Space or Enter";
+    }
+    return g_settings.tapKeyEnter ? L"Enter" : L"Space";
+}
+
+// The metronome shares the tap tempo value, so the two tools always agree on
+// the tempo: tapping sets it, and nudging it here shows up over there.
+struct MetronomeState {
+    bool running = false;
+    int beats = 4;
+    int unit = 4;
+    int subdivision = 1;  // Clicks per beat: 1 off, 2 eighths, 3 triplets, 4.
+    int group = 1;        // An accent on every Nth beat, 1 for the downbeat.
+    bool defaultsApplied = false;
+    double pulseAt = -1000.0;
+    unsigned paintedPulse = 0;
+};
+
+MetronomeState g_metro;
+
+double ToolkitBpm() {
+    return g_tap.hasValue ? g_tap.bpm : 120.0;
+}
+
+LayeredWindow g_panel;
+LayeredWindow g_shadow;
+Surface g_surface;
+Surface g_shadowSurface;
+Theme g_theme;
+HWND g_messageWindow = nullptr;
+
+int g_x = 0;
+int g_y = 0;
+int g_slideOffset = 0;
+int g_alpha = 255;
+int g_shadowMargin = 0;
+Phase g_phase = kPhaseClosed;
+double g_phaseStart = 0;
+double g_caretStart = 0;
+bool g_searchFocused = true;
+bool g_trackingMouse = false;
+bool g_dragging = false;
+POINT g_dragCursor{};
+POINT g_dragOrigin{};
+bool g_sliding = false;
+int g_slideAnchor = 0;
+HitResult g_hover;
+HitResult g_pressed;
+
+// The search box keeps a caret and a selection anchor, both counted in
+// characters from the start of the query.
+int g_caret = 0;
+int g_selAnchor = 0;
+bool g_selecting = false;
+
+int SelectionStart() {
+    return std::min(g_caret, g_selAnchor);
+}
+
+int SelectionEnd() {
+    return std::max(g_caret, g_selAnchor);
+}
+
+bool HasSelection() {
+    return g_caret != g_selAnchor;
+}
+
+void MoveCaret(int index, bool extend) {
+    g_caret = std::clamp(index, 0, static_cast<int>(g_app.query.size()));
+    if (!extend) {
+        g_selAnchor = g_caret;
+    }
+}
+
+constexpr UINT_PTR kAnimationTimer = 1;
+constexpr UINT_PTR kCaretTimer = 2;
+constexpr UINT_PTR kFlashTimer = 3;
+constexpr UINT_PTR kPulseTimer = 4;
+constexpr UINT_PTR kTunerTimer = 5;
+constexpr UINT_PTR kMenuAnimTimer = 6;
+constexpr double kOpenDurationMs = 190.0;
+constexpr double kCloseDurationMs = 140.0;
+constexpr float kSlideDistance = 14.0f;
+constexpr double kMenuAnimMs = 130.0;
+constexpr double kTunedBadgeMs = 340.0;
+constexpr double kNoteSwapMs = 220.0;
+
+void MetronomeHalt();
+void MetronomeStop();
+void MetronomeToggle();
+void MetronomeSync();
+void TunerStart();
+void TunerHalt();
+void TunerPoll();
+void TunerAnimate();
+void TunerSetInstrument(int instrument);
+void TunerSetTuning(int tuning);
+void TunerSetString(int string);
+void TunerToggleString(int string);
+void TunerStepInstrument(int delta);
+void TunerStepTuning(int delta);
+void SetTool(int tool);
+void Repaint();
+
+////////////////////////////////////////////////////////////////////////////////
+// Popup lists
+//
+// The tool picker in the header and the tuner's instrument and tuning selects
+// are the same control. The target is the list asked for (0 closed, 1
+// instrument, 2 tuning, 3 tools), shown is the list actually drawn so it
+// survives the fade out, progress runs from 0 to 1, and cursor is the row the
+// arrows rest on. Open, switch and close all roll and fade rather than blink,
+// and a list is only committed when a row is picked.
+
+struct MenuState {
+    int target = 0;
+    int shown = 0;
+    float progress = 0.0f;
+    int cursor = -1;
+};
+
+MenuState g_toolMenu;
+MenuState g_tunerMenu;
+
+enum MenuKind {
+    kMenuNone = 0,
+    kMenuInstrument = 1,
+    kMenuTuning = 2,
+    kMenuTools = 3,
+};
+
+bool MenuHit(const MenuState& m) {
+    return m.target != 0;  // Input belongs to the list once it is asked to open.
+}
+
+bool MenuVisual(const MenuState& m) {
+    return m.target != 0 || m.progress > 0.0f;  // Anything left to draw.
+}
+
+bool MenuAnimating(const MenuState& m) {
+    return m.target != 0 ? m.progress < 1.0f : m.progress > 0.0f;
+}
+
+bool AnyMenuAnimating() {
+    return MenuAnimating(g_toolMenu) || MenuAnimating(g_tunerMenu);
+}
+
+void StartMenuAnimTimer() {
+    if (g_panel.Hwnd()) {
+        SetTimer(g_panel.Hwnd(), kMenuAnimTimer, 16, nullptr);
+    }
+}
+
+// One 16ms tick of a list animation. Returns whether anything moved.
+bool MenuStep(MenuState& m, bool toward) {
+    const float step =
+        16.0f / static_cast<float>(kMenuAnimMs);
+    float next = m.progress + (toward ? step : -step);
+    if (next < 0.0f) {
+        next = 0.0f;
+    } else if (next > 1.0f) {
+        next = 1.0f;
+    }
+    if (next == m.progress) {
+        return false;
+    }
+    m.progress = next;
+    if (next == 0.0f && m.target == 0) {
+        m.shown = kMenuNone;  // Nothing of it left on screen.
+        m.cursor = -1;
+    }
+    return true;
+}
+
+// Opens a list, or swaps which list is showing while one is already up. The
+// cursor lands on the row that matches the current choice.
+void MenuShow(MenuState& m, int kind, int cursor) {
+    m.target = kind;
+    m.shown = kind;
+    m.cursor = cursor;
+    StartMenuAnimTimer();
+}
+
+void MenuHide(MenuState& m) {
+    if (m.target == 0) {
+        return;
+    }
+    m.target = 0;  // shown keeps the list that is fading away.
+    StartMenuAnimTimer();
+}
+
+// Closes a list at once, for the panel close and the tool switch.
+void MenuReset(MenuState& m) {
+    m.target = 0;
+    m.shown = 0;
+    m.progress = 0.0f;
+    m.cursor = -1;
+}
+
+// Rows the open list is showing, which is what the arrows wrap around.
+int MenuRowCount(const MenuState& m) {
+    switch (m.target) {
+        case kMenuInstrument:
+            return kTunerInstrumentCount;
+        case kMenuTuning:
+            return TunerTuningCount(g_tuner.instrument);
+        case kMenuTools:
+            return kToolCount;
+        default:
+            break;
+    }
+    return 0;
+}
+
+// The row a list points at, in the values the commit path wants: the
+// instrument index, the tuning table entry, or the tool.
+int MenuRowValue(const MenuState& m, int row) {
+    if (m.target == kMenuTuning) {
+        return TunerTuningAt(g_tuner.instrument, row);
+    }
+    return row;
+}
+
+// The arrows rest on a row instead of applying as they go, which is what makes
+// the popup read as a listbox. The cursor starts on the current choice.
+void MenuMoveCursor(MenuState& m, int delta) {
+    const int count = MenuRowCount(m);
+    if (count == 0) {
+        return;
+    }
+    int row = m.cursor;
+    if (row < 0) {
+        row = delta > 0 ? 0 : count - 1;
+    } else {
+        row = (row + delta + count) % count;
+    }
+    m.cursor = row;
+}
+
+void UpdateMenuAnimations() {
+    bool moved = false;
+    if (MenuAnimating(g_toolMenu)) {
+        moved = MenuStep(g_toolMenu, g_toolMenu.target != 0) || moved;
+    }
+    if (MenuAnimating(g_tunerMenu)) {
+        moved = MenuStep(g_tunerMenu, g_tunerMenu.target != 0) || moved;
+    }
+    if (moved) {
+        Repaint();
+    }
+}
+
+void Render();
+void PresentPanel(bool updateAlpha);
+void CloseFlyout();
+void OpenFlyout();
+void Refilter();
+void SelectResult(int index, bool reveal);
+void StepVoicing(int delta);
+const ChordEntry* SelectedChord();
+const Voicing* SelectedVoicing();
+
+const ChordEntry* SelectedChord() {
+    if (g_app.results.empty()) {
+        return nullptr;
+    }
+    const Library& library = g_libraries[g_app.instrument];
+    const int index = g_app.results[std::clamp(g_app.selected, 0,
+                                               static_cast<int>(g_app.results.size()) - 1)];
+    if (index < 0 || index >= static_cast<int>(library.chords.size())) {
+        return nullptr;
+    }
+    return &library.chords[index];
+}
+
+const Voicing* SelectedVoicing() {
+    static Voicing voicing;
+    const ChordEntry* entry = SelectedChord();
+    if (!entry) {
+        return nullptr;
+    }
+    const int count = VoicingCount(g_app.instrument, *entry);
+    if (count <= 0) {
+        return nullptr;
+    }
+    g_app.voicing = std::clamp(g_app.voicing, 0, count - 1);
+    if (!ReadVoicing(g_app.instrument, *entry, g_app.voicing, voicing)) {
+        return nullptr;
+    }
+    return &voicing;
+}
+
+void EnsureSelectionVisible() {
+    const int count = static_cast<int>(g_app.results.size());
+    const int visible = kVisibleRows;
+    if (g_app.selected < g_app.scroll) {
+        g_app.scroll = g_app.selected;
+    }
+    if (g_app.selected >= g_app.scroll + visible) {
+        g_app.scroll = g_app.selected - visible + 1;
+    }
+    g_app.scroll = std::clamp(g_app.scroll, 0, std::max(0, count - visible));
+}
+
+void Refilter() {
+    g_app.results.clear();
+    if (!EnsureLibrary(g_app.instrument)) {
+        return;
+    }
+    const std::vector<ChordEntry>& chords = g_libraries[g_app.instrument].chords;
+    std::wstring query = Lower(g_app.query);
+    // Spaces are dropped so a search such as "c m7" still finds Cm7.
+    query.erase(std::remove_if(query.begin(), query.end(),
+                               [](wchar_t c) { return iswspace(c) != 0; }),
+                query.end());
+    if (query.empty()) {
+        g_app.results.reserve(chords.size());
+        for (int i = 0; i < static_cast<int>(chords.size()); i++) {
+            g_app.results.push_back(i);
+        }
+        return;
+    }
+    // Names that start with the query come first, then the ones that merely
+    // contain it, so typing "maj" does not bury Cmaj7 behind Bbmaj9.
+    for (int pass = 0; pass < 2; pass++) {
+        for (int i = 0; i < static_cast<int>(chords.size()); i++) {
+            const std::wstring& search = chords[i].search;
+            const bool found = pass == 0 ? search.rfind(query, 0) == 0
+                                         : search.find(query) != std::wstring::npos;
+            if (!found) {
+                continue;
+            }
+            if (pass == 1 && search.rfind(query, 0) == 0) {
+                continue;  // Already listed by the first pass.
+            }
+            g_app.results.push_back(i);
+        }
+    }
+}
+
+void SelectResult(int index, bool reveal) {
+    const int count = static_cast<int>(g_app.results.size());
+    if (count == 0) {
+        g_app.selected = 0;
+        return;
+    }
+    g_app.selected = std::clamp(index, 0, count - 1);
+    if (reveal) {
+        EnsureSelectionVisible();
+    }
+}
+
+void SetInstrument(int instrument, bool keepChord) {
+    instrument = std::clamp(instrument, 0, kInstrumentCount - 1);
+    if (instrument == static_cast<int>(g_app.instrument)) {
+        return;
+    }
+    std::wstring previousName;
+    if (keepChord) {
+        if (const ChordEntry* current = SelectedChord()) {
+            previousName = current->name;
+        }
+    }
+    g_app.instrument = static_cast<Instrument>(instrument);
+    g_app.voicing = 0;
+    Refilter();
+    if (!previousName.empty()) {
+        const Library& library = g_libraries[g_app.instrument];
+        for (int i = 0; i < static_cast<int>(g_app.results.size()); i++) {
+            if (library.chords[g_app.results[i]].name == previousName) {
+                SelectResult(i, true);
+                break;
+            }
+        }
+    }
+}
+
+void StepVoicing(int delta) {
+    const ChordEntry* entry = SelectedChord();
+    if (!entry) {
+        return;
+    }
+    const int count = VoicingCount(g_app.instrument, *entry);
+    if (count <= 0) {
+        return;
+    }
+    // Wrapping makes the arrows feel like a loop of fingerings.
+    g_app.voicing = ((g_app.voicing + delta) % count + count) % count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Panel and shadow windows
+
+void DrawOutsideShadow(Surface& s,
+                       float l,
+                       float t,
+                       float r,
+                       float b,
+                       float radius,
+                       float sigma,
+                       Color c) {
+    const float reach = sigma * 3.0f;
+    const int ix0 = std::max(0, static_cast<int>(floorf(l - reach)));
+    const int iy0 = std::max(0, static_cast<int>(floorf(t - reach)));
+    const int ix1 = std::min(s.Width(), static_cast<int>(ceilf(r + reach)));
+    const int iy1 = std::min(s.Height(), static_cast<int>(ceilf(b + reach)));
+    for (int y = iy0; y < iy1; y++) {
+        uint32_t* row = s.Row(y);
+        for (int x = ix0; x < ix1; x++) {
+            const float d = SdRoundRect(x + 0.5f, y + 0.5f, l, t, r, b, radius);
+            if (d < 0.0f) {
+                continue;  // The panel covers this part of the shadow.
+            }
+            const float coverage = SoftCoverage(d, sigma) * Clamp01(d + 1.0f);
+            if (coverage > 0.002f) {
+                BlendColor(row[x], c, coverage);
+            }
+        }
+    }
+}
+
+bool BuildShadow() {
+    g_shadowMargin = S(28.0f);
+    const int width = g_layout.width;
+    const int height = g_layout.height;
+    if (!g_shadowSurface.Resize(width + g_shadowMargin * 2,
+                                height + g_shadowMargin * 2)) {
+        return false;
+    }
+    const float margin = static_cast<float>(g_shadowMargin);
+    DrawOutsideShadow(g_shadowSurface, margin, margin + S(3.0f),
+                      margin + width, margin + height + S(3.0f),
+                      S(kPanelRadius), S(11.0f), g_theme.shadow);
+    return true;
+}
+
+RECT MonitorWorkArea() {
+    POINT point{0, 0};
+    if (!g_settings.primaryMonitorOnly) {
+        GetCursorPos(&point);
+    }
+    HMONITOR monitor = MonitorFromPoint(point, MONITOR_DEFAULTTOPRIMARY);
+    MONITORINFO info{sizeof(info)};
+    if (!GetMonitorInfoW(monitor, &info)) {
+        info.rcWork = RECT{0, 0, GetSystemMetrics(SM_CXSCREEN),
+                           GetSystemMetrics(SM_CYSCREEN)};
+    }
+    return info.rcWork;
+}
+
+void ComputePosition(int width, int height, int& x, int& y) {
+    const RECT work = MonitorWorkArea();
+    const int margin = S(12.0f);
+    const std::wstring& position = g_settings.position;
+    const int left = work.left + margin;
+    const int right = work.right - margin - width;
+    const int top = work.top + margin;
+    const int bottom = work.bottom - margin - height;
+    const int centerX = work.left + ((work.right - work.left) - width) / 2;
+    const int centerY = work.top + ((work.bottom - work.top) - height) / 2;
+
+    if (position == L"topleft" || position == L"left" ||
+        position == L"bottomleft") {
+        x = left;
+    } else if (position == L"topright" || position == L"right" ||
+               position == L"bottomright") {
+        x = right;
+    } else {
+        x = centerX;
+    }
+    if (position.rfind(L"top", 0) == 0) {
+        y = top;
+    } else if (position.rfind(L"bottom", 0) == 0) {
+        y = bottom;
+    } else {
+        y = centerY;
+    }
+
+    x += g_settings.offsetX;
+    y += g_settings.offsetY;
+    x = std::clamp(x, static_cast<int>(work.left),
+                   std::max(static_cast<int>(work.left),
+                            static_cast<int>(work.right) - width));
+    y = std::clamp(y, static_cast<int>(work.top),
+                   std::max(static_cast<int>(work.top),
+                            static_cast<int>(work.bottom) - height));
+}
+
+int BaseAlpha() {
+    return static_cast<int>(lroundf(255.0f * g_settings.opacity / 100.0f));
+}
+
+void PresentPanel(bool updateAlpha) {
+    if (!g_panel.Hwnd() || !g_surface.Valid()) {
+        return;
+    }
+    if (updateAlpha) {
+        g_alpha = BaseAlpha();
+    }
+    g_alpha = std::clamp(g_alpha, 0, 255);
+    g_panel.Present(g_surface, g_x, g_y + g_slideOffset,
+                    static_cast<BYTE>(g_alpha));
+    if (g_shadow.Hwnd() && g_shadowSurface.Valid()) {
+        g_shadow.Present(g_shadowSurface, g_x - g_shadowMargin,
+                         g_y - g_shadowMargin + g_slideOffset,
+                         static_cast<BYTE>(g_alpha));
+    }
+}
+
+// Drives the fade and the slide. Progress runs from 0 (hidden) to 1 (shown).
+void ApplyAnimation(double progress) {
+    const float eased = Clamp01(static_cast<float>(progress));
+    g_alpha = static_cast<int>(lroundf(BaseAlpha() * eased));
+    g_slideOffset = static_cast<int>(lroundf((1.0f - eased) * S(kSlideDistance)));
+    PresentPanel(false);
+}
+
+void FinishClose() {
+    g_phase = kPhaseClosed;
+    if (g_panel.Hwnd()) {
+        KillTimer(g_panel.Hwnd(), kCaretTimer);
+        KillTimer(g_panel.Hwnd(), kAnimationTimer);
+        KillTimer(g_panel.Hwnd(), kFlashTimer);
+        KillTimer(g_panel.Hwnd(), kMenuAnimTimer);
+    }
+    // The clicks can outlive the panel, but then nothing polls their pulse.
+    if (g_settings.metronomeKeepPlaying) {
+        if (g_panel.Hwnd()) {
+            KillTimer(g_panel.Hwnd(), kPulseTimer);
+        }
+    } else {
+        MetronomeHalt();
+    }
+    // The microphone is only wanted while the tuner is on screen.
+    TunerHalt();
+    if (g_dragging) {
+        ReleaseCapture();
+    }
+    g_panel.Hide();
+    g_shadow.Hide();
+    g_dragging = false;
+    g_sliding = false;
+    g_hover = HitResult();
+    g_pressed = HitResult();
+    MenuReset(g_toolMenu);
+    MenuReset(g_tunerMenu);
+}
+
+void UpdateAnimation() {
+    if (g_phase != kPhaseOpening && g_phase != kPhaseClosing) {
+        return;
+    }
+    const double now = NowMs();
+    const double duration = g_phase == kPhaseOpening ? kOpenDurationMs
+                                                     : kCloseDurationMs;
+    double t = duration > 0.0 ? (now - g_phaseStart) / duration : 1.0;
+    if (t >= 1.0) {
+        if (g_phase == kPhaseOpening) {
+            g_phase = kPhaseOpen;
+            ApplyAnimation(1.0);
+        } else {
+            FinishClose();
+        }
+        return;
+    }
+    const double eased = EaseOutCubic(t);
+    ApplyAnimation(g_phase == kPhaseOpening ? eased : 1.0 - eased);
+}
+
+void OpenFlyout() {
+    if (g_phase == kPhaseOpening || g_phase == kPhaseOpen) {
+        return;
+    }
+    // Measuring depends on the DPI of the panel monitor, so move the (still
+    // hidden) window over first.
+    if (g_panel.Hwnd()) {
+        const RECT work = MonitorWorkArea();
+        SetWindowPos(g_panel.Hwnd(), nullptr, work.left, work.top, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    // The default instrument only decides the tab the mod starts on.
+    static bool instrumentApplied = false;
+    if (!instrumentApplied) {
+        instrumentApplied = true;
+        SetInstrument(g_settings.defaultInstrument, false);
+    }
+    // The default tool works the same way: it only decides the first panel.
+    static bool toolApplied = false;
+    if (!toolApplied) {
+        toolApplied = true;
+        SetTool(g_settings.defaultTool);
+    }
+    if (g_app.results.empty()) {
+        Refilter();  // Nothing was picked yet, or the last search came up dry.
+    }
+    Render();
+    if (g_panel.Hwnd()) {
+        ConfigureGlassWindow(g_panel.Hwnd(),
+                             TransparencyEnabled() && IsWindows10Build(17134)
+                                 ? &g_theme.panelTop
+                                 : nullptr);
+    }
+    if (!BuildShadow()) {
+        Wh_Log(L"Couldn't build the shadow surface");
+    }
+    ComputePosition(g_layout.width, g_layout.height, g_x, g_y);
+
+    g_slideOffset = S(kSlideDistance);
+    g_alpha = 0;
+    PresentPanel(false);
+    g_shadow.Show(false);
+    g_panel.Show(true);
+    if (g_shadow.Hwnd()) {
+        // Keep the shadow directly under the panel.
+        SetWindowPos(g_shadow.Hwnd(), g_panel.Hwnd(), 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE |
+                         SWP_NOOWNERZORDER);
+    }
+    SetForegroundWindow(g_panel.Hwnd());
+    SetFocus(g_panel.Hwnd());
+
+    g_phase = kPhaseOpening;
+    g_phaseStart = NowMs();
+    g_caretStart = g_phaseStart;
+    // Only the chord tool has a search box to type into.
+    g_searchFocused = g_app.tool == kToolChords;
+    // The caret sits at the end of whatever was typed last time.
+    g_caret = static_cast<int>(g_app.query.size());
+    g_selAnchor = g_caret;
+    SetTimer(g_panel.Hwnd(), kAnimationTimer, 8, nullptr);
+    SetTimer(g_panel.Hwnd(), kCaretTimer, 530, nullptr);
+    // Pick the beat dots back up if the metronome kept playing.
+    if (g_metro.running) {
+        SetTimer(g_panel.Hwnd(), kPulseTimer, 33, nullptr);
+    }
+    // The tuner only listens while its panel is up.
+    if (g_app.tool == kToolTuner) {
+        TunerStart();
+    }
+}
+
+void CloseFlyout() {
+    if (g_phase == kPhaseClosed || g_phase == kPhaseClosing) {
+        return;
+    }
+    if (g_dragging || g_selecting) {
+        g_dragging = false;
+        g_selecting = false;
+        ReleaseCapture();
+    }
+    g_sliding = false;
+    g_phase = kPhaseClosing;
+    g_phaseStart = NowMs();
+    SetTimer(g_panel.Hwnd(), kAnimationTimer, 8, nullptr);
+}
+
+void ToggleFlyout() {
+    if (g_phase == kPhaseOpen || g_phase == kPhaseOpening) {
+        CloseFlyout();
+    } else {
+        OpenFlyout();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Chord playback
+//
+// Parked until the freeze it caused is understood. Bringing it back needs the
+// #include <mmreg.h> above as well.
+//
+// The mod bundles no audio libraries, so the handful of WASAPI interfaces it
+// needs are declared here. A render thread owns the device, synthesises the
+// requested chord at the device's own sample rate and feeds it in shared mode:
+// a plucked string model for guitar and ukulele, a struck one for the piano.
+
+#if 0
+
+struct AudioUnknown {
+    virtual HRESULT QueryInterface(const GUID& iid, void** out) = 0;
+    virtual ULONG AddRef() = 0;
+    virtual ULONG Release() = 0;
+};
+
+struct AudioDevice {
+    virtual HRESULT Activate(const GUID& iid, DWORD context, void* params,
+                             void** out) = 0;
+};
+
+struct AudioDeviceEnumerator {
+    virtual HRESULT EnumAudioEndpoints(int flow, DWORD mask, void** out) = 0;
+    virtual HRESULT GetDefaultAudioEndpoint(int flow, int role, AudioDevice** out) = 0;
+};
+
+// Every method has to be listed, in order, for the virtual table to line up.
+struct AudioClient {
+    virtual HRESULT Initialize(int mode, DWORD flags, LONGLONG duration,
+                               LONGLONG periodicity, const WAVEFORMATEX* format,
+                               const GUID* session) = 0;
+    virtual HRESULT GetBufferSize(UINT32* frames) = 0;
+    virtual HRESULT GetStreamLatency(LONGLONG* latency) = 0;
+    virtual HRESULT GetCurrentPadding(UINT32* padding) = 0;
+    virtual HRESULT IsFormatSupported(int mode, const WAVEFORMATEX* format,
+                                      WAVEFORMATEX** closest) = 0;
+    virtual HRESULT GetMixFormat(WAVEFORMATEX** format) = 0;
+    virtual HRESULT GetDevicePeriod(LONGLONG* minimum, LONGLONG* alignment) = 0;
+    virtual HRESULT Start() = 0;
+    virtual HRESULT Stop() = 0;
+    virtual HRESULT Reset() = 0;
+    virtual HRESULT SetEventHandle(HANDLE event) = 0;
+    virtual HRESULT GetService(const GUID& iid, void** out) = 0;
+};
+
+struct AudioRenderClient {
+    virtual HRESULT GetBuffer(UINT32 frames, BYTE** data) = 0;
+    virtual HRESULT ReleaseBuffer(UINT32 frames, DWORD flags) = 0;
+};
+
+const GUID kMmDeviceEnumeratorClsid = {0xBCDE0395, 0xE52F, 0x467C,
+                                       {0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E}};
+const GUID kMmDeviceEnumeratorIid = {0xA95664D2, 0x9614, 0x4F35,
+                                     {0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6}};
+const GUID kAudioClientIid = {0x1CB9AD4C, 0xDBFA, 0x4C32,
+                              {0xB1, 0x78, 0xC2, 0xF5, 0x68, 0xA7, 0x03, 0xB2}};
+const GUID kAudioRenderClientIid = {0xF294ACFC, 0x3146, 0x4483,
+                                    {0xA7, 0xBF, 0xAD, 0xDC, 0xA7, 0xC2, 0x60, 0xE2}};
+
+struct AudioRequest {
+    int generation = 0;
+    bool plucked = true;
+    float damping = 0.9975f;  // How long a plucked string rings.
+    int noteCount = 0;
+    int notes[kMaxNotes] = {};
+};
+
+struct AudioOutput {
+    AudioClient* client = nullptr;
+    AudioRenderClient* render = nullptr;
+    WAVEFORMATEX* format = nullptr;
+    UINT32 frames = 0;
+    int channels = 0;
+    int bits = 0;
+    bool floating = false;
+};
+
+CRITICAL_SECTION g_audioLock;
+bool g_audioLockReady = false;
+AudioRequest g_audioRequest;
+HANDLE g_audioWake = nullptr;
+HANDLE g_audioStop = nullptr;
+HANDLE g_audioThread = nullptr;
+double g_audioBusyUntil = 0.0;
+// Asking for the device ahead of time, and handing it back once the panel is
+// gone, keeps an idle stream from holding the audio engine awake all day.
+bool g_audioWarm = false;
+bool g_audioRelease = false;
+
+inline void ReleaseUnknown(void* object) {
+    if (object) {
+        static_cast<AudioUnknown*>(object)->Release();
+    }
+}
+
+inline float NoteFrequency(int midi) {
+    return 440.0f * powf(2.0f, (static_cast<float>(midi) - 69.0f) / 12.0f);
+}
+
+inline float AudioNoise(uint32_t& state) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return static_cast<float>(state) / 2147483648.0f - 1.0f;
+}
+
+// Karplus-Strong: noise recirculated through a two tap average, which is close
+// enough to a plucked string for a handful of lines.
+void MixPluck(std::vector<float>& out,
+              int channels,
+              int rate,
+              float frequency,
+              double start,
+              float damping,
+              float gain) {
+    const int delay =
+        std::max(2, static_cast<int>(static_cast<float>(rate) / frequency));
+    std::vector<float> line(static_cast<size_t>(delay));
+    uint32_t seed = 0x9E3779B9u ^ static_cast<uint32_t>(frequency * 11.0f);
+    float previous = 0.0f;
+    for (int i = 0; i < delay; i++) {
+        previous = 0.5f * (previous + AudioNoise(seed));
+        line[static_cast<size_t>(i)] = previous;
+    }
+
+    const size_t total = out.size() / static_cast<size_t>(channels);
+    const size_t first = static_cast<size_t>(start * rate);
+    if (first >= total) {
+        return;
+    }
+    size_t index = 0;
+    for (size_t n = first; n < total; n++) {
+        const size_t next = (index + 1) % static_cast<size_t>(delay);
+        const float value = 0.5f * (line[index] + line[next]) * damping;
+        line[index] = value;
+        index = next;
+        float* frame = &out[n * static_cast<size_t>(channels)];
+        frame[0] += value * gain;
+        if (channels > 1) {
+            frame[1] += value * gain * 0.94f;
+        }
+    }
+}
+
+// A struck string is a stack of slightly inharmonic partials that fade at their
+// own pace, which reads as a piano rather than a plain tone.
+void MixStrike(std::vector<float>& out,
+               int channels,
+               int rate,
+               float frequency,
+               double start,
+               float gain) {
+    const size_t total = out.size() / static_cast<size_t>(channels);
+    const size_t first = static_cast<size_t>(start * rate);
+    if (first >= total) {
+        return;
+    }
+    for (int partial = 1; partial <= 8; partial++) {
+        const float order = static_cast<float>(partial);
+        const float partialFrequency =
+            frequency * order * sqrtf(1.0f + 0.0004f * order * order);
+        if (partialFrequency > static_cast<float>(rate) * 0.45f) {
+            break;
+        }
+        const float amplitude = gain / powf(order, 1.35f);
+        const float step = 6.2831853f * partialFrequency / static_cast<float>(rate);
+        const float fall = 1.7f / (0.55f + order * 0.45f);
+        const float decay = expf(-1.0f / (fall * static_cast<float>(rate)));
+        float envelope = amplitude;
+        float phase = order * 0.9f;
+        for (size_t n = first; n < total; n++) {
+            phase += step;
+            const float attack = (n - first) < 128 ? static_cast<float>(n - first) / 128.0f : 1.0f;
+            const float value = sinf(phase) * envelope * attack;
+            envelope *= decay;
+            float* frame = &out[n * static_cast<size_t>(channels)];
+            frame[0] += value;
+            if (channels > 1) {
+                frame[1] += value * 0.96f;
+            }
+        }
+    }
+}
+
+void RenderChord(std::vector<float>& out,
+                 int channels,
+                 int rate,
+                 const AudioRequest& request) {
+    const double length = request.plucked ? 3.2 : 2.8;
+    out.assign(static_cast<size_t>(length * rate) *
+                   static_cast<size_t>(channels),
+               0.0f);
+    for (int i = 0; i < request.noteCount; i++) {
+        const float frequency = NoteFrequency(request.notes[i]);
+        if (request.plucked) {
+            MixPluck(out, channels, rate, frequency, i * 0.022, request.damping,
+                     0.20f);
+        } else {
+            MixStrike(out, channels, rate, frequency, i * 0.007, 0.09f);
+        }
+    }
+    // Soft clipping keeps a dense chord from crackling and leaves headroom.
+    for (size_t i = 0; i < out.size(); i++) {
+        out[i] = tanhf(out[i] * 1.35f) * 0.82f;
+    }
+    // The tail fades out so the buffer never ends on a step.
+    const size_t totalFrames = out.size() / static_cast<size_t>(channels);
+    const size_t fade =
+        std::min(totalFrames, static_cast<size_t>(0.18 * static_cast<double>(rate)));
+    for (size_t i = 0; i < fade; i++) {
+        const float tail = static_cast<float>(i) / static_cast<float>(fade);
+        float* frame = &out[(totalFrames - fade + i) * static_cast<size_t>(channels)];
+        for (int c = 0; c < channels; c++) {
+            frame[c] *= tail;
+        }
+    }
+}
+
+void FillAudio(BYTE* data,
+               UINT32 frames,
+               const std::vector<float>& samples,
+               size_t& playhead,
+               const AudioOutput& output) {
+    const size_t channels = static_cast<size_t>(output.channels);
+    const size_t total = samples.size() / channels;
+    for (UINT32 i = 0; i < frames; i++, playhead++) {
+        float left = 0.0f;
+        float right = 0.0f;
+        if (playhead < total) {
+            const float* source = &samples[playhead * channels];
+            left = source[0];
+            right = channels > 1 ? source[1] : left;
+        }
+        const size_t frame = static_cast<size_t>(i) * channels;
+        if (output.bits == 16) {
+            auto* target = reinterpret_cast<int16_t*>(data) + frame;
+            target[0] = static_cast<int16_t>(left * 32767.0f);
+            for (size_t c = 1; c < channels; c++) {
+                target[c] = static_cast<int16_t>(right * 32767.0f);
+            }
+        } else if (output.floating) {
+            auto* target = reinterpret_cast<float*>(data) + frame;
+            target[0] = left;
+            for (size_t c = 1; c < channels; c++) {
+                target[c] = right;
+            }
+        } else {
+            auto* target = reinterpret_cast<int32_t*>(data) + frame;
+            target[0] = static_cast<int32_t>(left * 2147483000.0f);
+            for (size_t c = 1; c < channels; c++) {
+                target[c] = static_cast<int32_t>(right * 2147483000.0f);
+            }
+        }
+    }
+}
+
+void CloseAudio(AudioOutput& output) {
+    ReleaseUnknown(output.render);
+    ReleaseUnknown(output.client);
+    if (output.format) {
+        CoTaskMemFree(output.format);
+    }
+    output = AudioOutput();
+}
+
+bool OpenAudio(AudioOutput& output) {
+    AudioDeviceEnumerator* enumerator = nullptr;
+    if (FAILED(CoCreateInstance(kMmDeviceEnumeratorClsid, nullptr, CLSCTX_ALL,
+                                kMmDeviceEnumeratorIid,
+                                reinterpret_cast<void**>(&enumerator))) ||
+        !enumerator) {
+        Wh_Log(L"Audio: no device enumerator");
+        return false;
+    }
+    AudioDevice* device = nullptr;
+    const HRESULT deviceResult = enumerator->GetDefaultAudioEndpoint(
+        0 /* eRender */, 0 /* eConsole */, &device);
+    ReleaseUnknown(enumerator);
+    if (FAILED(deviceResult) || !device) {
+        Wh_Log(L"Audio: no default output device");
+        return false;
+    }
+    AudioClient* client = nullptr;
+    const HRESULT activateResult = device->Activate(
+        kAudioClientIid, CLSCTX_ALL, nullptr, reinterpret_cast<void**>(&client));
+    ReleaseUnknown(device);
+    if (FAILED(activateResult) || !client) {
+        Wh_Log(L"Audio: no audio client");
+        return false;
+    }
+
+    WAVEFORMATEX* format = nullptr;
+    if (FAILED(client->GetMixFormat(&format)) || !format) {
+        Wh_Log(L"Audio: no mix format");
+        ReleaseUnknown(client);
+        return false;
+    }
+    constexpr int kSharedMode = 0;
+    if (FAILED(client->Initialize(kSharedMode, 0, 0, 0, format, nullptr))) {
+        Wh_Log(L"Audio: shared mode init failed");
+        CoTaskMemFree(format);
+        ReleaseUnknown(client);
+        return false;
+    }
+    AudioRenderClient* render = nullptr;
+    if (FAILED(client->GetService(kAudioRenderClientIid,
+                                  reinterpret_cast<void**>(&render))) ||
+        !render) {
+        Wh_Log(L"Audio: no render client");
+        CoTaskMemFree(format);
+        ReleaseUnknown(client);
+        return false;
+    }
+
+    UINT32 frames = 0;
+    client->GetBufferSize(&frames);
+    if (frames == 0) {
+        Wh_Log(L"Audio: empty buffer");
+        ReleaseUnknown(render);
+        CoTaskMemFree(format);
+        ReleaseUnknown(client);
+        return false;
+    }
+
+    bool floating = format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT;
+    if (format->wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+        const auto* extensible =
+            reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(format);
+        floating = extensible->SubFormat.Data1 == 3;  // 3 is IEEE float.
+    }
+
+    output.client = client;
+    output.render = render;
+    output.format = format;
+    output.frames = frames;
+    output.channels = format->nChannels > 0 ? format->nChannels : 2;
+    output.bits = format->wBitsPerSample;
+    output.floating = floating;
+    Wh_Log(L"Audio: %u Hz, %d channels, %d bits, float %d",
+           format->nSamplesPerSec, output.channels, output.bits,
+           floating ? 1 : 0);
+    return true;
+}
+
+DWORD WINAPI AudioThreadProc(void*) {
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+
+    AudioOutput output;
+    bool opened = OpenAudio(output);
+    std::vector<float> samples;
+    size_t playhead = 0;
+    int rendered = 0;
+    bool running = false;
+
+    while (WaitForSingleObject(g_audioStop, 0) != WAIT_OBJECT_0) {
+        if (!opened) {
+            bool wanted = g_audioWarm;
+            g_audioWarm = false;
+            EnterCriticalSection(&g_audioLock);
+            if (g_audioRequest.generation != rendered) {
+                wanted = true;
+            }
+            LeaveCriticalSection(&g_audioLock);
+            if (wanted) {
+                opened = OpenAudio(output);
+                if (opened) {
+                    continue;
+                }
+            }
+            WaitForSingleObject(g_audioWake, 500);
+            continue;
+        }
+        g_audioWarm = false;  // The device is up, so nothing is pending.
+
+        AudioRequest request;
+        bool pending = false;
+        EnterCriticalSection(&g_audioLock);
+        if (g_audioRequest.generation != rendered) {
+            request = g_audioRequest;
+            pending = true;
+        }
+        LeaveCriticalSection(&g_audioLock);
+
+        if (pending) {
+            if (running) {
+                output.client->Stop();
+                running = false;
+            }
+            RenderChord(samples, output.channels,
+                        static_cast<int>(output.format->nSamplesPerSec), request);
+            playhead = 0;
+            rendered = request.generation;
+        }
+
+        if (playhead >= samples.size() / static_cast<size_t>(output.channels)) {
+            if (running) {
+                output.client->Stop();
+                running = false;
+            }
+            if (g_audioRelease) {
+                g_audioRelease = false;
+                CloseAudio(output);
+                opened = false;
+                samples.clear();
+                continue;
+            }
+            WaitForSingleObject(g_audioWake, 200);
+            continue;
+        }
+        if (!running) {
+            if (FAILED(output.client->Start())) {
+                Wh_Log(L"Audio: start failed");
+                CloseAudio(output);
+                opened = false;
+                continue;
+            }
+            running = true;
+        }
+
+        UINT32 padding = 0;
+        if (FAILED(output.client->GetCurrentPadding(&padding))) {
+            Sleep(5);
+            continue;
+        }
+        const UINT32 available =
+            output.frames > padding ? output.frames - padding : 0;
+        if (available == 0) {
+            Sleep(2);
+            continue;
+        }
+        BYTE* data = nullptr;
+        if (FAILED(output.render->GetBuffer(available, &data))) {
+            Sleep(2);
+            continue;
+        }
+        FillAudio(data, available, samples, playhead, output);
+        output.render->ReleaseBuffer(available, 0);
+    }
+
+    if (running) {
+        output.client->Stop();
+    }
+    CloseAudio(output);
+    CoUninitialize();
+    return 0;
+}
+
+void AudioPrepare() {
+    if (g_audioThread) {
+        g_audioRelease = false;
+        g_audioWarm = true;
+        if (g_audioWake) {
+            SetEvent(g_audioWake);
+        }
+        return;
+    }
+    InitializeCriticalSection(&g_audioLock);
+    g_audioLockReady = true;
+    g_audioWake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    g_audioStop = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    g_audioThread = CreateThread(nullptr, 0, AudioThreadProc, nullptr, 0, nullptr);
+}
+
+void AudioRelease() {
+    if (!g_audioThread) {
+        return;
+    }
+    g_audioRelease = true;
+    if (g_audioWake) {
+        SetEvent(g_audioWake);
+    }
+}
+
+void AudioPlay(const AudioRequest& request) {
+    AudioPrepare();
+    if (!g_audioLockReady || !g_audioWake) {
+        return;
+    }
+    EnterCriticalSection(&g_audioLock);
+    g_audioRequest = request;
+    g_audioRequest.generation++;
+    LeaveCriticalSection(&g_audioLock);
+    SetEvent(g_audioWake);
+    g_audioBusyUntil = NowMs() + 2600.0;
+    if (g_panel.Hwnd()) {
+        SetTimer(g_panel.Hwnd(), kAudioTimer, 250, nullptr);
+    }
+}
+
+void AudioShutdown() {
+    if (g_audioStop) {
+        SetEvent(g_audioStop);
+    }
+    if (g_audioThread) {
+        WaitForSingleObject(g_audioThread, 2000);
+        CloseHandle(g_audioThread);
+        g_audioThread = nullptr;
+    }
+    if (g_audioWake) {
+        CloseHandle(g_audioWake);
+        g_audioWake = nullptr;
+    }
+    if (g_audioStop) {
+        CloseHandle(g_audioStop);
+        g_audioStop = nullptr;
+    }
+    if (g_audioLockReady) {
+        DeleteCriticalSection(&g_audioLock);
+        g_audioLockReady = false;
+    }
+}
+
+#endif  // Chord playback
+
+////////////////////////////////////////////////////////////////////////////////
+// Metronome audio
+//
+// winmm keeps this small: one shared mode stream, refilled block by block on
+// its own thread, with every click mixed in at an exact sample offset from the
+// beat grid. The message loop is never part of the timing, so a busy desktop
+// cannot make the tempo wobble the way a WM_TIMER click would.
+
+constexpr int kMetroRate = 44100;
+constexpr int kMetroChannels = 2;
+constexpr int kMetroBlockFrames = 512;  // About 11.6 ms per block.
+constexpr int kMetroBlockCount = 3;     // About 35 ms of headroom.
+constexpr int kMetroTail = 6144;        // Longer than the longest click.
+constexpr int kMetroLevels = 4;
+
+struct MetroConfig {
+    double bpm = 120.0;
+    int beats = 4;
+    int subdivision = 1;
+    int group = 1;
+    int volume = 70;
+    int sound = 0;
+};
+
+// Written by the panel, read by the audio thread once per block.
+struct MetroShared {
+    std::atomic<int> bpmMilli{120000};
+    std::atomic<int> beats{4};
+    std::atomic<int> subdivision{1};
+    std::atomic<int> group{1};
+    std::atomic<int> volume{70};
+    std::atomic<int> sound{0};
+    std::atomic<int> beat{0};
+    std::atomic<unsigned> pulse{0};
+    std::atomic<bool> running{false};
+};
+
+MetroShared g_metroShared;
+
+MetroConfig ReadMetroConfig() {
+    MetroConfig c;
+    c.bpm = std::clamp(g_metroShared.bpmMilli.load() / 1000.0, 20.0, 400.0);
+    c.beats = std::clamp(g_metroShared.beats.load(), 1, 16);
+    c.subdivision = std::clamp(g_metroShared.subdivision.load(), 1, 4);
+    c.group = std::clamp(g_metroShared.group.load(), 1, 4);
+    c.volume = std::clamp(g_metroShared.volume.load(), 0, 100);
+    c.sound = std::clamp(g_metroShared.sound.load(), 0, 2);
+    return c;
+}
+
+// Four strikes: the downbeat, the start of each group, the plain beat and the
+// subdivision, each a step quieter than the one before it. The frequencies sit
+// where a wooden case rings, with a noise scratch and a low body underneath, so
+// a click reads as a tick rather than a tone that would sit on top of music.
+struct MetroClickSpec {
+    float frequency;
+    float level;
+    float seconds;
+    float decay;
+    float noise;
+    float body;
+    float bodyFrequency;
+};
+
+constexpr MetroClickSpec kMetroClickSpecs[kMetroLevels] = {
+    {2600.0f, 1.00f, 0.038f, 120.0f, 0.40f, 0.34f, 250.0f},
+    {2300.0f, 0.82f, 0.034f, 128.0f, 0.42f, 0.30f, 235.0f},
+    {2000.0f, 0.64f, 0.030f, 136.0f, 0.44f, 0.28f, 220.0f},
+    {1650.0f, 0.34f, 0.020f, 170.0f, 0.50f, 0.18f, 200.0f},
+};
+
+struct MetroAudio {
+    HWAVEOUT device = nullptr;
+    HANDLE audioEvent = nullptr;
+    HANDLE stopEvent = nullptr;
+    HANDLE readyEvent = nullptr;
+    HANDLE thread = nullptr;
+    WAVEHDR headers[kMetroBlockCount]{};
+    std::vector<short> pcm[kMetroBlockCount];
+    // Every level is rendered twice: the tick and the tock that answers it.
+    std::vector<float> clicks[kMetroLevels][2];
+    // Holds the block about to be played plus the tails of the clicks that run
+    // past its end, so a click is never cut off at a block boundary.
+    std::vector<float> canvas;
+    int builtSound = -1;
+    bool prepared = false;
+    long long written = 0;
+    double nextEvent = 0.0;
+    int beat = 0;
+    int sub = 0;
+};
+
+MetroAudio g_metroAudio;
+
+void BuildMetroClicks(MetroAudio& a, int sound) {
+    const bool beep = sound == 2;
+    const bool wood = sound == 1;
+    for (int level = 0; level < kMetroLevels; level++) {
+        const MetroClickSpec& spec = kMetroClickSpecs[level];
+        for (int alt = 0; alt < 2; alt++) {
+            // The second strike drops in pitch and warms up, the way a clock
+            // answers the tick with a tock. The beep keeps one voice, since a
+            // pure tone with two pitches would read as a tune.
+            const bool tock = alt != 0 && !beep;
+            const float frequency = spec.frequency * (tock ? 0.78f : 1.0f);
+            const float seconds = spec.seconds * (beep ? 1.8f : 1.0f);
+            const float decay =
+                spec.decay * (beep ? 0.30f : tock ? 0.85f : 1.0f);
+            const float bodyFrequency = spec.bodyFrequency *
+                                        (tock ? 0.85f : 1.0f) *
+                                        (wood ? 0.92f : 1.0f);
+            const float body =
+                spec.body * (tock ? 1.25f : 1.0f) * (wood ? 1.35f : 1.0f);
+            const float noise = beep ? 0.0f : spec.noise * (wood ? 1.1f : 1.0f);
+            const int frames = static_cast<int>(seconds * kMetroRate);
+            std::vector<float>& out = a.clicks[level][alt];
+            out.assign(static_cast<size_t>(frames), 0.0f);
+            const int attack = static_cast<int>(kMetroRate * 0.0012f) + 1;
+            const int release = static_cast<int>(kMetroRate * 0.0035f) + 1;
+            uint32_t seed = 0x9E3779B9u ^
+                            static_cast<uint32_t>(level * 7919 + alt * 104729 +
+                                                  13);
+            float phase = 0.0f;
+            float previousNoise = 0.0f;
+            for (int i = 0; i < frames; i++) {
+                const float time = static_cast<float>(i) / kMetroRate;
+                // The strike bends down as it dies away; that drop is what
+                // makes it a tick instead of a held note.
+                const float bend =
+                    beep ? 1.0f : 1.0f + 0.55f * expf(-time * 260.0f);
+                phase += 6.2831853f * frequency * bend / kMetroRate;
+                seed ^= seed << 13;
+                seed ^= seed >> 17;
+                seed ^= seed << 5;
+                const float raw =
+                    static_cast<float>(seed) / 2147483648.0f - 1.0f;
+                const float scratch = raw - previousNoise;  // High pass, for the
+                previousNoise = raw;                       // edge of the strike.
+                float value;
+                if (beep) {
+                    value = 0.92f * sinf(phase) + 0.08f * sinf(phase * 3.0f);
+                } else {
+                    const float tone = sinf(phase) + 0.32f * sinf(phase * 2.0f);
+                    const float thump = sinf(6.2831853f * bodyFrequency * time);
+                    value = tone * (1.0f - noise) * 0.80f + scratch * noise +
+                            thump * body;
+                    value *= 0.62f;  // Room for the three parts to add up.
+                }
+                float gain = spec.level * expf(-decay * time);
+                if (i < attack) {
+                    gain *= static_cast<float>(i) / attack;
+                }
+                if (frames - i < release) {
+                    gain *= static_cast<float>(frames - i) / release;
+                }
+                out[static_cast<size_t>(i)] = value * gain;
+            }
+        }
+    }
+    a.builtSound = sound;
+}
+
+// Adds one click at a sample offset inside the canvas.
+void MixMetroClick(MetroAudio& a, int level, int alt, int offset) {
+    const std::vector<float>& click = a.clicks[level][std::clamp(alt, 0, 1)];
+    const int room = static_cast<int>(a.canvas.size()) - offset;
+    const int count =
+        std::min(static_cast<int>(click.size()), std::min(room, kMetroTail));
+    float* target = a.canvas.data() + offset;
+    for (int i = 0; i < count; i++) {
+        target[i] += click[static_cast<size_t>(i)];
+    }
+}
+
+void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
+    if (a.builtSound != cfg.sound) {
+        BuildMetroClicks(a, cfg.sound);
+    }
+    std::fill(a.canvas.begin() + kMetroTail, a.canvas.end(), 0.0f);
+
+    const double stepFrames =
+        60.0 * kMetroRate / cfg.bpm / static_cast<double>(cfg.subdivision);
+    if (a.sub >= cfg.subdivision) {
+        a.sub = 0;  // The subdivision changed under the click pattern.
+    }
+    if (a.beat >= cfg.beats) {
+        a.beat = 0;  // So did the meter.
+    }
+    while (a.nextEvent < static_cast<double>(a.written + kMetroBlockFrames)) {
+        // The stream runs for hours, so the offset is kept wide rather than
+        // truncated to an int that would wrap after a while.
+        const long long offset = static_cast<long long>(a.nextEvent) - a.written;
+        if (offset >= 0 && offset < kMetroBlockFrames) {
+            const bool onBeat = a.sub == 0;
+            int level = 3;
+            if (onBeat) {
+                level = a.beat == 0 ? 0
+                        : (cfg.group > 1 && a.beat % cfg.group == 0) ? 1
+                                                                    : 2;
+            }
+            // The plain beats alternate tick and tock, so a bar of even
+            // beats reads as a clock; the accents and the subdivisions keep
+            // their own voice instead of joining the alternation.
+            const int alt = (level == 2 && (a.beat & 1) != 0) ? 1 : 0;
+            MixMetroClick(a, level, alt, static_cast<int>(offset));
+            if (onBeat) {
+                g_metroShared.beat.store(a.beat);
+                g_metroShared.pulse.fetch_add(1);
+            }
+        }
+        a.sub++;
+        if (a.sub >= cfg.subdivision) {
+            a.sub = 0;
+            a.beat = (a.beat + 1) % cfg.beats;
+        }
+        a.nextEvent += stepFrames;
+    }
+    a.written += kMetroBlockFrames;
+
+    const float gain = static_cast<float>(cfg.volume) / 100.0f;
+    for (int i = 0; i < kMetroBlockFrames; i++) {
+        const float value = std::clamp(a.canvas[static_cast<size_t>(i)] * gain,
+                                       -1.0f, 1.0f);
+        const short sample = static_cast<short>(lroundf(value * 32000.0f));
+        out[i * kMetroChannels] = sample;
+        out[i * kMetroChannels + 1] = sample;
+    }
+    // Slide the tails down to the front of the next block.
+    for (int i = 0; i < kMetroTail; i++) {
+        a.canvas[static_cast<size_t>(i)] =
+            a.canvas[static_cast<size_t>(i + kMetroBlockFrames)];
+    }
+}
+
+void CloseMetroAudio(MetroAudio& a) {
+    if (a.device) {
+        waveOutReset(a.device);
+        if (a.prepared) {
+            for (int i = 0; i < kMetroBlockCount; i++) {
+                waveOutUnprepareHeader(a.device, &a.headers[i],
+                                       sizeof(WAVEHDR));
+            }
+        }
+        waveOutClose(a.device);
+        a.device = nullptr;
+    }
+    a.prepared = false;
+}
+
+void StopMetroAudio();
+
+DWORD WINAPI MetroThreadProc(void*) {
+    MetroAudio& a = g_metroAudio;
+    a.audioEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    a.stopEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    bool opened = false;
+    if (a.audioEvent && a.stopEvent) {
+        WAVEFORMATEX format{};
+        format.wFormatTag = WAVE_FORMAT_PCM;
+        format.nChannels = kMetroChannels;
+        format.nSamplesPerSec = kMetroRate;
+        format.wBitsPerSample = 16;
+        format.nBlockAlign = static_cast<WORD>(kMetroChannels * 2);
+        format.nAvgBytesPerSec = kMetroRate * format.nBlockAlign;
+        opened = waveOutOpen(&a.device, WAVE_MAPPER, &format,
+                             reinterpret_cast<DWORD_PTR>(a.audioEvent), 0,
+                             CALLBACK_EVENT) == MMSYSERR_NOERROR;
+        if (!opened) {
+            a.device = nullptr;
+            Wh_Log(L"Metronome: no audio output device");
+        }
+    }
+
+    if (opened) {
+        a.canvas.assign(static_cast<size_t>(kMetroTail + kMetroBlockFrames),
+                        0.0f);
+        for (int i = 0; i < kMetroBlockCount; i++) {
+            a.pcm[i].assign(
+                static_cast<size_t>(kMetroBlockFrames) * kMetroChannels, 0);
+            a.headers[i] = WAVEHDR{};
+            a.headers[i].lpData = reinterpret_cast<LPSTR>(a.pcm[i].data());
+            a.headers[i].dwBufferLength =
+                static_cast<DWORD>(a.pcm[i].size() * sizeof(short));
+            waveOutPrepareHeader(a.device, &a.headers[i], sizeof(WAVEHDR));
+        }
+        a.prepared = true;
+
+        // Prime the queue before the first beat, then keep refilling whatever
+        // the device has finished with.
+        MetroConfig cfg = ReadMetroConfig();
+        bool primed = true;
+        for (int i = 0; i < kMetroBlockCount; i++) {
+            FillMetroBlock(a, cfg, a.pcm[i].data());
+            if (waveOutWrite(a.device, &a.headers[i], sizeof(WAVEHDR)) !=
+                MMSYSERR_NOERROR) {
+                primed = false;
+                break;
+            }
+        }
+        if (primed) {
+            g_metroShared.running.store(true);
+        }
+        if (a.readyEvent) {
+            // Only now can a caller tell a running stream from a dead one.
+            SetEvent(a.readyEvent);
+        }
+
+        const HANDLE waits[2] = {a.audioEvent, a.stopEvent};
+        for (; primed;) {
+            const DWORD result = WaitForMultipleObjects(2, waits, FALSE, 200);
+            if (result == WAIT_OBJECT_0 + 1) {
+                break;
+            }
+            cfg = ReadMetroConfig();
+            bool failed = false;
+            for (int i = 0; i < kMetroBlockCount; i++) {
+                if (!(a.headers[i].dwFlags & WHDR_DONE)) {
+                    continue;
+                }
+                FillMetroBlock(a, cfg, a.pcm[i].data());
+                if (waveOutWrite(a.device, &a.headers[i], sizeof(WAVEHDR)) !=
+                    MMSYSERR_NOERROR) {
+                    failed = true;
+                    break;
+                }
+            }
+            if (failed) {
+                Wh_Log(L"Metronome: the output device went away");
+                break;
+            }
+        }
+    }
+
+    g_metroShared.running.store(false);
+    CloseMetroAudio(a);
+    if (a.readyEvent) {
+        SetEvent(a.readyEvent);  // Releases a start that is still waiting.
+    }
+
+    // A late wake must not outlive the loop.
+    if (a.stopEvent) {
+        SetEvent(a.stopEvent);
+    }
+    return 0;
+}
+
+bool StartMetroAudio() {
+    MetroAudio& a = g_metroAudio;
+    if (a.thread && WaitForSingleObject(a.thread, 0) == WAIT_OBJECT_0) {
+        // The device was lost while the panel was away, so clear the remains
+        // of that thread before opening a new one.
+        StopMetroAudio();
+    }
+    if (a.thread) {
+        return true;
+    }
+    a.written = 0;
+    a.nextEvent = 0.0;
+    a.beat = 0;
+    a.sub = 0;
+    a.readyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!a.readyEvent) {
+        return false;
+    }
+    a.thread = CreateThread(nullptr, 0, MetroThreadProc, nullptr, 0, nullptr);
+    if (!a.thread) {
+        CloseHandle(a.readyEvent);
+        a.readyEvent = nullptr;
+        return false;
+    }
+    WaitForSingleObject(a.readyEvent, 2000);
+    if (!g_metroShared.running.load()) {
+        WaitForSingleObject(a.thread, 1000);
+        CloseHandle(a.thread);
+        a.thread = nullptr;
+        CloseHandle(a.readyEvent);
+        a.readyEvent = nullptr;
+        if (a.audioEvent) {
+            CloseHandle(a.audioEvent);
+            a.audioEvent = nullptr;
+        }
+        if (a.stopEvent) {
+            CloseHandle(a.stopEvent);
+            a.stopEvent = nullptr;
+        }
+        return false;
+    }
+    return true;
+}
+
+void StopMetroAudio() {
+    MetroAudio& a = g_metroAudio;
+    if (a.stopEvent) {
+        SetEvent(a.stopEvent);
+    }
+    if (a.thread) {
+        WaitForSingleObject(a.thread, 2000);
+        CloseHandle(a.thread);
+        a.thread = nullptr;
+    }
+    if (a.readyEvent) {
+        CloseHandle(a.readyEvent);
+        a.readyEvent = nullptr;
+    }
+    if (a.audioEvent) {
+        CloseHandle(a.audioEvent);
+        a.audioEvent = nullptr;
+    }
+    if (a.stopEvent) {
+        CloseHandle(a.stopEvent);
+        a.stopEvent = nullptr;
+    }
+    g_metroShared.running.store(false);
+    // The thread has been joined, so its buffers can go too.
+    a = MetroAudio();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Tuner input
+//
+// A microphone hands over 16 bit mono in short blocks; a thread on the other
+// side folds them down to a quarter of the rate, runs an autocorrelation over
+// the last fifth of a second and publishes the frequency it found. Only the
+// result crosses back to the panel, so drawing never waits for the microphone.
+
+constexpr int kTunerRate = 44100;
+constexpr int kTunerBufferCount = 3;
+constexpr int kTunerBufferFrames = 512;   // About 11.6 ms of input per block.
+constexpr int kTunerDecimate = 4;         // A quarter of the rate is enough.
+constexpr int kTunerWindow = 2048;        // About 186 ms at 11 kHz.
+constexpr int kTunerHop = 1024;            // A fresh reading every 93 ms.
+constexpr float kTunerMinHz = 25.0f;      // The low B of a five string bass.
+constexpr float kTunerMaxHz = 1200.0f;    // Well past a violin's E string.
+constexpr float kTunerSilence = 0.0015f;  // Below this the room is just noise.
+constexpr float kTunerClean = 0.55f;      // Less than this is not a note.
+
+// Written by the audio thread, read by the panel once per reading.
+struct TunerShared {
+    std::atomic<float> frequency{0.0f};
+    std::atomic<float> level{0.0f};
+    std::atomic<float> confidence{0.0f};
+    std::atomic<unsigned> reading{0};
+    std::atomic<bool> running{false};
+};
+
+TunerShared g_tunerShared;
+
+struct TunerAudio {
+    HWAVEIN device = nullptr;
+    HANDLE audioEvent = nullptr;
+    HANDLE stopEvent = nullptr;
+    HANDLE readyEvent = nullptr;
+    HANDLE thread = nullptr;
+    WAVEHDR headers[kTunerBufferCount]{};
+    std::vector<short> pcm[kTunerBufferCount];
+    std::vector<float> history;    // Decimated samples, oldest at position.
+    std::vector<float> frame;       // The same history, straight through.
+    std::vector<float> difference;  // Scratch for the autocorrelation.
+    std::vector<float> normalized;
+    int position = 0;
+    int sinceAnalysis = 0;
+    float box = 0.0f;
+    int boxCount = 0;
+    int rate = kTunerRate;
+    bool prepared = false;
+};
+
+TunerAudio g_tunerAudio;
+
+// YIN's first two stages. The squared difference says how unlike the signal is
+// with itself at every lag, and the running mean divides that by the average so
+// far, which is what keeps a strong harmonic from winning over the fundamental.
+float DetectPitch(TunerAudio& a, int rate, float& confidence) {
+    confidence = 0.0f;
+    const int minLag = std::max(
+        2, static_cast<int>(static_cast<float>(rate) / kTunerMaxHz));
+    const int maxLag = std::min(
+        kTunerWindow / 2,
+        static_cast<int>(static_cast<float>(rate) / kTunerMinHz));
+    if (maxLag <= minLag + 2) {
+        return 0.0f;
+    }
+    const int width = kTunerWindow - maxLag;
+    const float* x = a.frame.data();
+
+    a.difference.assign(static_cast<size_t>(maxLag + 2), 0.0f);
+    for (int lag = std::max(1, minLag - 1); lag <= maxLag + 1; lag++) {
+        float sum = 0.0f;
+        for (int i = 0; i < width; i++) {
+            const float delta = x[i] - x[i + lag];
+            sum += delta * delta;
+        }
+        a.difference[static_cast<size_t>(lag)] = sum;
+    }
+
+    a.normalized.assign(static_cast<size_t>(maxLag + 2), 1.0f);
+    float running = 0.0f;
+    for (int lag = 1; lag <= maxLag; lag++) {
+        running += a.difference[static_cast<size_t>(lag)];
+        a.normalized[static_cast<size_t>(lag)] =
+            running > 0.0f
+                ? a.difference[static_cast<size_t>(lag)] *
+                      static_cast<float>(lag) / running
+                : 1.0f;
+    }
+
+    // The first dip that is low enough is the period; everything after it is a
+    // multiple of that period, which is how an octave error creeps in.
+    int best = -1;
+    for (int lag = minLag; lag <= maxLag; lag++) {
+        if (a.normalized[static_cast<size_t>(lag)] < 0.16f) {
+            while (lag + 1 < maxLag &&
+                   a.normalized[static_cast<size_t>(lag + 1)] <
+                       a.normalized[static_cast<size_t>(lag)]) {
+                lag++;
+            }
+            best = lag;
+            break;
+        }
+    }
+    if (best < 0) {
+        // Nothing dipped low enough, so the least unlike lag is the only
+        // candidate left, and only when it is still a fair match.
+        float lowest = 1.0f;
+        for (int lag = minLag; lag <= maxLag; lag++) {
+            if (a.normalized[static_cast<size_t>(lag)] < lowest) {
+                lowest = a.normalized[static_cast<size_t>(lag)];
+                best = lag;
+            }
+        }
+        if (best < 0 || lowest > 0.42f) {
+            return 0.0f;
+        }
+    }
+
+    // A whole lag only ever lands between samples; the parabola finds the rest.
+    float shift = 0.0f;
+    if (best >= 2 && best + 1 <= maxLag) {
+        const float before = a.normalized[static_cast<size_t>(best - 1)];
+        const float here = a.normalized[static_cast<size_t>(best)];
+        const float after = a.normalized[static_cast<size_t>(best + 1)];
+        const float curvature = before - 2.0f * here + after;
+        if (fabsf(curvature) > 1e-7f) {
+            shift = std::clamp(0.5f * (before - after) / curvature, -0.5f, 0.5f);
+        }
+    }
+    confidence = Clamp01(1.0f - a.normalized[static_cast<size_t>(best)]);
+    return static_cast<float>(rate) / (static_cast<float>(best) + shift);
+}
+
+// Folds a block into the decimated history. The four sample average doubles as
+// the anti alias filter, which is enough once the upper harmonics of a string
+// are an octave of level down.
+void FeedTunerBlock(TunerAudio& a, const short* samples, int count) {
+    for (int i = 0; i < count; i++) {
+        a.box += static_cast<float>(samples[i]) * (1.0f / 32768.0f);
+        if (++a.boxCount < kTunerDecimate) {
+            continue;
+        }
+        const float value = a.box * (1.0f / static_cast<float>(kTunerDecimate));
+        a.box = 0.0f;
+        a.boxCount = 0;
+        a.history[static_cast<size_t>(a.position)] = value;
+        a.position = (a.position + 1) % kTunerWindow;
+        a.sinceAnalysis++;
+    }
+}
+
+// A fresh reading from whatever the history holds right now.
+void AnalyseTunerWindow(TunerAudio& a) {
+    a.sinceAnalysis = 0;
+    for (int i = 0; i < kTunerWindow; i++) {
+        a.frame[static_cast<size_t>(i)] =
+            a.history[static_cast<size_t>((a.position + i) % kTunerWindow)];
+    }
+    // A microphone carries an offset, which is not a note; take it out before
+    // measuring, or a quiet room would read as steady as a plucked string.
+    double total = 0.0;
+    for (int i = 0; i < kTunerWindow; i++) {
+        total += a.frame[static_cast<size_t>(i)];
+    }
+    const float mean = static_cast<float>(total / kTunerWindow);
+    float energy = 0.0f;
+    for (int i = 0; i < kTunerWindow; i++) {
+        const float value = a.frame[static_cast<size_t>(i)] - mean;
+        a.frame[static_cast<size_t>(i)] = value;
+        energy += value * value;
+    }
+    const float level = sqrtf(energy / static_cast<float>(kTunerWindow));
+    float confidence = 0.0f;
+    const float frequency =
+        level < kTunerSilence
+            ? 0.0f
+            : DetectPitch(a, a.rate / kTunerDecimate, confidence);
+    g_tunerShared.level.store(level);
+    g_tunerShared.confidence.store(confidence);
+    g_tunerShared.frequency.store(
+        confidence >= kTunerClean ? frequency : 0.0f);
+    g_tunerShared.reading.fetch_add(1);
+}
+
+void CloseTunerAudio(TunerAudio& a) {
+    if (a.device) {
+        waveInReset(a.device);
+        if (a.prepared) {
+            for (int i = 0; i < kTunerBufferCount; i++) {
+                waveInUnprepareHeader(a.device, &a.headers[i],
+                                      sizeof(WAVEHDR));
+            }
+        }
+        waveInClose(a.device);
+        a.device = nullptr;
+    }
+    a.prepared = false;
+}
+
+void StopTunerAudio();
+
+DWORD WINAPI TunerThreadProc(void*) {
+    TunerAudio& a = g_tunerAudio;
+    a.audioEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    a.stopEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    bool opened = false;
+    if (a.audioEvent && a.stopEvent) {
+        // The mapper takes whatever the default microphone offers, so try the
+        // rates a device is likely to expose rather than insisting on one.
+        const int rates[] = {44100, 48000, 32000, 22050};
+        for (int rate : rates) {
+            WAVEFORMATEX format{};
+            format.wFormatTag = WAVE_FORMAT_PCM;
+            format.nChannels = 1;
+            format.nSamplesPerSec = static_cast<DWORD>(rate);
+            format.wBitsPerSample = 16;
+            format.nBlockAlign = 2;
+            format.nAvgBytesPerSec = static_cast<DWORD>(rate) * 2;
+            if (waveInOpen(&a.device, WAVE_MAPPER, &format,
+                           reinterpret_cast<DWORD_PTR>(a.audioEvent), 0,
+                           CALLBACK_EVENT) == MMSYSERR_NOERROR) {
+                a.rate = rate;
+                opened = true;
+                break;
+            }
+            a.device = nullptr;
+        }
+        if (!opened) {
+            Wh_Log(L"Tuner: no microphone for this process");
+        }
+    }
+
+    if (opened) {
+        a.history.assign(static_cast<size_t>(kTunerWindow), 0.0f);
+        a.frame.assign(static_cast<size_t>(kTunerWindow), 0.0f);
+        bool queued = true;
+        for (int i = 0; i < kTunerBufferCount; i++) {
+            a.pcm[i].assign(static_cast<size_t>(kTunerBufferFrames), 0);
+            a.headers[i] = WAVEHDR{};
+            a.headers[i].lpData = reinterpret_cast<LPSTR>(a.pcm[i].data());
+            a.headers[i].dwBufferLength =
+                static_cast<DWORD>(a.pcm[i].size() * sizeof(short));
+            if (waveInPrepareHeader(a.device, &a.headers[i], sizeof(WAVEHDR)) !=
+                    MMSYSERR_NOERROR ||
+                waveInAddBuffer(a.device, &a.headers[i], sizeof(WAVEHDR)) !=
+                    MMSYSERR_NOERROR) {
+                queued = false;
+                break;
+            }
+        }
+        a.prepared = true;
+        if (queued && waveInStart(a.device) == MMSYSERR_NOERROR) {
+            g_tunerShared.running.store(true);
+        }
+        if (a.readyEvent) {
+            // Only now can a caller tell a live stream from a dead one.
+            SetEvent(a.readyEvent);
+        }
+
+        if (g_tunerShared.running.load()) {
+            const HANDLE waits[2] = {a.audioEvent, a.stopEvent};
+            for (;;) {
+                const DWORD result = WaitForMultipleObjects(2, waits, FALSE, 200);
+                if (result == WAIT_OBJECT_0 + 1) {
+                    break;
+                }
+                if (result != WAIT_OBJECT_0) {
+                    continue;  // A timeout is just a quiet moment.
+                }
+                bool failed = false;
+                for (int i = 0; i < kTunerBufferCount; i++) {
+                    if (!(a.headers[i].dwFlags & WHDR_DONE)) {
+                        continue;
+                    }
+                    if (a.headers[i].dwBytesRecorded > 0) {
+                        FeedTunerBlock(
+                            a,
+                            reinterpret_cast<const short*>(a.headers[i].lpData),
+                            static_cast<int>(a.headers[i].dwBytesRecorded / 2));
+                    }
+                    a.headers[i].dwFlags &= ~WHDR_DONE;
+                    if (waveInAddBuffer(a.device, &a.headers[i],
+                                        sizeof(WAVEHDR)) != MMSYSERR_NOERROR) {
+                        failed = true;
+                        break;
+                    }
+                    if (a.sinceAnalysis >= kTunerHop) {
+                        AnalyseTunerWindow(a);
+                    }
+                }
+                if (failed) {
+                    Wh_Log(L"Tuner: the microphone went away");
+                    break;
+                }
+            }
+        }
+    }
+
+    g_tunerShared.running.store(false);
+    g_tunerShared.frequency.store(0.0f);
+    g_tunerShared.confidence.store(0.0f);
+    CloseTunerAudio(a);
+    if (a.readyEvent) {
+        SetEvent(a.readyEvent);  // Releases a start that is still waiting.
+    }
+    if (a.stopEvent) {
+        SetEvent(a.stopEvent);  // A late wake must not outlive the loop.
+    }
+    return 0;
+}
+
+bool StartTunerAudio() {
+    TunerAudio& a = g_tunerAudio;
+    if (a.thread && WaitForSingleObject(a.thread, 0) == WAIT_OBJECT_0) {
+        // The microphone was lost while the panel was away, so clear the
+        // remains of that thread before opening a new one.
+        StopTunerAudio();
+    }
+    if (a.thread) {
+        return true;
+    }
+    a.position = 0;
+    a.sinceAnalysis = 0;
+    a.box = 0.0f;
+    a.boxCount = 0;
+    a.rate = kTunerRate;
+    a.readyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!a.readyEvent) {
+        return false;
+    }
+    a.thread = CreateThread(nullptr, 0, TunerThreadProc, nullptr, 0, nullptr);
+    if (!a.thread) {
+        CloseHandle(a.readyEvent);
+        a.readyEvent = nullptr;
+        return false;
+    }
+    WaitForSingleObject(a.readyEvent, 2000);
+    if (!g_tunerShared.running.load()) {
+        WaitForSingleObject(a.thread, 1000);
+        CloseHandle(a.thread);
+        a.thread = nullptr;
+        CloseHandle(a.readyEvent);
+        a.readyEvent = nullptr;
+        if (a.audioEvent) {
+            CloseHandle(a.audioEvent);
+            a.audioEvent = nullptr;
+        }
+        if (a.stopEvent) {
+            CloseHandle(a.stopEvent);
+            a.stopEvent = nullptr;
+        }
+        return false;
+    }
+    return true;
+}
+
+void StopTunerAudio() {
+    TunerAudio& a = g_tunerAudio;
+    if (a.stopEvent) {
+        SetEvent(a.stopEvent);
+    }
+    if (a.thread) {
+        WaitForSingleObject(a.thread, 2000);
+        CloseHandle(a.thread);
+        a.thread = nullptr;
+    }
+    if (a.readyEvent) {
+        CloseHandle(a.readyEvent);
+        a.readyEvent = nullptr;
+    }
+    if (a.audioEvent) {
+        CloseHandle(a.audioEvent);
+        a.audioEvent = nullptr;
+    }
+    if (a.stopEvent) {
+        CloseHandle(a.stopEvent);
+        a.stopEvent = nullptr;
+    }
+    g_tunerShared.running.store(false);
+    // The thread has been joined, so its buffers can go too.
+    a = TunerAudio();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Tuner
+
+// A different instrument or tuning means the old string marks no longer
+// apply, so they all clear together.
+void TunerResetProgress() {
+    for (int i = 0; i < kTunerStringMax; i++) {
+        g_tuner.tuned[i] = false;
+        g_tuner.stringAt[i] = 0.0;
+    }
+    g_tuner.lock = -1;
+    g_tuner.lockAt = 0.0;
+    g_tuner.needle = 0.0f;
+    g_tuner.pulsing = false;
+    g_tuner.shownNote = -1;
+    g_tuner.fadingNote = -1;
+    g_tuner.pendingNote = -1;
+    g_tuner.noteAt = 0.0;
+}
+
+void TunerSetInstrument(int instrument) {
+    const int tuning = TunerInstrumentFirst(instrument);
+    if (tuning < 0 || instrument == g_tuner.instrument) {
+        return;
+    }
+    g_tuner.instrument = instrument;
+    g_tuner.tuning = tuning;
+    TunerResetProgress();
+    Repaint();
+}
+
+void TunerSetTuning(int tuning) {
+    if (tuning < 0 || tuning >= kTuningCount ||
+        kTunings[tuning].instrument != g_tuner.instrument ||
+        tuning == g_tuner.tuning) {
+        return;
+    }
+    g_tuner.tuning = tuning;
+    TunerResetProgress();
+    Repaint();
+}
+
+// Clicking a string chip tunes just that string; clicking it again hands the
+// choice back to the reading. Number keys pick a string the same way, and 0
+// stands for every string.
+constexpr int kTunerStringAll = kTunerStringMax;  // The 0 key, meaning no lock.
+
+void TunerSetString(int string) {
+    const int count = TunerStringCount(g_tuner.tuning);
+    if (string == kTunerStringAll) {
+        string = -1;
+    }
+    if (string != -1 && (string < 0 || string >= count)) {
+        return;
+    }
+    g_tuner.lock = string;
+    g_tuner.lockAt = NowMs();
+    // A string picked out again has to earn its mark from scratch.
+    if (string >= 0) {
+        g_tuner.tuned[string] = false;
+        g_tuner.stringAt[string] = 0.0;
+    }
+    Repaint();
+}
+
+// The pointer toggle: the chip that is already held lets go.
+void TunerToggleString(int string) {
+    TunerSetString(g_tuner.lock == string ? -1 : string);
+}
+
+// Walks the instruments, landing on the first tuning each one offers.
+void TunerStepInstrument(int delta) {
+    const int count = kTunerInstrumentCount;
+    int next = g_tuner.instrument;
+    for (int step = 0; step < count; step++) {
+        next = (next + (delta > 0 ? 1 : count - 1)) % count;
+        if (TunerInstrumentFirst(next) >= 0) {
+            break;
+        }
+    }
+    TunerSetInstrument(next);
+}
+
+// Walks the tunings of the instrument that is showing.
+void TunerStepTuning(int delta) {
+    const int count = TunerTuningCount(g_tuner.instrument);
+    if (count <= 0) {
+        return;
+    }
+    const int first = TunerInstrumentFirst(g_tuner.instrument);
+    const int offset = std::clamp(g_tuner.tuning, first, first + count - 1) -
+                       first;
+    TunerSetTuning(TunerTuningAt(g_tuner.instrument,
+                                 (offset + delta + count) % count));
+}
+
+void TunerStart() {
+    if (g_tuner.listening) {
+        return;
+    }
+    g_tunerShared.frequency.store(0.0f);
+    g_tunerShared.confidence.store(0.0f);
+    g_tunerShared.level.store(0.0f);
+    g_tuner.frequency = 0.0f;
+    g_tuner.level = 0.0f;
+    g_tuner.heardAt = 0.0;
+    g_tuner.reading = g_tunerShared.reading.load();
+    g_tuner.listening = StartTunerAudio();
+    g_tuner.micFailed = !g_tuner.listening;
+    if (!g_tuner.listening) {
+        Wh_Log(L"Tuner: couldn't open the microphone");
+    } else if (g_panel.Hwnd()) {
+        SetTimer(g_panel.Hwnd(), kTunerTimer, 50, nullptr);
+    }
+    Repaint();
+}
+
+// Releases the microphone, for the close, the tool switch and the unload paths.
+void TunerHalt() {
+    if (g_tuner.listening) {
+        g_tuner.listening = false;
+        StopTunerAudio();
+    }
+    g_tuner.micFailed = false;
+    g_tuner.frequency = 0.0f;
+    g_tuner.level = 0.0f;
+    TunerResetProgress();
+    MenuReset(g_tunerMenu);
+    if (g_panel.Hwnd()) {
+        KillTimer(g_panel.Hwnd(), kTunerTimer);
+    }
+}
+
+// Pulls the latest reading into the panel's own view of it and redraws.
+void TunerPoll() {
+    const unsigned reading = g_tunerShared.reading.load();
+    if (reading == g_tuner.reading) {
+        return;
+    }
+    g_tuner.reading = reading;
+    const float raw = g_tunerShared.frequency.load();
+    g_tuner.level = g_tunerShared.level.load();
+    const double now = NowMs();
+    if (raw > 0.0f) {
+        // Smooth the needle inside a note, but jump the moment the player
+        // moves to a different string.
+        const float ratio =
+            g_tuner.frequency > 0.0f ? raw / g_tuner.frequency : 0.0f;
+        g_tuner.frequency = ratio > 0.958f && ratio < 1.044f
+                                ? g_tuner.frequency +
+                                      (raw - g_tuner.frequency) * 0.45f
+                                : raw;
+        g_tuner.heardAt = now;
+    } else if (now - g_tuner.heardAt > 400.0) {
+        // The string has died away, so let the note go rather than freezing.
+        g_tuner.frequency = 0.0f;
+    }
+    // A string that settles within three cents earns its mark, which stays
+    // until the tuning changes, so the player can see what is left to do.
+    int cents = 0;
+    const int midi = TunerDisplayReading(cents);
+    if (midi >= 0 && cents >= -3 && cents <= 3) {
+        const int string =
+            g_tuner.lock >= 0 ? g_tuner.lock : TunerNearestString(midi);
+        if (string >= 0 && !g_tuner.tuned[string]) {
+            g_tuner.tuned[string] = true;
+            g_tuner.stringAt[string] = now;
+        }
+    }
+    // The big note only changes once the reading has repeated itself, so a
+    // single doubtful frame cannot set the display rolling.
+    if (midi != g_tuner.shownNote) {
+        if (midi == g_tuner.pendingNote) {
+            g_tuner.fadingNote = g_tuner.shownNote;
+            g_tuner.shownNote = midi;
+            g_tuner.pendingNote = midi;
+            g_tuner.noteAt = now;
+        } else {
+            g_tuner.pendingNote = midi;
+        }
+    } else {
+        g_tuner.pendingNote = midi;
+    }
+    Repaint();
+}
+
+// Eases the needle toward the reading and plays out the in-tune pulse, the
+// fresh check marks and the roll of the note, repainting only while
+// something is still moving.
+void TunerAnimate() {
+    int cents = 0;
+    const int midi = TunerDisplayReading(cents);
+    const float target =
+        midi >= 0 ? static_cast<float>(std::clamp(cents, -50, 50)) : 0.0f;
+    g_tuner.needle += (target - g_tuner.needle) * 0.35f;
+    bool moving = fabsf(target - g_tuner.needle) > 0.05f;
+
+    const bool inTune = midi >= 0 && cents >= -3 && cents <= 3;
+    const double now = NowMs();
+    if (inTune && !g_tuner.pulsing) {
+        g_tuner.pulsing = true;
+        g_tuner.pulseAt = now;
+    }
+    if (g_tuner.pulsing) {
+        if (now - g_tuner.pulseAt < 450.0) {
+            moving = true;
+        } else {
+            g_tuner.pulsing = false;
+        }
+    }
+    for (int i = 0; i < kTunerStringMax; i++) {
+        if (g_tuner.tuned[i] && g_tuner.stringAt[i] > 0.0 &&
+            now - g_tuner.stringAt[i] < kTunedBadgeMs) {
+            moving = true;  // A badge still arriving.
+        }
+    }
+    if (g_tuner.lock >= 0 && now - g_tuner.lockAt < kTunedBadgeMs) {
+        moving = true;  // A ring still closing on the chip.
+    }
+    if (now - g_tuner.noteAt < kNoteSwapMs) {
+        moving = true;  // The note display still rolling to the next one.
+    }
+    if (moving) {
+        Repaint();
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Painting
+
+inline float L(long value) {
+    return static_cast<float>(value);
+}
+
+void PaintChevron(Surface& s,
+                  float cx,
+                  float cy,
+                  float size,
+                  bool right,
+                  Color color) {
+    const float direction = right ? 1.0f : -1.0f;
+    const Vec2 a{cx - direction * size * 0.35f, cy - size};
+    const Vec2 b{cx + direction * size * 0.45f, cy};
+    const Vec2 c{cx - direction * size * 0.35f, cy + size};
+    const float width = S(1.8f);
+    StrokeLine(s, a, b, width, color);
+    StrokeLine(s, b, c, width, color);
+}
+
+// The down chevron on the tool picker, saying the label opens a list.
+void PaintDownChevron(Surface& s, float cx, float cy, float size, Color color) {
+    const float width = S(1.6f);
+    const Vec2 a{cx - size, cy - size * 0.5f};
+    const Vec2 b{cx, cy + size * 0.55f};
+    const Vec2 c{cx + size, cy - size * 0.5f};
+    StrokeLine(s, a, b, width, color);
+    StrokeLine(s, b, c, width, color);
+}
+
+void PaintCloseButton(Surface& s, const Theme& t) {
+    const RECT& box = g_layout.close;
+    const bool hovered = g_hover.id == kHitClose;
+    const bool pressed = hovered && g_pressed.id == kHitClose;
+    const float cx = L(box.left + box.right) * 0.5f;
+    const float cy = L(box.top + box.bottom) * 0.5f;
+    const float radius = S(10.0f);
+    if (hovered) {
+        FillCircle(s, cx, cy, radius,
+                   pressed ? WithAlpha(t.text, 0.22f) : t.controlHover);
+    }
+    const float arm = S(4.2f);
+    const Color color = hovered ? t.text : t.textMuted;
+    const float width = S(1.5f);
+    StrokeLine(s, Vec2{cx - arm, cy - arm}, Vec2{cx + arm, cy + arm}, width,
+               color);
+    StrokeLine(s, Vec2{cx - arm, cy + arm}, Vec2{cx + arm, cy - arm}, width,
+               color);
+}
+
+#if 0  // Chord playback, parked with the engine above.
+void PaintSpeaker(Surface& s, const Theme& t) {
+    const RECT& box = g_layout.speaker;
+    const bool available = SelectedChord() != nullptr;
+    const bool hovered = g_hover.id == kHitSpeaker;
+    const bool playing = NowMs() < g_audioBusyUntil;
+    const float cx = L(box.left + box.right) * 0.5f;
+    const float cy = L(box.top + box.bottom) * 0.5f;
+
+    if (hovered && available) {
+        FillCircle(s, cx, cy, S(12.0f), t.controlHover);
+    }
+    Color color = available ? (hovered ? t.text : t.textMuted)
+                            : WithAlpha(t.textMuted, 0.35f);
+    if (playing) {
+        color = t.accent;
+    }
+
+    // Driver, then a cone that widens to the right.
+    FillRoundRect(s, cx - S(8.0f), cy - S(2.4f), cx - S(5.2f), cy + S(2.4f),
+                  S(0.8f), color);
+    for (int i = 0; i < 5; i++) {
+        const float x = cx - S(5.2f) + S(1.1f) * i;
+        const float half = S(2.4f) + S(1.15f) * i;
+        FillRoundRect(s, x, cy - half, x + S(1.1f), cy + half, S(0.5f), color);
+    }
+
+    // Two sound waves, as short arcs about the cone.
+    auto wave = [&](float radius) {
+        const float origin = cx + S(1.2f);
+        float lastX = 0.0f;
+        float lastY = 0.0f;
+        for (int step = 0; step <= 3; step++) {
+            const float angle = -0.85f + 1.7f * static_cast<float>(step) / 3.0f;
+            const float x = origin + radius * cosf(angle);
+            const float y = cy + radius * sinf(angle);
+            if (step > 0) {
+                StrokeLine(s, Vec2{lastX, lastY}, Vec2{x, y}, S(1.3f), color);
+            }
+            lastX = x;
+            lastY = y;
+        }
+    };
+    wave(S(5.6f));
+    wave(S(9.0f));
+}
+#endif  // PaintSpeaker
+
+// One pill in the header: accent when it is the current choice, a soft hover
+// wash otherwise.
+void PaintChip(Surface& s,
+               const Theme& t,
+               const RECT& chip,
+               PCWSTR label,
+               HFONT font,
+               bool active,
+               bool hovered) {
+    const Color fill = active ? WithAlpha(t.accent, 0.95f)
+                        : hovered ? t.controlHover
+                                  : t.control;
+    FillRoundRect(s, L(chip.left), L(chip.top), L(chip.right), L(chip.bottom),
+                  S(9.0f), fill);
+    RECT text = chip;
+    g_text.Draw(s, font, label, text, DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                active ? t.onAccent : t.textMuted);
+}
+
+void PaintTabs(Surface& s, const Theme& t) {
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    const int instruments =
+        std::min(static_cast<int>(kInstrumentCount), chorddata::kInstrumentsSize);
+    for (int i = 0; i < instruments; i++) {
+        PaintChip(s, t, g_layout.tabs[i], chorddata::kInstruments[i].name, font,
+                  g_app.instrument == i,
+                  g_hover.id == kHitTab && g_hover.index == i);
+    }
+}
+
+// The tool picker: one button naming the open tool, plus the list it opens.
+// The list is drawn last, over the panel, so it reads as a popup.
+void PaintToolSelect(Surface& s, const Theme& t) {
+    const RECT& select = g_layout.toolSelect;
+    const bool open = MenuHit(g_toolMenu);
+    const bool hovered = g_hover.id == kHitToolSelect;
+    FillRoundRect(s, L(select.left), L(select.top), L(select.right),
+                  L(select.bottom), S(8.0f),
+                  open || hovered ? t.controlHover : t.control);
+    StrokeRoundRect(s, L(select.left) + 0.5f, L(select.top) + 0.5f,
+                    L(select.right) - 0.5f, L(select.bottom) - 0.5f, S(8.0f),
+                    S(1.0f), open ? WithAlpha(t.accent, 0.55f) : t.stroke);
+
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    RECT label = select;
+    label.left += S(10);
+    label.right -= S(24);
+    g_text.Draw(s, font, ToolLabel(g_app.tool), label,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.text);
+
+    const float cy = L(select.top + select.bottom) * 0.5f;
+    PaintDownChevron(s, L(select.right) - S(12), cy, S(3.4f),
+                     open ? t.accent : t.textMuted);
+}
+
+// The body of an animated popup list. Progress runs from 0 to 1: the plate
+// fades in and unrolls downward from its own top edge, so rows clipped
+// against it arrive with the front edge. The result is what content may
+// draw inside, and MenuAlpha is what the rows multiply their colours by so
+// the text comes in with the plate rather than sitting on bare glass.
+float MenuAlpha(float progress) {
+    const float eased = Clamp01(progress);
+    return eased < 0.7f ? eased / 0.7f : 1.0f;
+}
+
+RECT PaintListShell(Surface& s, const Theme& t, const RECT& full,
+                    float progress) {
+    const float alpha = MenuAlpha(progress);
+    const float eased = Clamp01(progress);
+    const float top = L(full.top);
+    const float bottom = top + (L(full.bottom) - top) * eased;
+    const float left = L(full.left);
+    const float right = L(full.right);
+    const float radius = S(9.0f);
+    DrawShadow(s, left, bottom - S(1.0f), right, bottom + S(3.0f), radius,
+               S(5.0f), WithAlpha(kBlack, (t.dark ? 0.45f : 0.18f) * alpha));
+    FillRoundRect(s, left, top, right, bottom, radius,
+                  WithAlpha(t.menu, alpha));
+    StrokeRoundRect(s, left + 0.5f, top + 0.5f, right - 0.5f, bottom - 0.5f,
+                    radius, S(1.0f), WithAlpha(t.stroke, alpha));
+    return {full.left, static_cast<long>(bottom), full.right, full.bottom};
+}
+
+// One row of a popup list. Both lists share this so a row entering, a row
+// under the pointer and the current choice all look and move the same way.
+struct ListItem {
+    PCWSTR label = L"";
+    bool active = false;
+    bool hovered = false;
+};
+
+void PaintListRows(Surface& s,
+                   const Theme& t,
+                   const ListItem* items,
+                   int count,
+                   const RECT* rows,
+                   const RECT& reveal) {
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    const float front = L(reveal.top);
+    const float travel = std::max(1.0f, static_cast<float>(S(20.0f)));
+    for (int i = 0; i < count; i++) {
+        const RECT& row = rows[i];
+        // A row is drawn as the front edge of the unroll reaches it, easing
+        // its last few pixels up into place as it goes.
+        const float appear =
+            Clamp01((front - L(row.top)) / travel);
+        if (appear <= 0.0f) {
+            continue;
+        }
+        const float alpha = MenuAlpha(appear);
+        const float dy = (1.0f - appear) * S(6.0f);
+        const float top = L(row.top) + dy;
+        const float bottom = L(row.bottom) + dy;
+        if (items[i].active || items[i].hovered) {
+            FillRoundRect(
+                s, L(row.left), top, L(row.right), bottom, S(6.0f),
+                WithAlpha(items[i].active ? WithAlpha(t.accent, 0.16f)
+                                              : t.controlHover,
+                          alpha));
+        }
+        RECT label = {row.left + S(12), static_cast<long>(top),
+                      row.right - S(26), static_cast<long>(bottom)};
+        g_text.Draw(s, font, items[i].label, label,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                    WithAlpha(items[i].active ? t.accent : t.text, alpha));
+        if (items[i].active) {
+            // A tick on the right, so the current choice still reads plainly.
+            const float cx = L(row.right) - S(14);
+            const float cy = (top + bottom) * 0.5f;
+            const Color mark = WithAlpha(t.accent, alpha);
+            StrokeLine(s, {cx - S(4.0f), cy}, {cx - S(1.0f), cy + S(3.0f)},
+                       S(1.6f), mark);
+            StrokeLine(s, {cx - S(1.0f), cy + S(3.0f)},
+                       {cx + S(4.5f), cy - S(3.5f)}, S(1.6f), mark);
+        }
+    }
+}
+
+void PaintToolMenu(Surface& s, const Theme& t) {
+    // The returned top edge is the front of the unroll.
+    const RECT reveal =
+        PaintListShell(s, t, g_layout.toolMenu, g_toolMenu.progress);
+
+    ListItem items[kToolCount];
+    for (int i = 0; i < kToolCount; i++) {
+        items[i].label = ToolLabel(i);
+        items[i].active = g_app.tool == i;
+        items[i].hovered =
+            (g_hover.id == kHitToolMenuItem && g_hover.index == i) ||
+            g_toolMenu.cursor == i;  // The keyboard cursor rides with the list.
+    }
+    PaintListRows(s, t, items, kToolCount, g_layout.toolMenuRows, reveal);
+}
+
+// The x coordinate of a caret position inside the search box, in pixels.
+int QueryEdge(int index) {
+    const int left = static_cast<int>(g_layout.searchText.left);
+    index = std::clamp(index, 0, static_cast<int>(g_app.query.size()));
+    if (index == 0) {
+        return left;
+    }
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontSearch)), FW_NORMAL);
+    const std::wstring prefix = g_app.query.substr(0, static_cast<size_t>(index));
+    return left + g_text.Measure(font, prefix).cx;
+}
+
+// The caret position nearest to a click.
+int QueryIndexFromX(int x) {
+    const int count = static_cast<int>(g_app.query.size());
+    int best = 0;
+    int bestDistance = std::abs(x - QueryEdge(0));
+    for (int i = 1; i <= count; i++) {
+        const int distance = std::abs(x - QueryEdge(i));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = i;
+        }
+    }
+    return best;
+}
+
+void PaintSearch(Surface& s, const Theme& t) {
+    const RECT& box = g_layout.search;
+    const bool focused = g_searchFocused;
+    FillRoundRect(s, L(box.left), L(box.top), L(box.right), L(box.bottom),
+                  S(kControlRadius), focused ? t.controlHover : t.control);
+    StrokeRoundRect(s, L(box.left) + 0.5f, L(box.top) + 0.5f,
+                    L(box.right) - 0.5f, L(box.bottom) - 0.5f, S(kControlRadius),
+                    S(1.0f), focused ? WithAlpha(t.accent, 0.55f) : t.stroke);
+
+    // Magnifier.
+    const float cx = L(box.left) + S(20.0f);
+    const float cy = (L(box.top) + L(box.bottom)) * 0.5f;
+    const float radius = S(5.4f);
+    StrokeCircle(s, cx, cy, radius, S(1.6f), t.textMuted);
+    StrokeLine(s, Vec2{cx + radius * 0.7f, cy + radius * 0.7f},
+               Vec2{cx + radius * 1.7f, cy + radius * 1.7f}, S(1.6f), t.textMuted);
+
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontSearch)), FW_NORMAL);
+    RECT text = g_layout.searchText;
+    if (g_app.query.empty()) {
+        g_text.Draw(s, font, L"Search chords", text, DT_LEFT | DT_VCENTER |
+                                                      DT_SINGLELINE,
+                    t.textFaint);
+    } else {
+        if (HasSelection()) {
+            const float selLeft = L(QueryEdge(SelectionStart()));
+            const float selRight = std::min(L(QueryEdge(SelectionEnd())),
+                                            L(g_layout.searchText.right));
+            FillRoundRect(s, selLeft - S(1.0f), cy - S(9.0f),
+                          selRight + S(1.0f), cy + S(9.0f), S(2.0f),
+                          t.selection);
+        }
+        g_text.Draw(s, font, g_app.query, text,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.text);
+    }
+
+    if (focused && !HasSelection()) {
+        const double phase = fmod(NowMs() - g_caretStart, 1060.0);
+        if (phase < 530.0) {
+            const float x = std::min(L(QueryEdge(g_caret)),
+                                     L(g_layout.searchText.right) - S(2.0f));
+            const float height = S(18.0f);
+            FillRoundRect(s, x, cy - height * 0.5f, x + S(1.6f),
+                          cy + height * 0.5f, S(0.8f), t.accent);
+        }
+    }
+}
+
+void PaintResults(Surface& s, const Theme& t) {
+    const RECT& list = g_layout.list;
+    const int rowHeight = g_layout.rowHeight;
+    const int count = static_cast<int>(g_app.results.size());
+    if (count == 0) {
+        const RECT empty{list.left, list.top, list.right, list.top + rowHeight};
+        g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontRow)), FW_NORMAL),
+                    L"No chord matches that", empty,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+        return;
+    }
+
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontRow)), FW_NORMAL);
+    HFONT countFont = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    const Library& library = g_libraries[g_app.instrument];
+    const RECT clip = list;
+
+    for (int row = 0; row < kVisibleRows; row++) {
+        const int index = g_app.scroll + row;
+        if (index >= count) {
+            break;
+        }
+        RECT rect{list.left, list.top + row * rowHeight, list.right,
+                  list.top + (row + 1) * rowHeight - S(2.0f)};
+        const bool selected = index == g_app.selected;
+        const bool hovered = g_hover.id == kHitRow && g_hover.index == index;
+        if (selected) {
+            FillRoundRect(s, L(rect.left), L(rect.top), L(rect.right),
+                          L(rect.bottom), S(kControlRadius), t.selection);
+        } else if (hovered) {
+            FillRoundRect(s, L(rect.left), L(rect.top), L(rect.right),
+                          L(rect.bottom), S(kControlRadius), t.controlHover);
+        }
+
+        const ChordEntry& entry = library.chords[g_app.results[index]];
+        const int voicings = VoicingCount(g_app.instrument, entry);
+
+        RECT text = rect;
+        text.left += S(12.0f);
+        text.right -= S(40.0f);
+        g_text.Draw(s, font, entry.name, text, clip,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE,
+                    selected ? t.text : t.textMuted);
+
+        if (voicings > 1) {
+            RECT badge = rect;
+            badge.left = rect.right - S(38.0f);
+            badge.right -= S(12.0f);
+            g_text.Draw(s, countFont, std::to_wstring(voicings), badge, clip,
+                        DT_RIGHT | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+        }
+    }
+
+    if (count > kVisibleRows) {
+        const int trackHeight = list.bottom - list.top;
+        const float thumbHeight =
+            std::max(static_cast<float>(S(24.0f)),
+                     static_cast<float>(trackHeight) *
+                         static_cast<float>(kVisibleRows) / count);
+        const float span = static_cast<float>(trackHeight) - thumbHeight;
+        const float t0 = static_cast<float>(g_app.scroll) /
+                         static_cast<float>(count - kVisibleRows);
+        const float y = L(list.top) + span * Clamp01(t0);
+        const float x = L(list.right) - S(3.0f);
+        FillRoundRect(s, x, L(list.top), x + S(2.5f), L(list.bottom),
+                      S(1.2f), WithAlpha(t.textFaint, 0.20f));
+        FillRoundRect(s, x, y, x + S(2.5f), y + thumbHeight, S(1.2f),
+                      WithAlpha(t.textMuted, 0.75f));
+    }
+}
+
+void PaintFrettedChord(Surface& s, const Theme& t, const Voicing& v, RECT area) {
+    const int strings = v.stringCount;
+    if (strings < 2) {
+        return;
+    }
+    const float width = L(area.right - area.left);
+    const float height = L(area.bottom - area.top);
+    const float labelRoom = S(16.0f);
+    const float fretRoom = S(4.0f);
+    constexpr int kFrets = 5;
+    const float usable = height - labelRoom - fretRoom;
+    const float cell = std::min(usable / kFrets, width / (strings + 0.6f));
+    if (cell <= 2.0f) {
+        return;
+    }
+    // Four string necks can afford a little extra string spacing to fill the
+    // card; a six string neck reads better as a tall, narrow window, with the
+    // frets further apart than the strings.
+    const float widen = strings >= 6 ? 0.8f : 1.25f;
+    const float cellX = std::min(width / (strings + 0.6f), cell * widen);
+    const float gridWidth = cellX * (strings - 1);
+    const float gridTop = L(area.top) + labelRoom + (usable - cell * kFrets) * 0.5f;
+    const float gridBottom = gridTop + cell * kFrets;
+    const float x0 = L(area.left) + (width - gridWidth) * 0.5f;
+    // The neck is a board, not a set of hairlines: a soft shadow, a vertical
+    // sheen and a thin rim give the wires and strings something to sit on.
+    const float plateL = x0 - cellX * 0.5f;
+    const float plateR = x0 + gridWidth + cellX * 0.5f;
+    const float plateT = gridTop - S(2.0f);
+    const float plateB = gridBottom + S(2.0f);
+    const float plateRadius = S(4.0f);
+    DrawShadow(s, plateL, plateT, plateR, plateB, plateRadius, S(4.5f),
+               WithAlpha(kBlack, t.dark ? 0.34f : 0.14f));
+    FillRoundRectGradient(s, plateL, plateT, plateR, plateB, plateRadius,
+                          t.dark ? Rgb(60, 62, 70) : Rgb(251, 249, 245),
+                          t.dark ? Rgb(37, 38, 44) : Rgb(232, 228, 221));
+    StrokeRoundRect(s, plateL, plateT, plateR, plateB, plateRadius, S(1.0f),
+                    t.dark ? WithAlpha(kWhite, 0.10f) : Rgb(0, 0, 0, 0.09f));
+
+    // Position markers, like the inlays of a real neck.
+    const float inlayRadius = std::min(cell * 0.13f, static_cast<float>(S(3.0f)));
+    if (inlayRadius >= 1.5f) {
+        const Color inlay =
+            t.dark ? WithAlpha(kWhite, 0.11f) : WithAlpha(kBlack, 0.07f);
+        for (int fret = 1; fret <= kFrets; fret++) {
+            const int absolute = v.baseFret + fret - 1;
+            const int mark = absolute % 12;
+            if (absolute <= 0 ||
+                (mark != 0 && mark != 3 && mark != 5 && mark != 7 && mark != 9)) {
+                continue;
+            }
+            const float y = gridTop + cell * (fret - 0.5f);
+            FillCircle(s, x0 + gridWidth * 0.5f, y, inlayRadius, inlay);
+        }
+    }
+
+    // Wires stop short of the rounded board edge; the nut stands in for the
+    // first one whenever the window starts at fret one.
+    const Color wireColor =
+        t.dark ? WithAlpha(kWhite, 0.20f) : Rgb(102, 94, 84, 0.42f);
+    const float wireInset = S(3.0f);
+    for (int fret = (v.baseFret <= 1) ? 1 : 0; fret <= kFrets; fret++) {
+        const float y = gridTop + cell * fret;
+        StrokeLine(s, Vec2{plateL + wireInset, y}, Vec2{plateR - wireInset, y},
+                   S(1.4f), wireColor);
+    }
+
+    if (v.baseFret <= 1) {
+        // The nut is a bone band across the top of the board.
+        FillRoundRectGradient(s, plateL + S(1.0f), plateT + S(1.0f),
+                              plateR - S(1.0f), plateT + S(5.5f), S(1.5f),
+                              t.dark ? Rgb(216, 218, 226) : Rgb(202, 196, 187),
+                              t.dark ? Rgb(156, 159, 168) : Rgb(158, 151, 141));
+    } else {
+        HFONT font = g_fonts.Get(S(static_cast<float>(kFontFret)), FW_NORMAL);
+        RECT label{area.left, static_cast<LONG>(gridTop),
+                   static_cast<LONG>(plateL - S(3.0f)),
+                   static_cast<LONG>(gridTop + cell)};
+        g_text.Draw(s, font, std::to_wstring(v.baseFret) + L"fr", label,
+                    DT_RIGHT | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+    }
+
+    // Strings thicken towards the bass side, with a faint shadow on the light
+    // board so they read as round wire instead of lines.
+    const Color stringColor =
+        t.dark ? WithAlpha(kWhite, 0.62f) : Rgb(78, 73, 67, 0.60f);
+    const float stringTop = plateT + S(2.0f);
+    const float stringBottom = plateB - S(2.0f);
+    for (int i = 0; i < strings; i++) {
+        const float stringWidth =
+            std::max(1.0f, static_cast<float>(S(1.5f)) *
+                               (1.0f - 0.45f * static_cast<float>(i) /
+                                           static_cast<float>(strings - 1)));
+        const float x = x0 + cellX * i;
+        if (!t.dark) {
+            StrokeLine(s, Vec2{x + S(1.0f), stringTop},
+                       Vec2{x + S(1.0f), stringBottom}, stringWidth,
+                       WithAlpha(kBlack, 0.10f));
+        }
+        StrokeLine(s, Vec2{x, stringTop}, Vec2{x, stringBottom}, stringWidth,
+                   stringColor);
+    }
+
+    const float dotRadius = std::clamp(cell * 0.32f,
+                                       static_cast<float>(S(5.0f)),
+                                       static_cast<float>(S(12.0f)));
+    const Color dotShadow = WithAlpha(kBlack, t.dark ? 0.40f : 0.16f);
+    auto DotY = [&](int absoluteFret) {
+        return gridTop + cell * (absoluteFret - v.baseFret) + cell * 0.5f;
+    };
+    auto DotX = [&](int string) { return x0 + cellX * string; };
+
+    // A lit top and a shadowed bottom, so a finger reads as a pressed button
+    // rather than a flat sticker.
+    auto PaintDot = [&](float cx, float cy, float radius) {
+        FillCircle(s, cx, cy + S(0.8f), radius, dotShadow);
+        FillShape(
+            s, cx - radius - 1, cy - radius - 1, cx + radius + 1, cy + radius + 1,
+            [&](float x, float y) {
+                return sqrtf((x - cx) * (x - cx) + (y - cy) * (y - cy)) - radius;
+            },
+            [&](float, float y) {
+                return Mix(Mix(t.accent, kWhite, 0.16f),
+                           Mix(t.accent, kBlack, 0.16f),
+                           Clamp01((y - (cy - radius)) / (radius * 2.0f)));
+            });
+        StrokeCircle(s, cx, cy - S(0.4f), radius - S(0.5f), S(0.9f),
+                     WithAlpha(kWhite, 0.14f));
+    };
+
+    // The open string circles belong above a plain nut; sitting over a barre
+    // they read as a contradiction, and the data marks barres loosely enough
+    // that such combos are common.
+    bool hasBarre = false;
+    for (int i = 0; i < v.barreCount; i++) {
+        const Barre& barre = v.barres[i];
+        if (barre.from >= 0 && barre.to < strings && barre.to > barre.from) {
+            hasBarre = true;
+            break;
+        }
+    }
+
+    // A digit drawn inside a box its own size stays optically centred, and its
+    // font follows the dot so it never crowds the rim.
+    const int minFingerFont = S(7.0f);
+    const int maxFingerFont = S(12.0f);
+    auto PaintFinger = [&](float cx, float cy, float radius, int finger) {
+        const int size = std::clamp(static_cast<int>(radius * 1.2f), minFingerFont,
+                                    maxFingerFont);
+        HFONT font = g_fonts.Get(size, kWeightSemiBold);
+        RECT label{static_cast<LONG>(cx - radius), static_cast<LONG>(cy - radius),
+                   static_cast<LONG>(cx + radius), static_cast<LONG>(cy + radius)};
+        g_text.Draw(s, font, std::to_wstring(finger), label,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.onAccent);
+    };
+
+    // Barres first, so a bar reads as one finger rather than a row of dots.
+    auto OnBarre = [&](int string, int absolute) {
+        for (int i = 0; i < v.barreCount; i++) {
+            const Barre& barre = v.barres[i];
+            if (barre.from < 0 || barre.to >= strings || barre.to <= barre.from) {
+                continue;
+            }
+            if (string >= barre.from && string <= barre.to &&
+                v.baseFret + barre.fret - 1 == absolute) {
+                return true;
+            }
+        }
+        return false;
+    };
+    for (int i = 0; i < v.barreCount; i++) {
+        const Barre& barre = v.barres[i];
+        if (barre.from < 0 || barre.to >= strings || barre.to <= barre.from) {
+            continue;
+        }
+        const float y = DotY(v.baseFret + barre.fret - 1);
+        // The ends reach past the outer strings, so the rounded caps wrap them
+        // whole instead of clipping them at the bar's edge.
+        const float pad = dotRadius * 0.55f;
+        const float left = std::max(plateL + S(1.0f), DotX(barre.from) - pad);
+        const float right = std::min(plateR - S(1.0f), DotX(barre.to) + pad);
+        FillRoundRect(s, left, y - dotRadius + S(0.9f), right,
+                      y + dotRadius + S(0.9f), dotRadius, dotShadow);
+        FillRoundRectGradient(s, left, y - dotRadius, right, y + dotRadius,
+                              dotRadius, Mix(t.accent, kWhite, 0.14f),
+                              Mix(t.accent, kBlack, 0.14f));
+        // The barre is one finger, so its number sits in both cap ends.
+        if (g_settings.showFingerings && v.fingers[barre.from] > 0 &&
+            dotRadius >= S(5.0f)) {
+            if (right - left >= dotRadius * 3.0f) {
+                PaintFinger(left + dotRadius, y, dotRadius, v.fingers[barre.from]);
+                PaintFinger(right - dotRadius, y, dotRadius,
+                            v.fingers[barre.from]);
+            } else {
+                PaintFinger((left + right) * 0.5f, y, dotRadius,
+                            v.fingers[barre.from]);
+            }
+        }
+    }
+
+    for (int i = 0; i < strings; i++) {
+        const int fret = v.frets[i];
+        if (fret == kMutedFret) {
+            const float x = DotX(i);
+            // Markers hug the board now that the neck has a top edge.
+            const float y = gridTop - S(7.0f);
+            const float arm = S(3.2f);
+            StrokeLine(s, Vec2{x - arm, y - arm}, Vec2{x + arm, y + arm}, S(1.3f),
+                       t.textFaint);
+            StrokeLine(s, Vec2{x - arm, y + arm}, Vec2{x + arm, y - arm}, S(1.3f),
+                       t.textFaint);
+            continue;
+        }
+        if (fret == 0) {
+            if (!hasBarre) {
+                StrokeCircle(s, DotX(i), gridTop - S(7.0f), S(3.4f), S(1.3f),
+                             t.textFaint);
+            }
+            continue;
+        }
+        const int absolute = AbsoluteFret(v, i);
+        if (OnBarre(i, absolute)) {
+            continue;
+        }
+        const float y = DotY(absolute);
+        PaintDot(DotX(i), y, dotRadius);
+        if (g_settings.showFingerings && v.fingers[i] > 0 &&
+            dotRadius >= S(5.0f)) {
+            PaintFinger(DotX(i), y, dotRadius, v.fingers[i]);
+        }
+    }
+}
+
+void PaintPianoChord(Surface& s, const Theme& t, const Voicing& v, RECT area) {
+    if (v.noteCount <= 0) {
+        return;
+    }
+    int low = 127;
+    int high = 0;
+    for (int i = 0; i < v.noteCount; i++) {
+        low = std::min(low, v.notes[i]);
+        high = std::max(high, v.notes[i]);
+    }
+    int start = ((low - 3) / 12) * 12;
+    if (start < 0) {
+        start = 0;
+    }
+    // Two octaves starting at the C below the chord, widened only if the chord
+    // reaches past them.
+    int end = start + 24;
+    while (end <= high) {
+        start += 12;
+        end += 12;
+    }
+
+    auto isBlack = [](int note) {
+        const int pitch = ((note % 12) + 12) % 12;
+        return pitch == 1 || pitch == 3 || pitch == 6 || pitch == 8 ||
+               pitch == 10;
+    };
+    auto held = [&](int note) {
+        for (int i = 0; i < v.noteCount; i++) {
+            if (v.notes[i] == note) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int whiteCount = 0;
+    for (int note = start; note < end; note++) {
+        if (!isBlack(note)) {
+            whiteCount++;
+        }
+    }
+    if (whiteCount == 0) {
+        return;
+    }
+
+    const float width = L(area.right - area.left);
+    const float height = L(area.bottom - area.top);
+    const float keyWidth = width / static_cast<float>(whiteCount);
+    // Keys are capped by their own width, so they stay key shaped instead of
+    // stretching into long slivers.
+    const float whiteHeight = std::min(height, keyWidth * 4.4f);
+    const float top = L(area.top) + (height - whiteHeight) * 0.5f;
+    const float bottom = top + whiteHeight;
+    const Color whiteKey = t.dark ? Rgb(238, 240, 246) : Rgb(255, 255, 255);
+    const Color whiteEdge = t.dark ? Rgb(0, 0, 0, 0.35f) : Rgb(0, 0, 0, 0.18f);
+    const Color blackKey = t.dark ? Rgb(26, 27, 32) : Rgb(38, 41, 48);
+
+    // A slightly darker deck behind the keys gives them some depth.
+    FillRoundRect(s, L(area.left) - S(2.0f), top - S(2.0f),
+                  L(area.left) + width + S(2.0f), bottom + S(2.0f), S(5.0f),
+                  WithAlpha(kBlack, t.dark ? 0.30f : 0.10f));
+
+    int whiteIndex = 0;
+    for (int note = start; note < end; note++) {
+        if (isBlack(note)) {
+            continue;
+        }
+        const float x = L(area.left) + keyWidth * whiteIndex;
+        const bool pressed = held(note);
+        FillRoundRect(s, x + 0.5f, top, x + keyWidth - 0.5f, bottom, S(2.5f),
+                      pressed ? t.accent : whiteKey);
+        StrokeRoundRect(s, x + 0.5f, top, x + keyWidth - 0.5f, bottom, S(2.5f),
+                        S(1.0f), whiteEdge);
+        whiteIndex++;
+    }
+
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontFret)), FW_NORMAL);
+    whiteIndex = 0;
+    for (int note = start; note < end; note++) {
+        if (isBlack(note)) {
+            continue;
+        }
+        if (note % 12 == 0) {
+            const float keyLeft = L(area.left) + keyWidth * whiteIndex;
+            RECT label{static_cast<LONG>(keyLeft),
+                       static_cast<LONG>(bottom - S(16.0f)),
+                       static_cast<LONG>(keyLeft + keyWidth),
+                       static_cast<LONG>(bottom - S(2.0f))};
+            const std::wstring name =
+                std::wstring(PitchClassName(0)) + std::to_wstring(note / 12 - 1);
+            g_text.Draw(s, font, name, label,
+                        DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                        held(note) ? t.onAccent : t.textFaint);
+        }
+        whiteIndex++;
+    }
+
+    const float blackWidth = keyWidth * 0.60f;
+    const float blackHeight = whiteHeight * 0.60f;
+    whiteIndex = 0;
+    for (int note = start; note < end; note++) {
+        if (isBlack(note)) {
+            const float x =
+                L(area.left) + keyWidth * whiteIndex - blackWidth * 0.5f;
+            const bool pressed = held(note);
+            FillRoundRect(s, x, top, x + blackWidth, top + blackHeight, S(2.0f),
+                          pressed ? t.accent : blackKey);
+            continue;
+        }
+        whiteIndex++;
+    }
+}
+
+void PaintVoicingSlider(Surface& s, const Theme& t) {
+    const ChordEntry* entry = SelectedChord();
+    if (!entry) {
+        return;
+    }
+    const int count = VoicingCount(g_app.instrument, *entry);
+    const bool hoveredPrevious =
+        g_hover.id == kHitPrevious || g_hover.id == kHitDiagram;
+    const bool hoveredNext = g_hover.id == kHitNext || g_hover.id == kHitDiagram;
+    if (count > 1) {
+        PaintChevron(s, L(g_layout.previous.left + g_layout.previous.right) * 0.5f,
+                     L(g_layout.previous.top + g_layout.previous.bottom) * 0.5f,
+                     S(7.0f), false,
+                     hoveredPrevious ? t.text : t.textMuted);
+        PaintChevron(s, L(g_layout.next.left + g_layout.next.right) * 0.5f,
+                     L(g_layout.next.top + g_layout.next.bottom) * 0.5f, S(7.0f),
+                     true, hoveredNext ? t.text : t.textMuted);
+    }
+
+    const int dots = std::min(count, 8);
+    const float gap = S(14.0f);
+    const float total = gap * static_cast<float>(dots - 1);
+    const float cx = L(g_layout.card.left + g_layout.card.right) * 0.5f;
+    const float cy = L(g_layout.card.bottom) - S(10.0f) - S(kVoicingStripHeight) * 0.5f;
+    float x = cx - total * 0.5f;
+    for (int i = 0; i < dots; i++) {
+        const bool active = i == g_app.voicing;
+        const bool hovered = g_hover.id == kHitDot && g_hover.index == i;
+        if (active) {
+            FillRoundRect(s, x - S(9.0f), cy - S(3.0f), x + S(9.0f),
+                          cy + S(3.0f), S(3.0f), t.accent);
+            g_layout.dots[i] = RECT{static_cast<LONG>(x - S(9.0f)),
+                                    static_cast<LONG>(cy - S(7.0f)),
+                                    static_cast<LONG>(x + S(9.0f)),
+                                    static_cast<LONG>(cy + S(7.0f))};
+        } else {
+            FillCircle(s, x, cy, S(3.0f),
+                       hovered ? t.textMuted : WithAlpha(t.textMuted, 0.45f));
+            g_layout.dots[i] = RECT{static_cast<LONG>(x - S(6.0f)),
+                                    static_cast<LONG>(cy - S(6.0f)),
+                                    static_cast<LONG>(x + S(6.0f)),
+                                    static_cast<LONG>(cy + S(6.0f))};
+        }
+        x += gap;
+    }
+    g_layout.dotCount = dots;
+}
+
+void PaintCard(Surface& s, const Theme& t) {
+    const RECT& card = g_layout.card;
+    FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
+                  S(kCardRadius), t.card);
+    StrokeRoundRect(s, L(card.left) + 0.5f, L(card.top) + 0.5f,
+                    L(card.right) - 0.5f, L(card.bottom) - 0.5f,
+                    S(kCardRadius), S(1.0f), t.stroke);
+
+    const ChordEntry* entry = SelectedChord();
+    const Voicing* voicing = SelectedVoicing();
+    if (!entry || !voicing) {
+        RECT empty = g_layout.card;
+        g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontRow)), FW_NORMAL),
+                    L"Pick a chord", empty, DT_CENTER | DT_VCENTER |
+                                                DT_SINGLELINE,
+                    t.textFaint);
+        return;
+    }
+
+    HFONT nameFont = g_fonts.Get(S(static_cast<float>(kFontChord)),
+                                 kWeightSemiBold);
+    g_text.Draw(s, nameFont, entry->name, g_layout.chordName,
+                DT_LEFT | DT_TOP | DT_SINGLELINE, t.text);
+
+    HFONT toneFont = g_fonts.Get(S(static_cast<float>(kFontTone)), FW_NORMAL);
+    g_text.Draw(s, toneFont,
+                ChordTones(g_app.instrument, *entry, *voicing), g_layout.tones,
+                DT_LEFT | DT_TOP | DT_SINGLELINE, t.textMuted);
+
+    if (chorddata::kInstruments[g_app.instrument].kind == chorddata::kFretted) {
+        PaintFrettedChord(s, t, *voicing, g_layout.diagram);
+    } else {
+        PaintPianoChord(s, t, *voicing, g_layout.diagram);
+    }
+    PaintVoicingSlider(s, t);
+}
+
+void PaintTempo(Surface& s, const Theme& t) {
+    const RECT& pad = g_layout.tapPad;
+    const bool hovered = g_hover.id == kHitTapPad;
+    FillRoundRect(s, L(pad.left), L(pad.top), L(pad.right), L(pad.bottom),
+                  S(kCardRadius), t.card);
+    StrokeRoundRect(s, L(pad.left) + 0.5f, L(pad.top) + 0.5f,
+                    L(pad.right) - 0.5f, L(pad.bottom) - 0.5f, S(kCardRadius),
+                    S(1.0f), t.stroke);
+
+    // The dial doubles as the tap target: each tap lights it and sends a ring
+    // outwards, so the beat is something you can see.
+    const float cx = L(pad.left + pad.right) * 0.5f;
+    const float cy =
+        L(g_layout.tapValue.top + g_layout.tapValue.bottom) * 0.5f;
+    const float radius = S(82.0f);
+    const double since = NowMs() - g_tap.flashAt;
+    const float flash = static_cast<float>(Clamp01(1.0 - since / 320.0));
+    FillCircle(s, cx, cy, radius, hovered ? t.controlHover : t.control);
+    if (flash > 0.0f) {
+        FillCircle(s, cx, cy, radius, WithAlpha(t.accent, 0.14f * flash));
+        StrokeCircle(s, cx, cy, radius + S(6.0f) + (1.0f - flash) * S(12.0f),
+                     S(2.0f), WithAlpha(t.accent, 0.55f * flash));
+    }
+    StrokeCircle(s, cx, cy, radius, S(1.2f),
+                 flash > 0.0f ? WithAlpha(t.accent, 0.25f + 0.45f * flash)
+                              : t.stroke);
+
+    HFONT valueFont =
+        g_fonts.Get(S(static_cast<float>(kFontBpm)), kWeightSemiBold);
+    const std::wstring value =
+        g_tap.hasValue
+            ? std::to_wstring(static_cast<int>(lround(g_tap.bpm)))
+            : std::wstring(L"\u2014");
+    g_text.Draw(s, valueFont, value, g_layout.tapValue,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                g_tap.hasValue ? t.text : t.textFaint);
+
+    HFONT unitFont = g_fonts.Get(S(static_cast<float>(kFontBpmUnit)), FW_NORMAL);
+    RECT unit{g_layout.tapValue.left, g_layout.tapValue.bottom - S(4.0f),
+              g_layout.tapValue.right, g_layout.tapValue.bottom + S(16.0f)};
+    g_text.Draw(s, unitFont, g_tap.hasValue ? L"BPM" : L"tap to start", unit,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+
+    HFONT nameFont = g_fonts.Get(S(static_cast<float>(kFontTone)),
+                                 kWeightSemiBold);
+    if (g_tap.hasValue) {
+        g_text.Draw(s, nameFont, TempoName(g_tap.bpm), g_layout.tapName,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.accent);
+    }
+
+    // One bar per stored interval, taller when that tap lagged the average, so
+    // an unsettled tempo is visible at a glance.
+    const float barsLeft = L(g_layout.tapBars.left);
+    const float barsRight = L(g_layout.tapBars.right);
+    const float gap = S(6.0f);
+    const float barWidth =
+        (barsRight - barsLeft - gap * static_cast<float>(kMaxTapIntervals - 1)) /
+        static_cast<float>(kMaxTapIntervals);
+    const float bottom = L(g_layout.tapBars.bottom);
+    const float full = L(g_layout.tapBars.bottom - g_layout.tapBars.top);
+    const double average = TapAverageInterval();
+    for (int i = 0; i < kMaxTapIntervals; i++) {
+        const bool filled = i < g_tap.intervalCount;
+        float height = S(3.0f);
+        if (filled && average > 0.0) {
+            const double ratio = g_tap.intervals[i] / average;
+            const float even = static_cast<float>(Clamp01((ratio - 0.6) / 0.8));
+            height = full * (0.25f + 0.75f * even);
+        }
+        const float x = barsLeft + static_cast<float>(i) * (barWidth + gap);
+        FillRoundRect(s, x, bottom - height, x + barWidth, bottom, S(3.0f),
+                      filled ? WithAlpha(t.accent, 0.85f)
+                             : WithAlpha(t.textMuted, 0.22f));
+    }
+
+    HFONT hintFont = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    std::wstring hint = L"Tap the dial, or press ";
+    hint += TapKeyLabel();
+    g_text.Draw(s, hintFont, hint, g_layout.tapHint,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+
+    // Half / Reset / Double, in the order a player reaches for them.
+    HFONT buttonFont = g_fonts.Get(S(static_cast<float>(kFontTab)),
+                                   kWeightSemiBold);
+    auto Button = [&](const RECT& rect, PCWSTR label, int id) {
+        const bool hot = g_hover.id == id;
+        FillRoundRect(s, L(rect.left), L(rect.top), L(rect.right), L(rect.bottom),
+                      S(8.0f), hot ? t.controlHover : t.control);
+        StrokeRoundRect(s, L(rect.left) + 0.5f, L(rect.top) + 0.5f,
+                        L(rect.right) - 0.5f, L(rect.bottom) - 0.5f, S(8.0f),
+                        S(1.0f), hot ? WithAlpha(t.accent, 0.35f) : t.stroke);
+        RECT text = rect;
+        g_text.Draw(s, buttonFont, label, text,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                    hot ? t.text : t.textMuted);
+    };
+    Button(g_layout.tapHalf, L"Half", kHitTapHalf);
+    Button(g_layout.tapReset, L"Reset", kHitTapReset);
+    Button(g_layout.tapDouble, L"Double", kHitTapDouble);
+}
+
+// The metronome card: tempo, the beat row, the meter chips, the subdivision
+// row and the transport, stacked in the same rectangle the tap tempo pad uses.
+void PaintMetronome(Surface& s, const Theme& t) {
+    const RECT& card = g_layout.metroPad;
+    FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
+                  S(kCardRadius), t.card);
+    StrokeRoundRect(s, L(card.left) + 0.5f, L(card.top) + 0.5f,
+                    L(card.right) - 0.5f, L(card.bottom) - 0.5f, S(kCardRadius),
+                    S(1.0f), t.stroke);
+
+    const double bpm = ToolkitBpm();
+    HFONT valueFont =
+        g_fonts.Get(S(static_cast<float>(kFontBpm)), kWeightSemiBold);
+    g_text.Draw(s, valueFont, std::to_wstring(lround(bpm)), g_layout.metroValue,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.text);
+
+    HFONT metaFont =
+        g_fonts.Get(S(static_cast<float>(kFontTone)), kWeightSemiBold);
+    std::wstring meta = TempoName(bpm);
+    meta += L" \x00B7 ";
+    meta += MeterLabel(g_metro.beats, g_metro.unit);
+    g_text.Draw(s, metaFont, meta, g_layout.metroMeta,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.accent);
+
+    // One dot per beat, with a wider gap at every group boundary so a 7/8 or a
+    // 12/8 bar reads at a glance. The downbeat keeps a ring of its own.
+    const bool running = g_metro.running;
+    const int beats = std::clamp(g_metro.beats, 1, 16);
+    const int group = std::clamp(g_metro.group, 1, 4);
+    const int current = running ? g_metroShared.beat.load() % beats : 0;
+    const float radius = S(beats > 8 ? 5.5f : 8.0f);
+    const float gap = S(beats > 8 ? 7.0f : 14.0f);
+    const float groupGap = group > 1 ? S(7.0f) : 0.0f;
+    const int breaks = group > 1 ? (beats - 1) / group : 0;
+    const float total =
+        beats * radius * 2 + (beats - 1) * gap + breaks * groupGap;
+    const float cy =
+        L(g_layout.metroDots.top + g_layout.metroDots.bottom) * 0.5f;
+    float x = L(g_layout.metroDots.left + g_layout.metroDots.right) * 0.5f -
+              total * 0.5f + radius;
+    const float pulse =
+        static_cast<float>(Clamp01(1.0 - (NowMs() - g_metro.pulseAt) / 220.0));
+    for (int i = 0; i < beats; i++) {
+        if (i > 0) {
+            x += radius * 2 + gap + (group > 1 && i % group == 0 ? groupGap : 0);
+        }
+        const bool active = i == current;
+        FillCircle(s, x, cy, radius,
+                   active ? t.accent
+                          : WithAlpha(t.textMuted, running ? 0.26f : 0.20f));
+        if (i == 0) {
+            StrokeCircle(s, x, cy, radius + S(3.0f), S(1.4f),
+                         WithAlpha(t.accent, active ? 0.55f : 0.30f));
+        }
+        if (active && running && pulse > 0.0f) {
+            StrokeCircle(s, x, cy, radius + S(2.0f) + (1.0f - pulse) * S(9.0f),
+                         S(2.0f), WithAlpha(t.accent, 0.45f * pulse));
+        }
+    }
+
+    HFONT chipFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    for (int i = 0; i < kSignatureCount; i++) {
+        const std::wstring label =
+            MeterLabel(kSignatures[i].beats, kSignatures[i].unit);
+        PaintChip(s, t, g_layout.metroPreset[i], label.c_str(), chipFont,
+                  g_metro.beats == kSignatures[i].beats &&
+                      g_metro.unit == kSignatures[i].unit,
+                  g_hover.id == kHitMetroPreset && g_hover.index == i);
+    }
+
+    PaintChip(s, t, g_layout.metroBeatsDown, L"\x2212", chipFont, false,
+              g_hover.id == kHitMetroBeatsDown);
+    PaintChip(s, t, g_layout.metroBeatsUp, L"+", chipFont, false,
+              g_hover.id == kHitMetroBeatsUp);
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontTab)), FW_NORMAL),
+                std::to_wstring(g_metro.beats) + L" beats / bar",
+                g_layout.metroBeatsLabel,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+    for (int i = 0; i < 4; i++) {
+        const std::wstring label = L"1/" + std::to_wstring(kBeatUnits[i]);
+        PaintChip(s, t, g_layout.metroUnit[i], label.c_str(), chipFont,
+                  g_metro.unit == kBeatUnits[i],
+                  g_hover.id == kHitMetroUnit && g_hover.index == i);
+    }
+
+    for (int i = 0; i < 4; i++) {
+        PaintChip(s, t, g_layout.metroSub[i], SubdivisionLabel(i + 1), chipFont,
+                  g_metro.subdivision == i + 1,
+                  g_hover.id == kHitMetroSubdivision && g_hover.index == i);
+    }
+    const std::wstring groupLabel =
+        g_metro.group > 1 ? L"Group " + std::to_wstring(g_metro.group)
+                          : std::wstring(L"Group off");
+    PaintChip(s, t, g_layout.metroGroup, groupLabel.c_str(), chipFont,
+              g_metro.group > 1, g_hover.id == kHitMetroGroup);
+
+    HFONT buttonFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    const bool tapHot = g_hover.id == kHitMetroTap;
+    FillRoundRect(s, L(g_layout.metroTap.left), L(g_layout.metroTap.top),
+                  L(g_layout.metroTap.right), L(g_layout.metroTap.bottom),
+                  S(9.0f), tapHot ? t.controlHover : t.control);
+    StrokeRoundRect(s, L(g_layout.metroTap.left) + 0.5f,
+                    L(g_layout.metroTap.top) + 0.5f,
+                    L(g_layout.metroTap.right) - 0.5f,
+                    L(g_layout.metroTap.bottom) - 0.5f, S(9.0f), S(1.0f),
+                    t.stroke);
+    RECT tapText = g_layout.metroTap;
+    g_text.Draw(s, buttonFont, L"Tap", tapText,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                tapHot ? t.text : t.textMuted);
+
+    const bool startHot = g_hover.id == kHitMetroStart;
+    const RECT& start = g_layout.metroStart;
+    if (running) {
+        FillRoundRect(s, L(start.left), L(start.top), L(start.right),
+                      L(start.bottom), S(9.0f), startHot ? t.controlHover
+                                                         : t.control);
+        StrokeRoundRect(s, L(start.left) + 0.5f, L(start.top) + 0.5f,
+                        L(start.right) - 0.5f, L(start.bottom) - 0.5f, S(9.0f),
+                        S(1.0f), WithAlpha(t.accent, 0.45f));
+    } else {
+        FillRoundRect(s, L(start.left), L(start.top), L(start.right),
+                      L(start.bottom), S(9.0f),
+                      WithAlpha(t.accent, startHot ? 1.0f : 0.93f));
+    }
+    RECT startText = start;
+    g_text.Draw(s, buttonFont, running ? L"Stop" : L"Start", startText,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                running ? t.text : t.onAccent);
+
+    const std::wstring hint =
+        running ? L"Space stops \x00B7 \x2191\x2193 tempo \x00B7 "
+                  L"\x2190\x2192 meter"
+                : L"Space starts \x00B7 \x2191\x2193 tempo \x00B7 "
+                  L"\x2190\x2192 meter";
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
+                hint, g_layout.metroHint,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+}
+
+// The tuner card: a wide needle sweep with the note inside it, the strings of
+// the tuning under it, and a row each for the instrument and the tuning.
+void PaintTuner(Surface& s, const Theme& t) {
+    const RECT& card = g_layout.tunerPad;
+    FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
+                  S(kCardRadius), t.card);
+    StrokeRoundRect(s, L(card.left) + 0.5f, L(card.top) + 0.5f,
+                    L(card.right) - 0.5f, L(card.bottom) - 0.5f, S(kCardRadius),
+                    S(1.0f), t.stroke);
+
+    // Fifty cents is a quarter tone either way, which is as far as the needle
+    // needs to go before the player hears that it is another note.
+    const RECT& arc = g_layout.tunerArc;
+    const float cx = L(arc.left + arc.right) * 0.5f;
+    const float pivot = L(arc.bottom);
+    const float radius =
+        std::min(L(arc.right - arc.left) * 0.5f - S(6.0f),
+                 L(arc.bottom - arc.top) - S(10.0f));
+    const float sweep = 1.0471976f;  // 60 degrees either side of upright.
+    auto Point = [&](float fraction, float distance) {
+        const float angle = fraction * sweep;
+        return Vec2{cx + distance * sinf(angle),
+                    pivot - distance * cosf(angle)};
+    };
+
+    int cents = 0;
+    const int midi = TunerDisplayReading(cents);
+    const bool heard = midi >= 0;
+    // The needle eases toward the reading, so it swings rather than snaps.
+    const float off = g_tuner.needle;
+    const bool inTune = heard && cents >= -3 && cents <= 3;
+
+    for (int step = -50; step <= 50; step += 5) {
+        const bool major = step % 25 == 0;
+        const Vec2 inner = Point(static_cast<float>(step) / 50.0f,
+                                 radius * (major ? 0.86f : 0.915f));
+        const Vec2 outer =
+            Point(static_cast<float>(step) / 50.0f, radius);
+        StrokeLine(s, inner, outer, S(major ? 1.6f : 1.0f),
+                   major ? t.textMuted : WithAlpha(t.textMuted, 0.45f));
+    }
+
+    // The band the needle has to land in, drawn once so in tune is a place
+    // rather than a guess.
+    {
+        Vec2 last = Point(-0.06f, radius);
+        for (int step = -3; step <= 3; step++) {
+            const Vec2 next = Point(static_cast<float>(step) / 50.0f, radius);
+            StrokeLine(s, last, next, S(2.6f), WithAlpha(t.accent, 0.55f));
+            last = next;
+        }
+    }
+
+    const Color needle = !heard ? WithAlpha(t.textMuted, 0.35f)
+                         : inTune ? t.accent
+                                  : Mix(t.accent, t.textMuted, 0.45f);
+    const Vec2 tail =
+        Point(off / 50.0f, radius * 0.80f);
+    const Vec2 tip = Point(off / 50.0f, radius * 0.99f);
+    if (inTune) {
+        FillCircle(s, tip.x, tip.y, S(9.0f), WithAlpha(t.accent, 0.20f));
+    }
+    if (g_tuner.pulsing) {
+        // A ring plays out from the tip the moment the note lands in tune.
+        const float progress = static_cast<float>(EaseOutCubic(
+            (NowMs() - g_tuner.pulseAt) / 450.0));
+        StrokeCircle(s, tip.x, tip.y, S(9.0f) + S(12.0f) * progress, S(1.8f),
+                     WithAlpha(t.accent, 0.60f * (1.0f - progress)));
+    }
+    StrokeLine(s, tail, tip, S(2.2f), needle);
+    FillCircle(s, tip.x, tip.y, S(3.4f), needle);
+
+    // The note display rolls: the reading it is leaving slides up and away
+    // while the new one rises into place.
+    HFONT valueFont =
+        g_fonts.Get(S(static_cast<float>(kFontBpm)), kWeightSemiBold);
+    const Color noteColor =
+        inTune ? t.accent : heard ? t.text : t.textFaint;
+    const float roll = static_cast<float>(Clamp01(
+        (NowMs() - g_tuner.noteAt) / kNoteSwapMs));
+    const float rise = EaseOutCubic(roll);
+    RECT noteRect = g_layout.tunerNote;
+    if (roll < 1.0f && g_tuner.fadingNote != g_tuner.shownNote) {
+        RECT outRect = noteRect;
+        outRect.top -= S(14.0f) * rise;
+        outRect.bottom -= S(14.0f) * rise;
+        g_text.Draw(s, valueFont, NoteLabel(g_tuner.fadingNote), outRect,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                    WithAlpha(noteColor, 1.0f - rise));
+    }
+    RECT inRect = noteRect;
+    inRect.top += S(14.0f) * (1.0f - rise);
+    inRect.bottom += S(14.0f) * (1.0f - rise);
+    g_text.Draw(s, valueFont, NoteLabel(g_tuner.shownNote), inRect,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                WithAlpha(noteColor, 0.25f + 0.75f * rise));
+
+    HFONT centsFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    std::wstring centsText;
+    Color centsColor = t.textMuted;
+    if (g_tuner.micFailed) {
+        centsText = L"no microphone \x00B7 check Settings \x203A Privacy";
+        centsColor = t.textFaint;
+    } else if (!g_tuner.listening) {
+        centsText = L"listening is paused";
+        centsColor = t.textFaint;
+    } else if (!heard) {
+        centsText = L"play a string";
+    } else if (inTune) {
+        centsText = L"in tune";
+        centsColor = t.accent;
+    } else {
+        centsText = cents > 0 ? L"+" : L"\u2212";
+        centsText += std::to_wstring(cents > 0 ? cents : -cents);
+        centsText += L" cents";
+    }
+    g_text.Draw(s, centsFont, centsText, g_layout.tunerCents,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, centsColor);
+
+    HFONT metaFont = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    const int strings =
+        std::clamp(TunerStringCount(g_tuner.tuning), 0, kTunerStringMax);
+    // A running count of the marks below, so progress reads without having
+    // to scan the chips one by one.
+    int settled = 0;
+    for (int i = 0; i < strings; i++) {
+        if (g_tuner.tuned[i]) {
+            settled++;
+        }
+    }
+    std::wstring meta = TunerInstrumentName(g_tuner.instrument);
+    meta += L" \x00B7 ";
+    meta += TunerTuningName(g_tuner.tuning);
+    meta += L" \x00B7 ";
+    if (heard) {
+        // One decimal is as fine as the reading deserves.
+        const int tenths = static_cast<int>(lround(g_tuner.frequency * 10.0f));
+        meta += std::to_wstring(tenths / 10);
+        meta += L".";
+        meta += std::to_wstring(tenths % 10);
+        meta += L" Hz";
+    } else {
+        meta += L"A4 = ";
+        meta += std::to_wstring(g_tuner.reference);
+        meta += L" Hz";
+    }
+    if (strings > 0 && settled < strings) {
+        meta += L" \x00B7 ";
+        meta += std::to_wstring(settled);
+        meta += L" of ";
+        meta += std::to_wstring(strings);
+        meta += L" in tune";
+    }
+    g_text.Draw(s, metaFont, meta, g_layout.tunerMeta,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+
+    // Each string of the tuning, and every one of them can be picked by hand
+    // to tune on demand. The one being heard lights up, the picked one wears
+    // an accent ring and a target marker, and one that has settled in tune
+    // keeps a check badge over its corner.
+    HFONT chipFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    const int nearest = heard && g_tuner.lock < 0 ? TunerNearestString(midi) : -1;
+    const double now = NowMs();
+    for (int i = 0; i < strings; i++) {
+        const RECT& chip = g_layout.tunerStringChip[i];
+        const bool locked = i == g_tuner.lock;
+        const bool active = locked || i == nearest;
+        const bool hovered =
+            g_hover.id == kHitTunerString && g_hover.index == i;
+        const bool tuned = g_tuner.tuned[i];
+        // Both marks know the moment they arrived, so they can play out
+        // instead of simply appearing.
+        const float born =
+            g_tuner.stringAt[i] > 0.0
+                ? Clamp01(static_cast<float>(now - g_tuner.stringAt[i]) /
+                          static_cast<float>(kTunedBadgeMs))
+                : 1.0f;
+        const float held =
+            locked ? Clamp01(static_cast<float>(now - g_tuner.lockAt) /
+                             static_cast<float>(kTunedBadgeMs))
+                   : 0.0f;
+
+        PaintChip(s, t, chip,
+                  NoteLabel(kTunings[g_tuner.tuning].notes[i]).c_str(),
+                  chipFont, active, hovered);
+        if (tuned && !active) {
+            // A settled string keeps a wash of the accent, so at a glance the
+            // player can see which strings are still to do.
+            FillRoundRect(s, L(chip.left), L(chip.top), L(chip.right),
+                          L(chip.bottom), S(9.0f), WithAlpha(t.accent, 0.13f));
+        }
+        if (locked) {
+            // A ring closes on the chip that was picked by hand.
+            StrokeRoundRect(s, L(chip.left) + 0.5f, L(chip.top) + 0.5f,
+                            L(chip.right) - 0.5f, L(chip.bottom) - 0.5f,
+                            S(9.0f), S(1.5f),
+                            WithAlpha(t.accent, 0.55f + 0.45f * held));
+            const float dot = S(2.2f) * (0.6f + 0.4f * held);
+            FillCircle(s, L(chip.left) + S(7.0f), L(chip.top) + S(7.0f), dot,
+                       WithAlpha(active ? t.onAccent : t.accent, held));
+        }
+        if (tuned) {
+            // The badge overshoots a touch and settles, which pulls the eye
+            // to the string that just came into tune.
+            const float pop = EaseOutBack(born);
+            const float badgeX = L(chip.right) - S(7.5f);
+            const float badgeY = L(chip.top) + S(7.0f);
+            const float badgeR = S(5.6f) * pop;
+            if (badgeR > 0.4f) {
+                const Color fill = active ? kWhite : t.accent;
+                FillCircle(s, badgeX, badgeY, badgeR + S(1.4f),
+                           WithAlpha(fill, 0.22f * born));
+                FillCircle(s, badgeX, badgeY, badgeR,
+                           WithAlpha(fill, 0.95f * born));
+                const Color mark =
+                    WithAlpha(active ? t.accent : t.onAccent, born);
+                const float reach = badgeR * 0.42f;
+                StrokeLine(s, {badgeX - reach, badgeY + reach * 0.1f},
+                           {badgeX - reach * 0.15f, badgeY + reach * 0.85f},
+                           S(1.3f), mark);
+                StrokeLine(s, {badgeX - reach * 0.15f, badgeY + reach * 0.85f},
+                           {badgeX + reach, badgeY - reach * 0.75f}, S(1.3f),
+                           mark);
+            }
+        }
+    }
+
+    // The instrument and the tuning, each a labelled select that opens a
+    // listbox over the card.
+    HFONT rowFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    HFONT captionFont = g_fonts.Get(S(9.5f), FW_NORMAL);
+    auto Select = [&](const RECT& row,
+                      const RECT& caption,
+                      PCWSTR captionText,
+                      PCWSTR label,
+                      bool open,
+                      int id) {
+        g_text.Draw(s, captionFont, captionText, caption,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE,
+                    open ? t.accent : t.textFaint);
+        const bool hovered = g_hover.id == id;
+        FillRoundRect(s, L(row.left), L(row.top), L(row.right), L(row.bottom),
+                      S(8.0f), open || hovered ? t.controlHover : t.control);
+        StrokeRoundRect(s, L(row.left) + 0.5f, L(row.top) + 0.5f,
+                        L(row.right) - 0.5f, L(row.bottom) - 0.5f, S(8.0f),
+                        S(1.0f), open ? WithAlpha(t.accent, 0.55f) : t.stroke);
+        RECT text = row;
+        text.left += S(10);
+        text.right -= S(24);
+        g_text.Draw(s, rowFont, label, text,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                    t.text);
+        // The chevron turns when the list is up.
+        const float flip = open ? -1.0f : 1.0f;
+        const float cy = L(row.top + row.bottom) * 0.5f + S(0.6f) * flip;
+        const float size = S(3.4f);
+        const Vec2 a{L(row.right) - S(12) - size, cy + size * 0.5f * flip};
+        const Vec2 b{L(row.right) - S(12), cy - size * 0.55f * flip};
+        const Vec2 c{L(row.right) - S(12) + size, cy + size * 0.5f * flip};
+        StrokeLine(s, a, b, S(1.6f), open ? t.accent : t.textMuted);
+        StrokeLine(s, b, c, S(1.6f), open ? t.accent : t.textMuted);
+    };
+    const bool instOpen =
+        MenuHit(g_tunerMenu) && g_tunerMenu.shown == kMenuInstrument;
+    const bool tuneOpen =
+        MenuHit(g_tunerMenu) && g_tunerMenu.shown == kMenuTuning;
+    Select(g_layout.tunerInstSelect, g_layout.tunerInstCaption, L"Instrument",
+           TunerInstrumentName(g_tuner.instrument), instOpen, kHitTunerInst);
+    Select(g_layout.tunerTuneSelect, g_layout.tunerTuneCaption, L"Tuning",
+           TunerTuningName(g_tuner.tuning), tuneOpen, kHitTunerTune);
+
+    std::wstring hint;
+    if (g_tuner.lock >= 0) {
+        hint = L"Tuning ";
+        hint += NoteLabel(kTunings[g_tuner.tuning].notes[g_tuner.lock]);
+        hint += L" \x00B7 click the chip again to release";
+    } else {
+        hint = L"Play a string \x00B7 click a chip or press Enter to hold just that one";
+    }
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
+                hint, g_layout.tunerHint,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+}
+
+// The list an instrument or tuning select opens, drawn last so it sits over
+// the panel. It shares the animation and the rows of the tool list, so all
+// three read as the same control.
+void PaintTunerMenu(Surface& s, const Theme& t) {
+    const bool inst = g_tunerMenu.shown == kMenuInstrument;
+    const RECT& full = inst ? g_layout.tunerInstMenu : g_layout.tunerTuneMenu;
+    const RECT reveal = PaintListShell(s, t, full, g_tunerMenu.progress);
+
+    const int count =
+        inst ? kTunerInstrumentCount : TunerTuningCount(g_tuner.instrument);
+    ListItem items[kTunerMenuMax];
+    const RECT* rows =
+        inst ? g_layout.tunerInstMenuRow : g_layout.tunerTuneMenuRow;
+    for (int i = 0; i < count; i++) {
+        const int value = inst ? i : TunerTuningAt(g_tuner.instrument, i);
+        items[i].label = inst ? kTunerInstruments[i] : kTunings[value].name;
+        items[i].active =
+            inst ? g_tuner.instrument == i : g_tuner.tuning == value;
+        items[i].hovered =
+            (MenuHit(g_tunerMenu) && g_hover.id == kHitTunerMenuRow &&
+             g_hover.index == i) ||
+            g_tunerMenu.cursor == i;  // The keyboard cursor rides with the list.
+    }
+    PaintListRows(s, t, items, count, rows, reveal);
+}
+
+struct FooterItem {
+    std::wstring key;
+    std::wstring action;
+};
+
+void PaintFooter(Surface& s, const Theme& t) {
+    RECT rcFooter = g_layout.foot;
+
+    RECT rcDivider = rcFooter;
+    rcDivider.bottom = rcDivider.top + 1;
+    FillRoundRectGradient(s, 
+        static_cast<float>(rcDivider.left), static_cast<float>(rcDivider.top), 
+        static_cast<float>(rcDivider.right), static_cast<float>(rcDivider.bottom), 
+        0.0f, t.stroke, t.stroke);
+
+    rcFooter.top += 1;
+
+    std::vector<FooterItem> items;
+    if (g_app.tool == kToolChords) {
+        items = {
+            {L"\x2191\x2193", L"browse"},
+            {L"Tab", L"instrument"},
+            {L"\x2190\x2192", L"fingering"},
+            {L"Esc", L"close"}
+        };
+    } else if (g_app.tool == kToolTempo) {
+        items = {
+            {TapKeyLabel(), L"tap"},
+            {L"\x2190\x2192", L"half / double"},
+            {L"R", L"reset"},
+            {L"Esc", L"close"}
+        };
+    } else if (g_app.tool == kToolMetronome) {
+        std::wstring spaceAction = g_metro.running ? L"stop" : L"start";
+        items = {
+            {L"Space", spaceAction},
+            {L"\x2191\x2193", L"tempo"},
+            {L"\x2190\x2192", L"meter"},
+            {L"Esc", L"close"}
+        };
+    } else {
+        items = {
+            {L"\x2191\x2193", L"instrument"},
+            {L"\x2190\x2192", L"tuning"},
+            {L"1\x2013\x38", L"one string"},
+            {L"Esc", L"close"}
+        };
+    }
+
+    auto font = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    
+    std::wstring combinedText;
+    for (size_t i = 0; i < items.size(); ++i) {
+        combinedText += L"[" + items[i].key + L"] " + items[i].action;
+        if (i + 1 < items.size()) {
+            combinedText += L"    ";
+        }
+    }
+
+    g_text.Draw(s, font, combinedText, rcFooter, DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+}
+
+void PaintPanel(Surface& s) {
+    const Theme& t = g_theme;
+    const float width = L(g_layout.width);
+    const float height = L(g_layout.height);
+    const float radius = S(kPanelRadius);
+    const bool acrylic = TransparencyEnabled() && IsWindows10Build(17134);
+    if (acrylic) {
+        FillRoundRectGradient(s, 0, 0, width, height, radius, t.panelTop,
+                              t.panelBottom);
+    } else {
+        FillRoundRectGradient(s, 0, 0, width, height, radius,
+                              WithAlpha(t.panelTop, 0.985f),
+                              WithAlpha(t.panelBottom, 0.985f));
+    }
+    StrokeRoundRect(s, 0.5f, 0.5f, width - 0.5f, height - 0.5f, radius - 0.5f,
+                    S(1.0f), t.stroke);
+
+    PaintToolSelect(s, t);
+    PaintCloseButton(s, t);
+    if (g_app.tool == kToolChords) {
+        PaintTabs(s, t);
+        PaintSearch(s, t);
+        PaintResults(s, t);
+        PaintCard(s, t);
+    } else if (g_app.tool == kToolTempo) {
+        PaintTempo(s, t);
+    } else if (g_app.tool == kToolMetronome) {
+        PaintMetronome(s, t);
+    } else {
+        PaintTuner(s, t);
+    }
+    PaintFooter(s, t);
+    if (MenuVisual(g_toolMenu)) {
+        PaintToolMenu(s, t);  // Last, so the list sits over the panel.
+    }
+    if (g_app.tool == kToolTuner && MenuVisual(g_tunerMenu)) {
+        PaintTunerMenu(s, t);  // Over the panel, same as the tool list.
+    }
+}
+
+float CurrentScale() {
+    if (g_panel.Hwnd()) {
+        using GetDpiForWindow_t = UINT(WINAPI*)(HWND);
+        static auto getDpi =
+            GetProc<GetDpiForWindow_t>(L"user32.dll", "GetDpiForWindow");
+        if (getDpi) {
+            const UINT dpi = getDpi(g_panel.Hwnd());
+            if (dpi >= 96) {
+                return static_cast<float>(dpi) / 96.0f;
+            }
+        }
+    }
+    using GetDpiForSystem_t = UINT(WINAPI*)();
+    static auto getSystemDpi =
+        GetProc<GetDpiForSystem_t>(L"user32.dll", "GetDpiForSystem");
+    if (getSystemDpi) {
+        const UINT dpi = getSystemDpi();
+        if (dpi >= 96) {
+            return static_cast<float>(dpi) / 96.0f;
+        }
+    }
+    return 1.0f;
+}
+
+void Render() {
+    g_scale = std::clamp(CurrentScale(), 1.0f, 3.0f);
+    g_theme = MakeTheme(UseDarkTheme(), g_accent);
+    ComputeLayout();
+    EnsureSelectionVisible();
+    if (!g_surface.Resize(g_layout.width, g_layout.height)) {
+        return;
+    }
+    PaintPanel(g_surface);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Hit testing
+
+HitResult HitTest(POINT pt) {
+    HitResult hit;
+    if (MenuVisual(g_toolMenu)) {
+        // The open list owns the pointer until it closes.
+        for (int i = 0; i < kToolCount; i++) {
+            if (PtInRect(&g_layout.toolMenuRows[i], pt)) {
+                hit.id = kHitToolMenuItem;
+                hit.index = i;
+                return hit;
+            }
+        }
+        if (PtInRect(&g_layout.toolSelect, pt)) {
+            hit.id = kHitToolSelect;
+        }
+        return hit;
+    }
+    if (PtInRect(&g_layout.close, pt)) {
+        hit.id = kHitClose;
+        return hit;
+    }
+    if (PtInRect(&g_layout.toolSelect, pt)) {
+        hit.id = kHitToolSelect;
+        return hit;
+    }
+    if (g_app.tool == kToolTempo) {
+        if (PtInRect(&g_layout.tapHalf, pt)) {
+            hit.id = kHitTapHalf;
+            return hit;
+        }
+        if (PtInRect(&g_layout.tapReset, pt)) {
+            hit.id = kHitTapReset;
+            return hit;
+        }
+        if (PtInRect(&g_layout.tapDouble, pt)) {
+            hit.id = kHitTapDouble;
+            return hit;
+        }
+        if (PtInRect(&g_layout.tapPad, pt)) {
+            hit.id = kHitTapPad;
+            return hit;
+        }
+        if (PtInRect(&g_layout.header, pt)) {
+            hit.id = kHitHeader;
+        }
+        return hit;
+    }
+    if (g_app.tool == kToolMetronome) {
+        if (PtInRect(&g_layout.metroStart, pt)) {
+            hit.id = kHitMetroStart;
+            return hit;
+        }
+        if (PtInRect(&g_layout.metroTap, pt)) {
+            hit.id = kHitMetroTap;
+            return hit;
+        }
+        if (PtInRect(&g_layout.metroBeatsDown, pt)) {
+            hit.id = kHitMetroBeatsDown;
+            return hit;
+        }
+        if (PtInRect(&g_layout.metroBeatsUp, pt)) {
+            hit.id = kHitMetroBeatsUp;
+            return hit;
+        }
+        if (PtInRect(&g_layout.metroGroup, pt)) {
+            hit.id = kHitMetroGroup;
+            return hit;
+        }
+        for (int i = 0; i < kSignatureCount; i++) {
+            if (PtInRect(&g_layout.metroPreset[i], pt)) {
+                hit.id = kHitMetroPreset;
+                hit.index = i;
+                return hit;
+            }
+        }
+        for (int i = 0; i < 4; i++) {
+            if (PtInRect(&g_layout.metroUnit[i], pt)) {
+                hit.id = kHitMetroUnit;
+                hit.index = i;
+                return hit;
+            }
+        }
+        for (int i = 0; i < 4; i++) {
+            if (PtInRect(&g_layout.metroSub[i], pt)) {
+                hit.id = kHitMetroSubdivision;
+                hit.index = i;
+                return hit;
+            }
+        }
+        if (PtInRect(&g_layout.header, pt)) {
+            hit.id = kHitHeader;
+        }
+        return hit;
+    }
+    if (g_app.tool == kToolTuner) {
+        // An open list owns the pointer until it closes.
+        if (MenuVisual(g_tunerMenu)) {
+            const bool instrumentList =
+                g_tunerMenu.shown == kMenuInstrument;
+            const int count = instrumentList
+                                  ? kTunerInstrumentCount
+                                  : TunerTuningCount(g_tuner.instrument);
+            for (int i = 0; i < count; i++) {
+                const RECT& row = instrumentList
+                    ? g_layout.tunerInstMenuRow[i]
+                    : g_layout.tunerTuneMenuRow[i];
+                if (PtInRect(&row, pt)) {
+                    hit.id = kHitTunerMenuRow;
+                    hit.index = i;
+                    return hit;
+                }
+            }
+            if (PtInRect(&g_layout.tunerInstSelect, pt)) {
+                hit.id = kHitTunerInst;
+            } else if (PtInRect(&g_layout.tunerTuneSelect, pt)) {
+                hit.id = kHitTunerTune;
+            }
+            return hit;
+        }
+        for (int i = 0; i < kTunerStringMax; i++) {
+            if (PtInRect(&g_layout.tunerStringChip[i], pt)) {
+                hit.id = kHitTunerString;
+                hit.index = i;
+                return hit;
+            }
+        }
+        if (PtInRect(&g_layout.tunerInstSelect, pt)) {
+            hit.id = kHitTunerInst;
+            return hit;
+        }
+        if (PtInRect(&g_layout.tunerTuneSelect, pt)) {
+            hit.id = kHitTunerTune;
+            return hit;
+        }
+        if (PtInRect(&g_layout.header, pt)) {
+            hit.id = kHitHeader;
+        }
+        return hit;
+    }
+    for (int i = 0; i < kInstrumentCount; i++) {
+        if (PtInRect(&g_layout.tabs[i], pt)) {
+            hit.id = kHitTab;
+            hit.index = i;
+            return hit;
+        }
+    }
+    if (PtInRect(&g_layout.search, pt)) {
+        hit.id = kHitSearch;
+        return hit;
+    }
+    if (PtInRect(&g_layout.list, pt)) {
+        const int rowHeight = std::max(1, g_layout.rowHeight);
+        const int row = (pt.y - g_layout.list.top) / rowHeight;
+        const int index = g_app.scroll + row;
+        if (row >= 0 && row < kVisibleRows &&
+            index < static_cast<int>(g_app.results.size())) {
+            hit.id = kHitRow;
+            hit.index = index;
+        }
+        return hit;
+    }
+    if (PtInRect(&g_layout.previous, pt)) {
+        hit.id = kHitPrevious;
+        return hit;
+    }
+    if (PtInRect(&g_layout.next, pt)) {
+        hit.id = kHitNext;
+        return hit;
+    }
+    for (int i = 0; i < g_layout.dotCount; i++) {
+        if (PtInRect(&g_layout.dots[i], pt)) {
+            hit.id = kHitDot;
+            hit.index = i;
+            return hit;
+        }
+    }
+    if (PtInRect(&g_layout.diagram, pt)) {
+        hit.id = kHitDiagram;
+        return hit;
+    }
+    if (PtInRect(&g_layout.header, pt)) {
+        hit.id = kHitHeader;
+    }
+    return hit;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Input
+
+constexpr UINT kMessageSettings = WM_APP + 1;
+constexpr int kHotkeyToggle = 1;
+constexpr size_t kMaxQueryLength = 48;
+
+HANDLE g_workerThread = nullptr;
+HANDLE g_workerReadyEvent = nullptr;
+
+void Repaint() {
+    Render();
+    PresentPanel(false);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Tap tempo
+
+void TapTempoReset() {
+    g_tap.intervalCount = 0;
+    g_tap.lastTap = 0.0;
+    g_tap.bpm = 0.0;
+    g_tap.hasValue = false;
+    Repaint();
+}
+
+void TapTempoSetBpm(double bpm) {
+    g_tap.bpm = std::clamp(bpm, kMinBpm, kMaxBpm);
+    g_tap.hasValue = true;
+    // A manual change ends the measurement, so the next taps start from it.
+    g_tap.intervalCount = 0;
+    g_tap.lastTap = 0.0;
+    MetronomeSync();
+    Repaint();
+}
+
+void TapTempoTap() {
+    const double now = NowMs();
+    if (g_tap.lastTap > 0.0 && now - g_tap.lastTap <= g_settings.tapResetMs) {
+        const double interval = now - g_tap.lastTap;
+        // Repeats and double clicks would otherwise read as a wild tempo.
+        if (interval >= kMinTapIntervalMs) {
+            if (g_tap.intervalCount == kMaxTapIntervals) {
+                for (int i = 1; i < kMaxTapIntervals; i++) {
+                    g_tap.intervals[i - 1] = g_tap.intervals[i];
+                }
+                g_tap.intervalCount = kMaxTapIntervals - 1;
+            }
+            g_tap.intervals[g_tap.intervalCount++] = interval;
+            g_tap.bpm =
+                std::clamp(60000.0 / TapAverageInterval(), kMinBpm, kMaxBpm);
+            g_tap.hasValue = true;
+        }
+    } else {
+        g_tap.intervalCount = 0;  // First tap of a new measurement.
+    }
+    g_tap.lastTap = now;
+    g_tap.flashAt = now;
+    MetronomeSync();
+    if (g_panel.Hwnd()) {
+        SetTimer(g_panel.Hwnd(), kFlashTimer, 16, nullptr);
+    }
+    Repaint();
+}
+
+void SetTool(int tool) {
+    tool = std::clamp(tool, 0, kToolCount - 1);
+    if (tool == static_cast<int>(g_app.tool)) {
+        return;
+    }
+    MenuReset(g_toolMenu);
+    MenuReset(g_tunerMenu);
+    // The microphone only lives while the tuner is on screen.
+    if (g_app.tool == kToolTuner) {
+        TunerHalt();
+    }
+    g_app.tool = static_cast<Tool>(tool);
+    if (g_selecting) {
+        g_selecting = false;
+        ReleaseCapture();
+    }
+    g_searchFocused = g_app.tool == kToolChords;
+    g_hover = HitResult();
+    g_pressed = HitResult();
+    if (g_app.tool == kToolChords) {
+        g_caret = static_cast<int>(g_app.query.size());
+        g_selAnchor = g_caret;
+        g_caretStart = NowMs();
+    }
+    if (g_app.tool == kToolTuner && g_phase == kPhaseOpen) {
+        TunerStart();
+    }
+    Repaint();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Metronome
+
+void MetronomeSync() {
+    g_metroShared.bpmMilli.store(
+        static_cast<int>(lround(ToolkitBpm() * 1000.0)));
+    g_metroShared.beats.store(std::clamp(g_metro.beats, 1, 16));
+    g_metroShared.subdivision.store(std::clamp(g_metro.subdivision, 1, 4));
+    g_metroShared.group.store(std::clamp(g_metro.group, 1, 4));
+    g_metroShared.volume.store(std::clamp(g_settings.metronomeVolume, 0, 100));
+    g_metroShared.sound.store(std::clamp(g_settings.metronomeSound, 0, 2));
+}
+
+// Silences the clicks without touching the panel, for the close and unload
+// paths where drawing would be wasted or wrong.
+void MetronomeHalt() {
+    if (!g_metro.running) {
+        return;
+    }
+    g_metro.running = false;
+    StopMetroAudio();
+    if (g_panel.Hwnd()) {
+        KillTimer(g_panel.Hwnd(), kPulseTimer);
+    }
+}
+
+void MetronomeStop() {
+    MetronomeHalt();
+    Repaint();
+}
+
+void MetronomeStart() {
+    if (g_metro.running) {
+        return;
+    }
+    MetronomeSync();
+    if (!StartMetroAudio()) {
+        Wh_Log(L"Metronome: couldn't open the click stream");
+        return;
+    }
+    g_metro.running = true;
+    g_metro.paintedPulse = g_metroShared.pulse.load();
+    g_metro.pulseAt = -1000.0;
+    if (g_panel.Hwnd()) {
+        SetTimer(g_panel.Hwnd(), kPulseTimer, 33, nullptr);
+    }
+    Repaint();
+}
+
+void MetronomeToggle() {
+    if (g_metro.running) {
+        MetronomeStop();
+    } else {
+        MetronomeStart();
+    }
+}
+
+// refit is set when the whole meter changes, so a preset or a signature step
+// picks up the grouping that meter is normally felt in; the steppers leave a
+// group the player chose alone.
+void MetronomeSetMeter(int beats, int unit, bool refit) {
+    g_metro.beats = std::clamp(beats, 1, 16);
+    g_metro.unit = unit;
+    if (refit) {
+        g_metro.group = DefaultGrouping(g_metro.beats, g_metro.unit);
+    }
+    MetronomeSync();
+    Repaint();
+}
+
+// Walks the preset signatures, and joins them from whichever meter is closest
+// when the steppers have left the presets behind.
+void MetronomeStepMeter(int delta) {
+    int current = -1;
+    for (int i = 0; i < kSignatureCount; i++) {
+        if (kSignatures[i].beats == g_metro.beats &&
+            kSignatures[i].unit == g_metro.unit) {
+            current = i;
+            break;
+        }
+    }
+    if (current < 0) {
+        // Off the presets: the next one along is the closest in that direction.
+        int candidate = -1;
+        if (delta > 0) {
+            for (int i = 0; i < kSignatureCount; i++) {
+                if (kSignatures[i].beats > g_metro.beats) {
+                    candidate = i;
+                    break;
+                }
+            }
+        } else {
+            for (int i = kSignatureCount - 1; i >= 0; i--) {
+                if (kSignatures[i].beats < g_metro.beats) {
+                    candidate = i;
+                    break;
+                }
+            }
+        }
+        if (candidate < 0) {
+            candidate = delta > 0 ? 0 : kSignatureCount - 1;
+        }
+        MetronomeSetMeter(kSignatures[candidate].beats,
+                          kSignatures[candidate].unit, true);
+        return;
+    }
+    const int next =
+        (current + delta + kSignatureCount) % kSignatureCount;
+    MetronomeSetMeter(kSignatures[next].beats, kSignatures[next].unit, true);
+}
+
+void MetronomeNudgeTempo(double delta) {
+    TapTempoSetBpm(ToolkitBpm() + delta);
+}
+
+void ApplySettings() {
+    g_settings = LoadSettings();
+    g_accent = ResolveAccent(g_settings.accentChoice, g_settings.customAccent);
+    if (!g_metro.defaultsApplied) {
+        // The settings only seed the meter, so a later change under Settings
+        // never pulls a meter out from under the panel.
+        g_metro.defaultsApplied = true;
+        g_metro.beats = g_settings.metronomeBeats;
+        g_metro.unit = g_settings.metronomeUnit;
+        g_metro.subdivision = g_settings.metronomeSubdivision;
+        g_metro.group = DefaultGrouping(g_metro.beats, g_metro.unit);
+    }
+    MetronomeSync();
+    // The reference pitch follows the settings; the panel never edits it.
+    g_tuner.reference = g_settings.tunerReference;
+}
+
+void SearchChanged() {
+    g_app.voicing = 0;
+    g_app.selected = 0;
+    g_app.scroll = 0;
+    Refilter();
+    SelectResult(0, true);
+    g_caretStart = NowMs();
+    Repaint();
+}
+
+void DeleteQuerySelection() {
+    if (!HasSelection()) {
+        return;
+    }
+    const int start = SelectionStart();
+    g_app.query.erase(static_cast<size_t>(start),
+                      static_cast<size_t>(SelectionEnd() - start));
+    g_caret = start;
+    g_selAnchor = start;
+}
+
+void AppendQueryChar(wchar_t c) {
+    DeleteQuerySelection();
+    if (g_app.query.size() >= kMaxQueryLength) {
+        return;
+    }
+    g_app.query.insert(g_app.query.begin() + g_caret, c);
+    g_caret++;
+    g_selAnchor = g_caret;
+    SearchChanged();
+}
+
+void EraseQueryChar() {
+    if (HasSelection()) {
+        DeleteQuerySelection();
+        SearchChanged();
+        return;
+    }
+    if (g_caret <= 0) {
+        return;
+    }
+    g_app.query.erase(static_cast<size_t>(g_caret) - 1, 1);
+    g_caret--;
+    g_selAnchor = g_caret;
+    SearchChanged();
+}
+
+void DeleteQueryChar() {
+    if (HasSelection()) {
+        DeleteQuerySelection();
+        SearchChanged();
+        return;
+    }
+    if (g_caret >= static_cast<int>(g_app.query.size())) {
+        return;
+    }
+    g_app.query.erase(static_cast<size_t>(g_caret), 1);
+    SearchChanged();
+}
+
+void SelectAllQuery() {
+    if (g_app.query.empty()) {
+        return;
+    }
+    g_selAnchor = 0;
+    g_caret = static_cast<int>(g_app.query.size());
+    g_caretStart = NowMs();
+    Repaint();
+}
+
+void ClearQuery() {
+    g_app.query.clear();
+    g_caret = 0;
+    g_selAnchor = 0;
+    SearchChanged();
+}
+
+void OnMouseMove(HWND hwnd, POINT pt) {
+    if (!g_trackingMouse) {
+        TRACKMOUSEEVENT track{sizeof(track), TME_LEAVE, hwnd, 0};
+        TrackMouseEvent(&track);
+        g_trackingMouse = true;
+    }
+
+    if (g_dragging) {
+        POINT cursor;
+        GetCursorPos(&cursor);
+        const RECT work = MonitorWorkArea();
+        const int x = g_dragOrigin.x + (cursor.x - g_dragCursor.x);
+        const int y = g_dragOrigin.y + (cursor.y - g_dragCursor.y);
+        g_x = std::clamp(x, static_cast<int>(work.left),
+                         std::max(static_cast<int>(work.left),
+                                  static_cast<int>(work.right) - g_layout.width));
+        g_y = std::clamp(y, static_cast<int>(work.top),
+                         std::max(static_cast<int>(work.top),
+                                  static_cast<int>(work.bottom) - g_layout.height));
+        PresentPanel(false);
+        return;
+    }
+
+    if (g_selecting) {
+        // Dragging inside the search box extends the selection.
+        const int x = std::clamp(static_cast<int>(pt.x),
+                                 static_cast<int>(g_layout.searchText.left),
+                                 static_cast<int>(g_layout.searchText.right));
+        MoveCaret(QueryIndexFromX(x), true);
+        Repaint();
+        return;
+    }
+
+    if (g_sliding) {
+        // Dragging across the diagram walks the fingerings, one step per slice.
+        const ChordEntry* entry = SelectedChord();
+        if (entry && VoicingCount(g_app.instrument, *entry) > 1) {
+            const int step = std::max(S(26.0f), 12);
+            bool changed = false;
+            while (pt.x - g_slideAnchor >= step) {
+                StepVoicing(-1);
+                g_slideAnchor += step;
+                changed = true;
+            }
+            while (g_slideAnchor - pt.x >= step) {
+                StepVoicing(1);
+                g_slideAnchor -= step;
+                changed = true;
+            }
+            if (changed) {
+                Repaint();
+            }
+        }
+        return;
+    }
+
+    const HitResult hit = HitTest(pt);
+    if (hit.id != g_hover.id || hit.index != g_hover.index) {
+        g_hover = hit;
+        Repaint();
+    }
+}
+
+#if 0  // Chord playback, parked with the engine above.
+void PlaySelectedChord() {
+    const Voicing* voicing = SelectedVoicing();
+    if (!voicing) {
+        return;
+    }
+    const auto& info = chorddata::kInstruments[g_app.instrument];
+    AudioRequest request;
+    request.plucked = info.kind == chorddata::kFretted;
+    // A four string neck reads as a ukulele: shorter and brighter than a guitar.
+    request.damping = info.strings > 0 && info.strings <= 4 ? 0.9962f : 0.9975f;
+    if (request.plucked && info.tuning) {
+        // Low string first, so the render thread strums upwards.
+        for (int i = 0; i < voicing->stringCount && request.noteCount < kMaxNotes;
+             i++) {
+            const int fret = voicing->frets[i];
+            if (fret == kMutedFret) {
+                continue;
+            }
+            // An open string is fret zero at the nut, not the base fret.
+            const int absolute = fret == 0 ? 0 : voicing->baseFret + fret - 1;
+            request.notes[request.noteCount++] =
+                info.tuning[i] + absolute;
+        }
+    } else {
+        const int count = std::min(voicing->noteCount, kMaxNotes);
+        for (int i = 0; i < count; i++) {
+            request.notes[i] = voicing->notes[i];
+        }
+        std::sort(request.notes, request.notes + count);
+        request.noteCount = count;
+    }
+    if (request.noteCount == 0) {
+        return;
+    }
+    AudioPlay(request);
+}
+#endif  // PlaySelectedChord
+
+void OnMouseDown(HWND hwnd, POINT pt) {
+    const HitResult hit = HitTest(pt);
+    if (MenuVisual(g_toolMenu) && hit.id == kHitNone) {
+        // The click that dismisses an open list does nothing else.
+        MenuHide(g_toolMenu);
+        Repaint();
+        return;
+    }
+    if (g_app.tool == kToolTuner && MenuVisual(g_tunerMenu) &&
+        (hit.id == kHitNone || hit.id == kHitToolSelect)) {
+        // Same for the tuner lists, which also yield to the tool picker. A
+        // click inside the list's own rows belongs to the list, so it is not
+        // one of these.
+        MenuHide(g_tunerMenu);
+        Repaint();
+        if (hit.id == kHitToolSelect) {
+            g_pressed = hit;
+            MenuShow(g_toolMenu, kMenuTools, g_app.tool);
+            g_hover = HitResult();
+            Repaint();
+        }
+        return;
+    }
+    g_pressed = hit;
+    switch (hit.id) {
+        case kHitClose:
+            CloseFlyout();
+            break;
+        case kHitToolSelect:
+            if (MenuHit(g_toolMenu)) {
+                MenuHide(g_toolMenu);
+            } else {
+                MenuShow(g_toolMenu, kMenuTools, g_app.tool);
+            }
+            g_hover = HitResult();
+            Repaint();
+            break;
+        case kHitToolMenuItem:
+            MenuHide(g_toolMenu);
+            SetTool(hit.index);
+            break;
+        case kHitTapPad: {
+            // Clicking also grabs focus, so the keyboard is ready to tap.
+            SetFocus(hwnd);
+            TapTempoTap();
+            break;
+        }
+        case kHitTapReset:
+            TapTempoReset();
+            break;
+        case kHitTapHalf: {
+            const double base = g_tap.hasValue ? g_tap.bpm : 120.0;
+            TapTempoSetBpm(base * 0.5);
+            break;
+        }
+        case kHitTapDouble: {
+            const double base = g_tap.hasValue ? g_tap.bpm : 120.0;
+            TapTempoSetBpm(base * 2.0);
+            break;
+        }
+        case kHitMetroStart:
+            MetronomeToggle();
+            break;
+        case kHitMetroTap:
+            // The tap button feeds the same tempo the metronome plays.
+            SetFocus(hwnd);
+            TapTempoTap();
+            break;
+        case kHitMetroPreset:
+            if (hit.index >= 0 && hit.index < kSignatureCount) {
+                MetronomeSetMeter(kSignatures[hit.index].beats,
+                                  kSignatures[hit.index].unit, true);
+            }
+            break;
+        case kHitMetroBeatsDown:
+        case kHitMetroBeatsUp: {
+            const int next =
+                g_metro.beats + (hit.id == kHitMetroBeatsUp ? 1 : -1);
+            MetronomeSetMeter(std::clamp(next, 1, 16), g_metro.unit, false);
+            break;
+        }
+        case kHitMetroUnit:
+            if (hit.index >= 0 && hit.index < 4) {
+                MetronomeSetMeter(g_metro.beats, kBeatUnits[hit.index], false);
+            }
+            break;
+        case kHitMetroSubdivision:
+            g_metro.subdivision = hit.index + 1;
+            MetronomeSync();
+            Repaint();
+            break;
+        case kHitMetroGroup:
+            g_metro.group = g_metro.group >= 4 ? 1 : g_metro.group + 1;
+            MetronomeSync();
+            Repaint();
+            break;
+        case kHitTunerInst:
+            if (MenuHit(g_tunerMenu) && g_tunerMenu.target == kMenuInstrument) {
+                MenuHide(g_tunerMenu);
+            } else {
+                MenuShow(g_tunerMenu, kMenuInstrument, g_tuner.instrument);
+                g_hover = HitResult();
+            }
+            Repaint();
+            break;
+        case kHitTunerTune:
+            if (MenuHit(g_tunerMenu) && g_tunerMenu.target == kMenuTuning) {
+                MenuHide(g_tunerMenu);
+            } else {
+                MenuShow(g_tunerMenu, kMenuTuning,
+                         TunerTuningPosition(g_tuner.instrument,
+                                             g_tuner.tuning));
+                g_hover = HitResult();
+            }
+            Repaint();
+            break;
+        case kHitTunerMenuRow: {
+            const bool instrumentList = g_tunerMenu.shown == kMenuInstrument;
+            if (instrumentList) {
+                TunerSetInstrument(hit.index);
+            } else {
+                TunerSetTuning(TunerTuningAt(g_tuner.instrument, hit.index));
+            }
+            MenuHide(g_tunerMenu);
+            Repaint();
+            break;
+        }
+        case kHitTunerString:
+            // Clicking a chip holds just that string; clicking it again lets
+            // go and reads every string again.
+            TunerToggleString(hit.index);
+            break;
+        case kHitHeader:
+            g_dragging = true;
+            GetCursorPos(&g_dragCursor);
+            g_dragOrigin.x = g_x;
+            g_dragOrigin.y = g_y;
+            SetCapture(hwnd);
+            break;
+        case kHitTab:
+            g_searchFocused = true;
+            SetInstrument(hit.index, true);
+            Repaint();
+            break;
+        case kHitSearch: {
+            g_searchFocused = true;
+            MoveCaret(QueryIndexFromX(pt.x), false);
+            g_selecting = true;
+            g_caretStart = NowMs();
+            SetCapture(hwnd);
+            Repaint();
+            break;
+        }
+        case kHitRow:
+            SelectResult(hit.index, false);
+            g_app.voicing = 0;
+            Repaint();
+            break;
+        case kHitPrevious:
+            StepVoicing(-1);
+            Repaint();
+            break;
+        case kHitNext:
+            StepVoicing(1);
+            Repaint();
+            break;
+        case kHitDot:
+            g_app.voicing = hit.index;
+            Repaint();
+            break;
+        case kHitDiagram:
+            g_sliding = true;
+            g_slideAnchor = pt.x;
+            SetCapture(hwnd);
+            break;
+        default:
+            break;
+    }
+}
+
+void OnMouseUp() {
+    g_pressed = HitResult();
+    if (g_dragging || g_sliding || g_selecting) {
+        g_dragging = false;
+        g_sliding = false;
+        g_selecting = false;
+        ReleaseCapture();
+        Repaint();  // The hover state went stale while the mouse was captured.
+    }
+}
+
+void OnWheel(HWND hwnd, WPARAM wParam, POINT pt) {
+    ScreenToClient(hwnd, &pt);
+    const int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+    if (delta == 0) {
+        return;
+    }
+    const int direction = delta > 0 ? -1 : 1;
+    if (g_app.tool == kToolTempo) {
+        // The wheel fine tunes the tempo one BPM at a time, ten with Shift.
+        const bool shift = GetKeyState(VK_SHIFT) < 0;
+        const double current = g_tap.hasValue ? g_tap.bpm : 120.0;
+        TapTempoSetBpm(current - direction * (shift ? 10.0 : 1.0));
+        return;
+    }
+    if (g_app.tool == kToolMetronome) {
+        const bool shift = GetKeyState(VK_SHIFT) < 0;
+        MetronomeNudgeTempo(-direction * (shift ? 10.0 : 1.0));
+        return;
+    }
+    if (g_app.tool == kToolTuner) {
+        // The wheel walks the tunings, so a drop tuning is one flick away.
+        TunerStepTuning(direction);
+        return;
+    }
+    if (PtInRect(&g_layout.card, pt)) {
+        StepVoicing(direction);
+    } else {
+        SelectResult(g_app.selected + direction * 3, true);
+        g_app.voicing = 0;
+    }
+    Repaint();
+}
+
+void OnKeyDown(WPARAM key) {
+    const bool shift = GetKeyState(VK_SHIFT) < 0;
+    const bool ctrl = GetKeyState(VK_CONTROL) < 0;
+    if (ctrl && key == VK_TAB) {
+        SetTool((g_app.tool + 1) % kToolCount);
+        return;
+    }
+    if (MenuHit(g_toolMenu)) {
+        if (key == VK_ESCAPE) {
+            MenuHide(g_toolMenu);
+            Repaint();
+            return;
+        }
+        if (key == VK_RETURN) {
+            // The listbox commits the row the cursor rests on.
+            if (g_toolMenu.cursor >= 0) {
+                SetTool(g_toolMenu.cursor);
+            } else {
+                MenuHide(g_toolMenu);
+                Repaint();
+            }
+            return;
+        }
+        if (key == VK_UP || key == VK_DOWN) {
+            // Browsing the list leaves it open, with the cursor riding on it.
+            MenuMoveCursor(g_toolMenu, key == VK_DOWN ? 1 : -1);
+            Repaint();
+            return;
+        }
+    }
+    if (g_app.tool == kToolTempo) {
+        if (key == VK_ESCAPE) {
+            CloseFlyout();
+            return;
+        }
+        const bool tapKey = (key == VK_SPACE && g_settings.tapKeySpace) ||
+                            (key == VK_RETURN && g_settings.tapKeyEnter);
+        if (tapKey) {
+            TapTempoTap();
+            return;
+        }
+        if (key == 'R') {
+            TapTempoReset();
+            return;
+        }
+        if (key == VK_LEFT || key == VK_RIGHT) {
+            const double base = g_tap.hasValue ? g_tap.bpm : 120.0;
+            TapTempoSetBpm(key == VK_LEFT ? base * 0.5 : base * 2.0);
+        }
+        return;
+    }
+    if (g_app.tool == kToolMetronome) {
+        if (key == VK_ESCAPE) {
+            CloseFlyout();
+            return;
+        }
+        if (key == VK_SPACE) {
+            MetronomeToggle();
+            return;
+        }
+        if (key == VK_UP || key == VK_DOWN) {
+            MetronomeNudgeTempo((key == VK_UP ? 1.0 : -1.0) *
+                                (shift ? 10.0 : 1.0));
+            return;
+        }
+        if (key == VK_LEFT || key == VK_RIGHT) {
+            MetronomeStepMeter(key == VK_LEFT ? -1 : 1);
+        }
+        return;
+    }
+    if (g_app.tool == kToolTuner) {
+        if (MenuHit(g_tunerMenu)) {
+            if (key == VK_ESCAPE) {
+                MenuHide(g_tunerMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_RETURN) {
+                // Enter commits the row the cursor rests on, which is what
+                // makes the popup behave as a listbox.
+                if (g_tunerMenu.cursor >= 0) {
+                    const int value =
+                        MenuRowValue(g_tunerMenu, g_tunerMenu.cursor);
+                    if (g_tunerMenu.target == kMenuInstrument) {
+                        TunerSetInstrument(value);
+                    } else {
+                        TunerSetTuning(value);
+                    }
+                }
+                MenuHide(g_tunerMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_UP || key == VK_DOWN) {
+                MenuMoveCursor(g_tunerMenu, key == VK_DOWN ? 1 : -1);
+                Repaint();
+                return;
+            }
+            return;
+        }
+        if (key == VK_ESCAPE) {
+            CloseFlyout();
+            return;
+        }
+        if (key == VK_RETURN) {
+            // Enter holds the string that is sounding, so the note you just
+            // played is the one you go on tuning.
+            int cents = 0;
+            const int midi = TunerDisplayReading(cents);
+            const int string =
+                g_tuner.lock >= 0
+                    ? g_tuner.lock
+                    : (midi >= 0 ? TunerNearestString(midi) : -1);
+            if (string >= 0) {
+                TunerSetString(g_tuner.lock == string ? -1 : string);
+            }
+            return;
+        }
+        if (key == VK_UP || key == VK_DOWN) {
+            TunerStepInstrument(key == VK_UP ? -1 : 1);
+            return;
+        }
+        if (key == VK_LEFT || key == VK_RIGHT) {
+            TunerStepTuning(key == VK_LEFT ? -1 : 1);
+            return;
+        }
+        // The number keys hold a single string, so only that one is tuned.
+        // 0 lets go and reads every string again.
+        int stringKey = -1;
+        if (key >= '0' && key <= '9') {
+            stringKey = key == '0' ? kTunerStringAll
+                                   : static_cast<int>(key - '1');
+        } else if (key >= VK_NUMPAD0 && key <= VK_NUMPAD9) {
+            stringKey = key == VK_NUMPAD0 ? kTunerStringAll
+                                          : static_cast<int>(key - VK_NUMPAD1);
+        }
+        if (stringKey >= 0) {
+            if (stringKey < TunerStringCount(g_tuner.tuning) ||
+                stringKey == kTunerStringAll) {
+                TunerSetString(stringKey);
+                Repaint();
+            }
+        }
+        return;
+    }
+    switch (key) {
+        case VK_ESCAPE:
+            if (g_app.query.empty()) {
+                CloseFlyout();
+            } else {
+                ClearQuery();
+            }
+            return;
+        case VK_RETURN:
+            if (!g_app.query.empty()) {
+                ClearQuery();
+            }
+            return;
+        case VK_DELETE:
+            DeleteQueryChar();
+            return;
+        case 'A':
+            if (ctrl) {
+                SelectAllQuery();
+            }
+            return;
+        case VK_UP:
+            SelectResult(g_app.selected - 1, true);
+            g_app.voicing = 0;
+            Repaint();
+            return;
+        case VK_DOWN:
+            SelectResult(g_app.selected + 1, true);
+            g_app.voicing = 0;
+            Repaint();
+            return;
+        case VK_PRIOR:
+            SelectResult(g_app.selected - kVisibleRows, true);
+            g_app.voicing = 0;
+            Repaint();
+            return;
+        case VK_NEXT:
+            SelectResult(g_app.selected + kVisibleRows, true);
+            g_app.voicing = 0;
+            Repaint();
+            return;
+        case VK_HOME:
+            SelectResult(0, true);
+            g_app.voicing = 0;
+            Repaint();
+            return;
+        case VK_END:
+            SelectResult(static_cast<int>(g_app.results.size()) - 1, true);
+            g_app.voicing = 0;
+            Repaint();
+            return;
+        case VK_LEFT:
+            StepVoicing(-1);
+            Repaint();
+            return;
+        case VK_RIGHT:
+            StepVoicing(1);
+            Repaint();
+            return;
+        case VK_TAB: {
+            const int next = (g_app.instrument + (shift ? kInstrumentCount - 1 : 1)) %
+                             kInstrumentCount;
+            g_searchFocused = true;
+            SetInstrument(next, true);
+            Repaint();
+            return;
+        }
+        case VK_BACK:
+            EraseQueryChar();
+            return;
+        default:
+            break;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Window procedures
+
+LRESULT CALLBACK PanelWndProc(HWND hwnd,
+                              UINT message,
+                              WPARAM wParam,
+                              LPARAM lParam) {
+    switch (message) {
+        case WM_MOUSEMOVE:
+            OnMouseMove(hwnd, POINT{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)});
+            return 0;
+        case WM_MOUSELEAVE:
+            g_trackingMouse = false;
+            if (g_hover.id != kHitNone) {
+                g_hover = HitResult();
+                Repaint();
+            }
+            return 0;
+        case WM_LBUTTONDOWN:
+            OnMouseDown(hwnd, POINT{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)});
+            return 0;
+        case WM_LBUTTONUP:
+            OnMouseUp();
+            return 0;
+        case WM_MOUSEWHEEL:
+            OnWheel(hwnd, wParam,
+                    POINT{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)});
+            return 0;
+        case WM_KEYDOWN:
+            // Alt combinations belong to the shell, not to the flyout.
+            if (!(lParam & (1 << 29))) {
+                // A held tap or start key auto repeats, which would read as a
+                // very fast tempo or flicker the transport, so only the first
+                // press counts.
+                const bool repeat = (lParam & (1 << 30)) != 0;
+                const bool singleShot =
+                    (g_app.tool == kToolTempo &&
+                     (wParam == VK_SPACE || wParam == VK_RETURN)) ||
+                    (g_app.tool == kToolMetronome && wParam == VK_SPACE);
+                if (repeat && singleShot) {
+                    return 0;
+                }
+                OnKeyDown(wParam);
+            }
+            return 0;
+        case WM_CHAR: {
+            const wchar_t c = static_cast<wchar_t>(wParam);
+            if (g_app.tool == kToolChords && !MenuHit(g_toolMenu) && c >= 32 &&
+                c != 127) {
+                AppendQueryChar(c);
+            }
+            return 0;
+        }
+        case WM_TIMER:
+            if (wParam == kAnimationTimer) {
+                UpdateAnimation();
+            } else if (wParam == kCaretTimer && g_phase != kPhaseClosed &&
+                       g_searchFocused) {
+                Repaint();  // Moves the blinking caret along.
+            } else if (wParam == kFlashTimer) {
+                if (NowMs() - g_tap.flashAt > 320.0) {
+                    KillTimer(hwnd, kFlashTimer);
+                }
+                if (g_phase != kPhaseClosed) {
+                    Repaint();  // Runs the tap flash out.
+                }
+            } else if (wParam == kPulseTimer) {
+                if (!g_metro.running || g_phase == kPhaseClosed) {
+                    KillTimer(hwnd, kPulseTimer);
+                    return 0;
+                }
+                if (g_app.tool != kToolMetronome) {
+                    return 0;  // The dots are not on screen.
+                }
+                if (!g_metroShared.running.load()) {
+                    // The output device went away mid-bar, so fall back to
+                    // stopped rather than leaving a transport that lies.
+                    MetronomeStop();
+                    return 0;
+                }
+                // Only draw the beats, plus a short run of frames for the ring
+                // to shrink, so a fast tempo cannot turn into a paint storm.
+                const unsigned pulse = g_metroShared.pulse.load();
+                if (pulse != g_metro.paintedPulse) {
+                    g_metro.paintedPulse = pulse;
+                    g_metro.pulseAt = NowMs();
+                    Repaint();
+                } else if (NowMs() - g_metro.pulseAt < 120.0) {
+                    Repaint();
+                }
+            } else if (wParam == kTunerTimer) {
+                if (g_phase == kPhaseClosed || g_app.tool != kToolTuner ||
+                    !g_tuner.listening) {
+                    KillTimer(hwnd, kTunerTimer);
+                } else {
+                    TunerPoll();
+                    TunerAnimate();
+                }
+            } else if (wParam == kMenuAnimTimer) {
+                if (g_phase == kPhaseClosed || !AnyMenuAnimating()) {
+                    // Nothing left to roll, so stop the ticks.
+                    KillTimer(hwnd, kMenuAnimTimer);
+                    return 0;
+                }
+                UpdateMenuAnimations();
+            }
+            return 0;
+        case WM_ACTIVATE:
+            if (LOWORD(wParam) == WA_INACTIVE && g_phase == kPhaseOpen) {
+                CloseFlyout();  // A click anywhere else dismisses the flyout.
+            }
+            return 0;
+        case WM_MOUSEACTIVATE:
+            return MA_ACTIVATE;
+        case WM_SETCURSOR:
+            if (LOWORD(lParam) == HTCLIENT) {
+                LPCWSTR cursor = IDC_ARROW;
+                if (g_dragging || g_hover.id == kHitHeader) {
+                    cursor = IDC_SIZEALL;
+                } else if (g_selecting || g_hover.id == kHitSearch) {
+                    cursor = IDC_IBEAM;
+                } else if (g_hover.id == kHitTab || g_hover.id == kHitRow ||
+                           g_hover.id == kHitClose ||
+                           g_hover.id == kHitToolSelect ||
+                           g_hover.id == kHitToolMenuItem ||
+                           g_hover.id == kHitTapPad ||
+                           g_hover.id == kHitTapReset ||
+                           g_hover.id == kHitTapHalf ||
+                           g_hover.id == kHitTapDouble ||
+                           g_hover.id == kHitMetroStart ||
+                           g_hover.id == kHitMetroTap ||
+                           g_hover.id == kHitMetroPreset ||
+                           g_hover.id == kHitMetroBeatsDown ||
+                           g_hover.id == kHitMetroBeatsUp ||
+                           g_hover.id == kHitMetroUnit ||
+                           g_hover.id == kHitMetroSubdivision ||
+                           g_hover.id == kHitMetroGroup ||
+                           g_hover.id == kHitTunerInst ||
+                           g_hover.id == kHitTunerTune ||
+                           g_hover.id == kHitTunerMenuRow ||
+                           g_hover.id == kHitTunerString ||
+                           g_hover.id == kHitPrevious ||
+                           g_hover.id == kHitNext || g_hover.id == kHitDot) {
+                    cursor = IDC_HAND;
+                }
+                SetCursor(LoadCursorW(nullptr, cursor));
+                return TRUE;
+            }
+            break;
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_PAINT: {
+            PAINTSTRUCT paint;
+            BeginPaint(hwnd, &paint);
+            EndPaint(hwnd, &paint);
+            return 0;
+        }
+        case WM_NCHITTEST:
+            return HTCLIENT;
+        case WM_DPICHANGED:
+            return 0;
+        case WM_CLOSE:
+            CloseFlyout();
+            return 0;
+        default:
+            break;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+LRESULT CALLBACK ShadowWndProc(HWND hwnd,
+                               UINT message,
+                               WPARAM wParam,
+                               LPARAM lParam) {
+    switch (message) {
+        case WM_NCHITTEST:
+            return HTTRANSPARENT;  // Clicks fall through to the desktop.
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_MOUSEACTIVATE:
+            return MA_NOACTIVATE;
+        default:
+            break;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+void RepositionPanel() {
+    if (g_phase == kPhaseClosed) {
+        return;
+    }
+    if (g_panel.Hwnd()) {
+        const RECT work = MonitorWorkArea();
+        SetWindowPos(g_panel.Hwnd(), nullptr, work.left, work.top, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    Render();
+    BuildShadow();
+    ComputePosition(g_layout.width, g_layout.height, g_x, g_y);
+    PresentPanel(true);
+}
+
+LRESULT CALLBACK MessageWndProc(HWND hwnd,
+                                UINT message,
+                                WPARAM wParam,
+                                LPARAM lParam) {
+    switch (message) {
+        case WM_HOTKEY:
+            if (wParam == kHotkeyToggle) {
+                ToggleFlyout();
+            }
+            return 0;
+        case kMessageSettings:
+            ApplySettings();
+            RepositionPanel();
+            return 0;
+        case WM_SETTINGCHANGE:
+            // The app theme and the accent color live in the registry, so a
+            // theme switch redraws the panel with the new colors.
+            if (g_phase != kPhaseClosed) {
+                ApplySettings();
+                Render();
+                PresentPanel(false);
+            }
+            return 0;
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
+            return 0;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+        default:
+            break;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+bool RegisterWindowClasses() {
+    WNDCLASSEXW wc{};
+    wc.cbSize = sizeof(wc);
+    wc.hInstance = g_instance;
+    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+
+    wc.lpfnWndProc = MessageWndProc;
+    wc.lpszClassName = kMessageClass;
+    if (!RegisterClassExW(&wc)) {
+        return false;
+    }
+
+    wc.lpfnWndProc = PanelWndProc;
+    wc.lpszClassName = kPanelClass;
+    if (!RegisterClassExW(&wc)) {
+        return false;
+    }
+
+    wc.lpfnWndProc = ShadowWndProc;
+    wc.lpszClassName = kShadowClass;
+    return RegisterClassExW(&wc) != 0;
+}
+
+void UnregisterWindowClasses() {
+    UnregisterClassW(kPanelClass, g_instance);
+    UnregisterClassW(kShadowClass, g_instance);
+    UnregisterClassW(kMessageClass, g_instance);
+}
+
+bool CreateWindows() {
+    if (!RegisterWindowClasses()) {
+        Wh_Log(L"RegisterClassExW failed: %u", GetLastError());
+        return false;
+    }
+    g_messageWindow = CreateWindowExW(0, kMessageClass, L"", 0, 0, 0, 0, 0,
+                                      HWND_MESSAGE, nullptr, g_instance, nullptr);
+    if (!g_messageWindow) {
+        Wh_Log(L"Couldn't create the message window: %u", GetLastError());
+        return false;
+    }
+    if (!g_panel.Create(0, kPanelClass, L"Musician\'s Toolkit", nullptr)) {
+        Wh_Log(L"Couldn't create the panel: %u", GetLastError());
+        return false;
+    }
+    if (!g_shadow.Create(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE, kShadowClass, L"",
+                         nullptr)) {
+        Wh_Log(L"Couldn't create the shadow: %u", GetLastError());
+    }
+    if (!RegisterHotKey(g_messageWindow, kHotkeyToggle, MOD_WIN | MOD_NOREPEAT,
+                        'Y')) {
+        Wh_Log(L"Win+Y is taken by another app (error %u)", GetLastError());
+    }
+    return true;
+}
+
+void DestroyWindows() {
+    if (g_messageWindow) {
+        UnregisterHotKey(g_messageWindow, kHotkeyToggle);
+    }
+    g_panel.Destroy();
+    g_shadow.Destroy();
+    if (g_messageWindow && IsWindow(g_messageWindow)) {
+        DestroyWindow(g_messageWindow);  // WM_DESTROY posts the quit.
+    }
+    g_messageWindow = nullptr;
+}
+
+DWORD WINAPI WorkerThreadProc(LPVOID) {
+    const HRESULT coInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    g_fonts.Init();
+    ApplySettings();
+
+    if (!CreateWindows()) {
+        DestroyWindows();
+        UnregisterWindowClasses();
+        if (SUCCEEDED(coInit)) {
+            CoUninitialize();
+        }
+        if (g_workerReadyEvent) {
+            SetEvent(g_workerReadyEvent);
+        }
+        return 1;
+    }
+    if (g_workerReadyEvent) {
+        SetEvent(g_workerReadyEvent);
+    }
+
+    MSG msg;
+    while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+
+    // Silence the clicks before the windows they report to go away.
+    MetronomeHalt();
+    // And hand the microphone back on the way out.
+    TunerHalt();
+    DestroyWindows();
+    UnregisterWindowClasses();
+    g_fonts.Clear();
+    if (SUCCEEDED(coInit)) {
+        CoUninitialize();
+    }
+    return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Mod entry points
+//
+// The mod runs inside a windhawk.exe child process started with -tool-mod, the
+// same way the other flyout mods do. The launcher process only spawns it.
+
+BOOL WhTool_ModInit() {
+    Wh_Log(L">");
+    g_instance = GetModuleHandleW(nullptr);
+    g_workerReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!g_workerReadyEvent) {
+        Wh_Log(L"CreateEventW failed: %u", GetLastError());
+        return FALSE;
+    }
+    g_workerThread = CreateThread(nullptr, 0, WorkerThreadProc, nullptr, 0,
+                                  nullptr);
+    if (!g_workerThread) {
+        Wh_Log(L"CreateThread failed: %u", GetLastError());
+        return FALSE;
+    }
+    HANDLE handles[] = {g_workerReadyEvent, g_workerThread};
+    WaitForMultipleObjects(ARRAYSIZE(handles), handles, FALSE, INFINITE);
+    return g_messageWindow != nullptr;
+}
+
+void WhTool_ModSettingsChanged() {
+    Wh_Log(L">");
+    if (g_messageWindow) {
+        PostMessageW(g_messageWindow, kMessageSettings, 0, 0);
+    }
+}
+
+void WhTool_ModUninit() {
+    Wh_Log(L">");
+    if (g_messageWindow) {
+        PostMessageW(g_messageWindow, WM_CLOSE, 0, 0);
+    }
+    if (g_workerThread) {
+        WaitForSingleObject(g_workerThread, 5000);
+        CloseHandle(g_workerThread);
+        g_workerThread = nullptr;
+    }
+    if (g_workerReadyEvent) {
+        CloseHandle(g_workerReadyEvent);
+        g_workerReadyEvent = nullptr;
+    }
+}
+
+bool g_isToolModProcessLauncher;
+HANDLE g_toolModProcessMutex;
+
+void WINAPI EntryPoint_Hook() {
+    Wh_Log(L">");
+    ExitThread(0);
+}
+
+BOOL Wh_ModInit() {
+    DWORD sessionId;
+    if (ProcessIdToSessionId(GetCurrentProcessId(), &sessionId) &&
+        sessionId == 0) {
+        return FALSE;
+    }
+
+    bool isExcluded = false;
+    bool isToolModProcess = false;
+    bool isCurrentToolModProcess = false;
+    int argc;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLine(), &argc);
+    if (!argv) {
+        Wh_Log(L"CommandLineToArgvW failed");
+        return FALSE;
+    }
+
+    for (int i = 1; i < argc; i++) {
+        if (wcscmp(argv[i], L"-service") == 0 ||
+            wcscmp(argv[i], L"-service-start") == 0 ||
+            wcscmp(argv[i], L"-service-stop") == 0) {
+            isExcluded = true;
+            break;
+        }
+    }
+
+    for (int i = 1; i < argc - 1; i++) {
+        if (wcscmp(argv[i], L"-tool-mod") == 0) {
+            isToolModProcess = true;
+            if (wcscmp(argv[i + 1], WH_MOD_ID) == 0) {
+                isCurrentToolModProcess = true;
+            }
+            break;
+        }
+    }
+
+    LocalFree(argv);
+
+    if (isExcluded) {
+        return FALSE;
+    }
+
+    if (isCurrentToolModProcess) {
+        g_toolModProcessMutex =
+            CreateMutex(nullptr, TRUE, L"windhawk-tool-mod_" WH_MOD_ID);
+        if (!g_toolModProcessMutex) {
+            Wh_Log(L"CreateMutex failed");
+            ExitProcess(1);
+        }
+
+        if (GetLastError() == ERROR_ALREADY_EXISTS) {
+            Wh_Log(L"Tool mod already running (%s)", WH_MOD_ID);
+            ExitProcess(1);
+        }
+
+        if (!WhTool_ModInit()) {
+            ExitProcess(1);
+        }
+
+        IMAGE_DOS_HEADER* dosHeader =
+            (IMAGE_DOS_HEADER*)GetModuleHandle(nullptr);
+        IMAGE_NT_HEADERS* ntHeaders =
+            (IMAGE_NT_HEADERS*)((BYTE*)dosHeader + dosHeader->e_lfanew);
+
+        DWORD entryPointRVA = ntHeaders->OptionalHeader.AddressOfEntryPoint;
+        void* entryPoint = (BYTE*)dosHeader + entryPointRVA;
+
+        Wh_SetFunctionHook(entryPoint, (void*)EntryPoint_Hook, nullptr);
+        return TRUE;
+    }
+
+    if (isToolModProcess) {
+        return FALSE;
+    }
+
+    g_isToolModProcessLauncher = true;
+    return TRUE;
+}
+
+void Wh_ModAfterInit() {
+    if (!g_isToolModProcessLauncher) {
+        return;
+    }
+
+    WCHAR currentProcessPath[MAX_PATH];
+    switch (GetModuleFileName(nullptr, currentProcessPath,
+                              ARRAYSIZE(currentProcessPath))) {
+        case 0:
+        case ARRAYSIZE(currentProcessPath):
+            Wh_Log(L"GetModuleFileName failed");
+            return;
+    }
+
+    WCHAR commandLine[MAX_PATH + 2 +
+                     (sizeof(L" -tool-mod \"" WH_MOD_ID "\"") / sizeof(WCHAR)) -
+                     1];
+    swprintf_s(commandLine, L"\"%s\" -tool-mod \"%s\"", currentProcessPath,
+               WH_MOD_ID);
+
+    HMODULE kernelModule = GetModuleHandle(L"kernelbase.dll");
+    if (!kernelModule) {
+        kernelModule = GetModuleHandle(L"kernel32.dll");
+        if (!kernelModule) {
+            Wh_Log(L"No kernelbase.dll/kernel32.dll");
+            return;
+        }
+    }
+
+    using CreateProcessInternalW_t = BOOL(WINAPI*)(
+        HANDLE hUserToken, LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
+        LPSECURITY_ATTRIBUTES lpProcessAttributes,
+        LPSECURITY_ATTRIBUTES lpThreadAttributes, WINBOOL bInheritHandles,
+        DWORD dwCreationFlags, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory,
+        LPSTARTUPINFOW lpStartupInfo,
+        LPPROCESS_INFORMATION lpProcessInformation,
+        PHANDLE hRestrictedUserToken);
+    auto createProcessInternal = reinterpret_cast<CreateProcessInternalW_t>(
+        GetProcAddress(kernelModule, "CreateProcessInternalW"));
+    if (!createProcessInternal) {
+        Wh_Log(L"No CreateProcessInternalW");
+        return;
+    }
+
+    STARTUPINFO si{};
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_FORCEOFFFEEDBACK;
+    PROCESS_INFORMATION pi;
+    if (!createProcessInternal(nullptr, currentProcessPath, commandLine, nullptr,
+                               nullptr, FALSE, NORMAL_PRIORITY_CLASS, nullptr,
+                               nullptr, &si, &pi, nullptr)) {
+        Wh_Log(L"CreateProcess failed");
+        return;
+    }
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+}
+
+void Wh_ModSettingsChanged() {
+    if (g_isToolModProcessLauncher) {
+        return;
+    }
+
+    WhTool_ModSettingsChanged();
+}
+
+void Wh_ModUninit() {
+    if (g_isToolModProcessLauncher) {
+        return;
+    }
+
+    WhTool_ModUninit();
+    ExitProcess(0);
+}
+
+// ==WindhawkModData:begin==
+// Chord data converted from chords-db (https://github.com/tombatossals/chords-db, MIT).
+// Generated by tools/build-chord-data.js. Do not edit by hand.
+
+namespace chorddata {
+
+// Guitar: 828 chords, 3283 voicings, 54692 bytes.
+const int kGuitarTuning[] = {40, 45, 50, 55, 59, 64};
+
+const PCWSTR kGuitarKeys[] = {
+    L"C", L"C#", L"D", L"Eb", L"E", L"F", L"F#", L"G", L"Ab", L"A", L"Bb", L"B",
+};
+
+const PCWSTR kGuitarSuffixes[] = {
+    L"major", L"minor", L"dim", L"dim7", L"sus", L"sus2",
+    L"sus4", L"sus2sus4", L"7sus4", L"7/G", L"alt", L"aug",
+    L"5", L"6", L"69", L"7", L"7b5", L"aug7",
+    L"9", L"9b5", L"aug9", L"7b9", L"7#9", L"11",
+    L"9#11", L"13", L"maj7", L"maj7b5", L"maj7#5", L"maj7sus2",
+    L"maj9", L"maj11", L"maj13", L"m6", L"m69", L"m7",
+    L"m7b5", L"m9", L"m11", L"mmaj7", L"mmaj7b5", L"mmaj9",
+    L"mmaj11", L"add9", L"madd9", L"add11", L"/E", L"/F",
+    L"/F#", L"/G", L"/G#", L"/A", L"/Bb", L"/B",
+    L"/C", L"/C#", L"m/B", L"m/C", L"m/C#", L"/D",
+    L"m/D", L"/D#", L"m/D#", L"m/E", L"m/F", L"m/F#",
+    L"m/G", L"m/G#", L"m9/Bb", L"m9/B", L"m9/C", L"m9/C#",
+    L"m9/D", L"m9/Eb", L"m9/E", L"m9/F", L"m9/F#", L"m9/G",
+    L"m9/Ab", L"m9/A", L"/Eb", L"/Ab", L"m/A", L"m/Bb",
+    L"m/Eb", L"m/Ab",
+};
+
+const PCWSTR kGuitarSuffixNames[] = {
+    L"", L"m", L"dim", L"dim7", L"sus", L"sus2", L"sus4", L"sus2sus4",
+    L"7sus4", L"7/G", L"alt", L"aug", L"5", L"6", L"69", L"7",
+    L"7b5", L"aug7", L"9", L"9b5", L"aug9", L"7b9", L"7#9", L"11",
+    L"9#11", L"13", L"maj7", L"maj7b5", L"maj7#5", L"maj7sus2", L"maj9", L"maj11",
+    L"maj13", L"m6", L"m69", L"m7", L"m7b5", L"m9", L"m11", L"mmaj7",
+    L"mmaj7b5", L"mmaj9", L"mmaj11", L"add9", L"madd9", L"add11", L"/E", L"/F",
+    L"/F#", L"/G", L"/G#", L"/A", L"/Bb", L"/B", L"/C", L"/C#",
+    L"m/B", L"m/C", L"m/C#", L"/D", L"m/D", L"/D#", L"m/D#", L"m/E",
+    L"m/F", L"m/F#", L"m/G", L"m/G#", L"m9/Bb", L"m9/B", L"m9/C", L"m9/C#",
+    L"m9/D", L"m9/Eb", L"m9/E", L"m9/F", L"m9/F#", L"m9/G", L"m9/Ab", L"m9/A",
+    L"/Eb", L"/Ab", L"m/A", L"m/Bb", L"m/Eb", L"m/Ab",
+};
+
+const char* const kGuitarChunks[] = {
+    "AAAEAf8DAgABAAADAgABAAAD/wEDAwMBAAECAwQBAQEBBQX//wEBAQQAAAEBAQQBAQIECAEDAwIBAQEDBAIBAQEBAAUAAQQB/wMBAAEDAAMCAAEEAAMBAQMDAgEBAQMEAgEBAQAFBQQCAQH//wQCAQEAAAEBAgMIAQMDAQEBAQMEAQEBAQEABQACBAH/AwH/AQIABAEAAgMAA/8BAgMC/wABAgQDAAAGAwH/AwL/AwEABAIAAAr//wEC/wIAAAECAAMAAAMEAf//AQIBAgAAAQMCBAAB/wMEAgQCAAIDAQQBAQIDBQcC/wECAf8CAAEDAQABAQIECv//AQIBAgAAAQMBBAEBAgQABAQB/wMDAAEBAAMEAAEBAQEEBQH/AwMAAQMAAgMAAQQAA/8BAQMEAQABAQMEAQEBAQUD/wEDAwQBAAECAwQBAQEBBQAFBAH/AwAAAQMAAwAAAQQAAf8DAAADAwABAAACAwADAQEDAwEBAQEDBAEBAQEABQcC/wABAgICAAABAwQAAAYEAf8DAwABAQADBAABAQEBBAUDAQEDAwQBAQECAwQBAQEABQYDA/8AAQMCAwAAAQQACAEDAwMBAQECAwQBAQEBAAUABwMB/wMDAAMDAAECAAMEAAH/AwAAAQEAAwAAAQEBAQQFA/8BAQMBAQABAQMBAQEBAQUACAQB/wMDAwEBAAIDBAEBAQEEBQMBAQMBBAEBAQMBBAEBAQAFBf//AQECAgAAAQECAwEBAgMIAQMBAwEBAQMBBAEBAQEABQAKBAL/AgEEBAEAAgEDBAEBAQIFA/8BAgMDAAABAgMEAAAH//8EAwECAAAEAwECAAr//wECBAMAAAECBAMAAAsEAf8DAgEB/wADAgEBAAEBAwQD/wEEAwP/AAEEAgMAAAUEAwIBAf8EAwIBAQABAQMECP//AwICAQAABAIDAQAADAMIAQP/////AQMAAAAAAAP/AQP///8AAQMAAAAACAEDA////wEDBAAAAAAADQQB/wMCAgEAAAQCAwEAAAP/AQMDAwMAAQMDAwQBAwIFBwL/AQMC/wIAAQQDAAAIAf8DAgMBAQADAgQBAQEABQAOBAH/AwICAwMAAwEBAwQBAgIDA/8BAAADAwABAAADBAAHAgEBAQICAgEBAQMEAQEBAwn/AgIBAgIAAgIBAwQBAgEFAA8EAf8DAgMBAAADAgQBAAAD/wEDAQMBAAEDAQQBAQEBBQX//wEBAQIAAAEBAQIBAQIECAEDAQIBAQEDAQIBAQEBAAUAEAQB//8CAwECAAACBAEDAAP/AQIBA/8AAQIBAwABAQEDBwL/AgMBAAIAAwQBAAAK//8BAgIDAAABAgMEAAAJAwEDAwID//8CAwEEAAAAAQMBAgABAAQCAwABAAADAQEDAQMBAQEDAQQBAQEABQARBAH/AwID/wQAAgEDAAQAA/8BBAEDAgABBAEDAgEBAQMIAf8BAgIAAQACAwQAAAr//wEEAgMAAAEEAgMAABIFAQADAgADAAACAwAEAAABAwMCAwMDAgIBAwMEAQMABQcCAQIBAgICAQMBBAQBAQEDBwIEAgECBAEDAQIBBAECAAQJ//8CAQMCAAACAQQDAAATBAH/AwIDAwIAAgEDBAEBAgIFAf8DBAMDAAABBAIDAAAHAgECAQECAgEDAQEEAQEBBAgBAgEC/wMBAgEDAAQBAQACABQEAf8DAgMDBAACAQMDBAEDAQQD/wEAAQMCAAEAAgQDAAUCAQIBAQICAQMBAQQBAQEEBwIBAgED/wIBAwEEAAEBAQMAFQQB/wMCAwIDAAIBAwEEAQICBAYDAgMB//8DAgQBAAAACAH/AQIBAgEAAQIBAwEBAAQJ//8CAQMBAAADAQQCAAAWBAH/AwIDBP8AAgEDBAAAA/8BAwECAAABAwECAAEBAQMIAQMBAgEEAQMBAgEEAQEABAn//wIBAwMAAAIBAwQAABcEAf8DAgMBAQADAgQBAQEBBAUD/wEBAQMBAAEBAQMBAQEBBQYDAgAAAQEDAgAAAQEBAQQFCAEBAQIBAQEBAQIBAQEBAAUAGAQB/wMCAwMCAAIBAwQBAQICBQP/AQIBAwEAAQIBAwEBAQEFBwIBAgEBAgIBAwEBBAEBAQQK//8BAgIDAAABAgMEAAAZBAL/AgECBAQAAgEDBAQBBAQFAwEBAQEDAwEBAQEDBAEBAAMGAwICAgMBAwICAgQBAQIBAwgBAwECAwEBAwECBAEBAQAFABoEAQMDAgAAAAIDAQAAAAADAQEDAgMBAQEDAgQBAQEABQX//wEBAQMAAAEBAQQBAQIECv//AQMDAwAAAQMDAwEDAwUAGwQB/wMCBAACAAMBBAACAAP/AQICA/8AAQIDBAAABwIBAwMBAQIBAwQBAQEBAQUK//8BAgMDAAABAgMEAAAcBAH/AwIBAAAAAwIBAAAAA/8BBAIDAAABBAIDAAAFBAMCAQAABAMCAQAAAAgBBAMCAAABBAMCAAAAAB0EAf8DAAQBAwACAAQBAwAB/wMAAAADAAEAAAACAAH/AwAEAAMAAQADAAIAA/8BAwIBAQABAwIBAQEBAQUAHgQB/wMAAAAAAAMAAAAAAAEDAwIEA/8CAgEEAwABAwAEBQABAQEBAwABAQEBAwEBAQQIAf8CAgEDAQACAwEEAQEABAAfBAH/AwIAAAEAAwIAAAEAAf8DAwAAAAABAQAAAAEDAQIGAwIEAAEAAwIEAAEAAAgBAQICAQEBAQIDAQEBAQAFACAEAf8DAgIAAQAEAgMAAQAD/wEBAgMDAAEBAgMEAQEBAgcCAQEBAgECAQEBAwEBAQEFCAEBAgIDAQEBAgMEAQEBAAUAIQQB/wMBAgEDAAMBAgEEAQECBAP/AQP/AgMAAQMAAgQABwL/AQICAgIAAQMDBAECAAUIAQMDAQMBAQIDAQQBAQEABQAjBQgB/wEBAf8CAAMDAwAAAf8DAQME/wACAQMEAAADAQEDAQIBAQEDAQIBAQEABQT//wICAQMAAAIDAQQACAEDAQEBAQEDAQEBAQEBAAUAJAQB/wMEAwT/AAEDAgQAAAT//wECAQMAAAECAQQBAQIECAECAwEEAQECAwEEAQEBAAUK//8BAgICAAABAwMDAQIDBQAlBAH/AwEDAwMAAgEDBAQBAwEFAf8DAAMEAwABAAIEAwAG/wEDAgMDAAEDAgQEAQMCBQgBAwEBAQMBAwEBAQQBAQAEACIEAf8DAQIDAwADAQIEBAEDAQUD/wEAAAIDAAEAAAIEAAYDAQIC//8EAQIDAAAACP8DAwEDAwACAgEDBAEDAQUAJgQB/wMBAwMBAAIBAwQBAQECBQH/AwMDBAMAAQEBAgEBAwEFBgMBAwIBAQMBBAIBAQEBAQUIAQEBAQEDAQEBAQEEAQEABAAnBAH/AwEAAP8AAwEAAAAAAwEBAwICAQEBBAIDAQEBAAUIAQMCAQEBAQMCAQEBAQEABQr//wEDAwIAAAEDBAIAACgEAf8D/wQEAgACAAMEAQAB/wMEBAT/AAECAwQAAAgBAgIB/wEBAgMBAAEBAQAFCv//AQIDAgAAAQIEAwAAKQQB/wMBBAP/AAIBBAMAAAH/AwAEBAMAAQADBAIABgMB/wIAAwMBAAIABAAIAQMCAQEDAQMCAQEEAQEABAAqBAH/AwEAAAEAAwEAAAIAAQMDAwQEAwEBAQIDAQEDAAUIAQECAQEDAQECAQEEAQEABAr//wEBAwIAAAEBAwIBAQIDACsEAf8DAgADAAACAQADAAAB/wMAAAMAAAEAAAMAAAcCAQAAAgACAQAAAwAACP//AwIBAwAAAwIBBAAALQMB/wMCAAEBAAMCAAEBAQEEBQUEAwEBAv8EAwEBAgABAQIDBwIBBAT//wIBBAQAAAEEAgMALAQB/wMBAAMDAAIBAAMEAAP/AQADAgEAAQAEAwIABgMBAAIDAwMBAAIEBAEDAAUI//8DAQEDAAADAQEEAQEDBABEBAMEAQMBAQEEAQMBAQEBAQEFAwQBAwMBAQQBAgMBAQEBAQUK/wQBAwIBAAQBAwIBAQECBQMEAQMBAf8EAQMBAQABAQEEAEkCCgIBAQMCAQIBAQQDAQEBAQUKAv8BAwIBAgABBAMBAQECBQBSBAH/AAEAAQMAAAEAAgQAA/8AAwMCAQAAAwQCAQAF/wABBAQEAAABBAQEAQQDBQUBAgEBBAQBAgEBBAQBAQADAFUEA///BAMCAQAABAMCAQAG//8BAwMDAAABAwMDAQMDBQj/BAMBAQEABAMBAQEBAQMFC/8BAwIDAQABAwIEAQEBAQUAOAQB/wIBAAEDAAMBAAIEAAUDAgEBBAQDAgEBBAQBAQIDBQMCAQQEBAMCAQQEBAEEAwUI//8CAQEBAAACAQEBAQEDBQBTBAj//wEBAQEAAAEBAQEBAQIFAf8BAQAB/wABAgADAAAFAgIBAf//AgMBAQAAAQECAwUC/wEEBAQCAAEEBAQBBAMFADoECAIDAwEBAQIDBAEBAQEBAwUI//8EAQEBAAAEAQEBAQEDBQv//wECAwEAAAECAwEBAQIFAf8EAQAB/wAEAQACAAAAPAQD//8AAwIBAAAAAwIBAAX/AQEEBAQAAQEEBAQBAQECCP//AAEBAQAAAAEBAQEBAwUIAwMDAQEBAgMEAQEBAQEDBQA/BAL//wEEAwIAAAEEAwIAAwABAwMCAQABAwQCAQEBAQUFAAIBAQQEAAIBAQQEAQECAwUAAgEEBAQAAgEEBAQBBAMFAFQEAf//AQABAwAAAQACBAAF/wIBAQQEAAIBAQQEAQECAwX/AgEEBAQAAgEEBAQBBAMFCAQDAwEBAQQCAwEBAQEBAwUAQAQD//8BAwIBAAABAwIBAQECBQj/AQMBAQEAAQMBAQEBAQEFCP8BAwEBBAABAwEBBAEBAQQI/wEDAQH/AAEDAQEAAQEBBABBBAP//wIDAgEAAAIEAwEACP8CAwEBAQACAwEBAQEBAwUI/wIDAQEEAAIDAQEEAQEDBAECAwEAAf8DBAEAAgAAAEIEAwEBAwMCAQEBAwQCAQEBAAUD//8DAwIBAAADBAIBAAX//wEEBAQAAAEEBAQBBAMFCP8DAwEBAQADBAEBAQEBAwUAMwQB/wACAAEAAAACAAEAAAH/AAIAAQMAAAIAAQMAA/8AAwMDAQAAAgMEAQAF/wABAQEEAAABAQEEAQECBABRBAEEAwIAAQAEAwIAAQAAA///BAMDAQAABAIDAQAG//8BBAMDAAABBAIDAAj/BAMCAQEABAMCAQEBAQQFADUEAf8CAgABAAACAwABAAAB/wICAAEDAAIDAAEEAAUDAwEBAQQCAwEBAQQBAQIEBQMDAQEEBAIDAQEEBAEBAgMANAQB/wECAAEAAAEDAAIAAAH/AQIAAQMAAQMAAgQABQIDAQEBBAIDAQEBBAEBAgQFAgMBAQQEAgMBAQQEAQECAwA3BAH/BAIAAQAABAIAAQAAAf8EAgABAwAEAgABAwAI//8EAgEBAAAEAgEBAQEEBQv//wECAwIAAAECBAMAADsEAf//AAABAAAAAAABAAAD//8AAwMBAAAAAwQBAAX/AQEBAQQAAQEBAQQBAQEECP//AAIBAQAAAAIBAQEBBAUALgQBAAMCAAEAAAMCAAEAAAEAAwIAAQMAAwIAAQQAAf//AgABAAAAAgABAAAB//8CAAEDAAACAAEDAABQBAH//wEAAQAAAAEAAgAABf8CAQEBBAACAQEBBAEBAgQF/wIBAQH/AAIBAQEAAQECBAkDAgIB//8EAgMBAAAAAC8EAf//AwABAAAAAwABAAAD//8BAwMBAAABAwQBAQECBQj/AQMCAQEAAQMCAQEBAQEFBf8EAQEB/wAEAQEBAAEBAgQAMAQBAgMCAAEAAgQDAAEAAAH//wQAAQAAAAQAAQAAA///AgMDAQAAAgMEAQAI/wIDAgEBAAIEAwEBAQEEBQAxBAEDAwIAAQADBAIAAQAAAwEBAwMDAQEBAgMEAQEBAAUD//8DAwMBAAACAwQBAAX//wEBAQQAAAEBAQQBAQIEAQAEAf8EAwECAQAEAwECAQEBAwUEAQEDAwMBAQECAwQBAQEABQYEAwEBAQQDAgEBAQQBAQIECQEDAwIBAQEDBAIBAQEBAAUBAQQB/wQCAQL/AAQCAQMAAAQBAQMDAgEBAQMEAgEBAQAFBgQCAQH/BAMCAQEABAEBAgMJAQMDAQEBAQMEAQEBAQEABQECBAH/BAL/AgMABAEAAgMABP8BAgMC/wABAgQDAAAHAwH/AwL/AwEABAIAAAv//wEC/wIAAAECAAMAAQMEAf//AgMCAwAAAQMCBAAD/wIDAQMBAAIDAQQBAQEDBQgC/wECAf8CAAEDAQABAQIEC///AQIBAgAAAQMCBAABBAQE/wEBAwQBAAEBAwQBAQEBBQT/AQMDBAEAAQIDBAEBAQEFCQEBAwMBAQEBAwQBAQEBAAUJAQMDAwEBAQIDBAEBAQEABQEFBAQBAQMDAQEBAQMEAQEBAQAFBgQBAQME/wABAAACAwEBAQIJAQMD/wEDAQIDAAEEAQEABAsBAQEDBAEBAQEDBAEBAQAFAQYEAf8EBAEC/wADBAECAAAEAQEDAwQBAQECAwQBAQEABQYE/wEBAgQCAwAAAQQACQEDAwMBAQECAwQBAQEBAAUBBwIE/wEBAwEBAAEBAwEBAQEBBQkBAQMDAQMBAQIDAQQBAQAEAQgEAf8EBAQCAgACAwQBAQECBAUEAQEDAQQBAQEDAQQBAQEABQb///8BAgIAAAABAgMACQEDAQMBAQEDAQQBAQEBAAUBCgQB/wQDAAIBAAQDAAIBAAP/AgMABAEAAgMABAEABP8BAgMD/wABAgMEAAAI//8EAwECAAAEAwECAAELBAH/BAQEAgIAAgMEAQEBAgQFBAEBAwEEAQEBAwEEAQEBAAUGBAMCAQH/BAMCAQEAAQEDBAkB/wMCAgEBAAQCAwEBAQAFAQwDCQED/////wEDAAAAAAAE/wED////AAEDAAAAAAkBAwP///8BAwQAAAAAAQ0EAf8EAwMC/wAEAgMBAAAE/wEDAwMDAAEDAwMDAQMCBQYEAwMBAQEEAgMBAQEBAQMFCQH/AwIDAQEAAwIEAQEBAAUBDgQB/wQBAwIBAAQBAwIBAQECBQH/BAMDBAQAAgEBAwQBAwIDCAIBAQECAgIBAQEDBAEBAQMK//8CAQICAAACAQMEAAEPBAH/BAMEAv8AAwIEAQAABP8BAwEDAQABAwEEAQEBAQUGBAMBAQECBAMBAQECAQECBAkBAwECAQEBAwECAQEBAQAFARAEAf8EAwAAAQAEAwAAAQAE/wECAQP/AAECAQMAAQEBAwgC/wIDAf8CAAMEAQAADP//AQICAwAAAQIDBAABEQQB/wQDAgABAAQDAgABAAT/AQQBAwIAAQQBAwIBAQEDBwMCAf8AAQQDAQAAAgAJAf8BAgL/AQACAwQAAAESBAEEBAMEBAQCAgEDAwQBBAAFCAIBAgH//wMBBAIAAAAJAQMBAgEDAQMBAgEEAQEABAr//wIBAwIAAAIBBAMAARMDAf8EAwQEAwACAQMEAQEDAgUIAgECAQECAgEDAQEEAQEBBAkBAv8CAAMBAgADAAQAARQEA/8CAQICAwACAQMDBAECAQQHAwIBAgD/BAIBAwAAAAgCAQIBA/8CAQMBBAABAQEDCQEEAQIAAwEEAQIAAwEBAAIBFQQB/wQDBAMEAAIBAwEEAQMCBAT/AQABAwQAAQACAwQABwMCAwEA/wMCBAEAAAAJ//8BAgECAAABAwIEAAEWBAH/BAMEAgAAAwIEAQAAA/8CAQID/wACAQMEAAAI/wECAgICAAECAgMEAQICBQkBAwECAQQBAwECAQQBAQAEARcEAf8EAwAABAACAQAAAwAE/wECAQMBAAECAQMBAQEBBQgCAQIBAQICAQMBAQQBAQEECQECAQIBAQECAQMBAQEBAAUBGAQB/wMCAAADAAIBAAADAAT/AQIBAwEAAQIBAwEBAQEFCAIBAgEBAgIBAwEBBAEBAQQJAQIBAgEBAQIBAwEBAQEABQEZBAH/BAMDAAIABAIDAAEABAEBAQEDAwEBAQEDBAEBAAMHAwICAgMBAwICAgQBAQIBAwkBAQECAwMBAQECAwQBAQACARoEAf8EAwEBAQAEAwEBAQEBAwUEAQEDAgMBAQEDAgQBAQEABQb///8BAQMAAAABAQMBAQMECQH/AgIB/wEAAwQCAAABGwQD/wIBAwQBAAIBAwQBAQECBQT/AQICA/8AAQIDBAAACAIBAwMBAQIBAwQBAQEBAQUL//8BAgMDAAABAgMEAAEcBAEBBAMCAQEBBAMCAQEBAQAFBP8BBAID/wABBAIDAAAI//8EAwMBAAAEAgMBAAv//wEEAwMAAAEEAgMAAR0EBP8BAwIBAQABAwIBAQEBAQUI//8EAQIBAAAEAQIBAQEDBQv//wEDAwEAAAEDBAEBAQIFAf8EAQEB/wAEAQEBAAEBAgQBHgQB/wQBAQEBAAQBAQEBAQECBQP/AgEDAv8AAgEEAwAACAIBAwECAQIBBAEDAQEBAQUK//8CAQQCAAACAQQDAAEfBAL/AwIEAQEAAwIEAQEBAQQFBAEBAQIDAQEBAQIDAQEBAAUHAwL//wECBAIAAAEDAAkBAQICAQEBAQIDAQEBAQAFASAEAf8EAQMBAQAEAgMAAQAE/wEBAgMDAAEBAgMEAQEBAggCAQEBAgECAQEBAwEBAQEFCQEBAgIDAQEBAgMEAQEBAAUBIQQB/wQCAwIEAAMBAgEEAQICBAX//wICAQIAAAIDAQQACAL/AQIC/wIAAQMEAAAJAQMDAQMBAQIDAQQBAQEABQEjBQkB/wEBAf8CAAMDAwAABP8BAwECAQABAwECAQEBAQUF//8CAgEDAAACAwEEAAkBAwEBAQEBBAEBAQEBAQAFC///AQMCAgAAAQQCAwABJAQE/wECAQL/AAEDAgQAAAX//wECAQMAAAECAQQBAQIECAL/AgIB/wIAAwQBAAAL//8BAgICAAABAgICAQIDBQElBAH/BAIEBAQAAgEDBAQBBAEFBf8CAgIBAwACAgMBBAECAQMH/wEDAgMDAAEDAgQEAQMCBQkBAwEBAQMBAwEBAQQBAQAEASIEAf8EAQMCAAAEAQMCAAAB/wQCAwT/AAMBAgQAAAcDAQIC/wAEAQIDAAAACf8DAwEDAwACAgEDBAEDAQUBJgQB/wQCBAICAAIBAwEBAQICBQcDAQMCAQEDAQQCAQEBAQEFCQEBAQEBAwEBAQEBBAEBAAQL//8BAQICAAABAQIDAQECAwEnBAH/BAIBAf8ABAIBAQABAQMEBAEBAwICAQEBBAIDAQEBAAUJAQMCAQEBAQMCAQEBAQEABQv/AQEDAwIAAQEDBAIBAQECASgEAf8EAgABAAAEAgABAAAE/wECAgL/AAECAwQAAAkBAgIB/wEBAgIBAAEBAQAFC///AQIDAgAAAQIEAwABKQQB/wQBAQEAAAQBAQEAAQECBAL/AwEEAwAAAgEEAwAABAEBAwIBAAEBBAMCAAEBAAQJAQMCAQEDAQMCAQEEAQEABAEqBAL/AwEEAwEAAwEEAwEBAQIFBAEBAQICAQEBAQIDAQEBAAUJAQECAQEDAQECAQEEAQEABAv//wEBAwIAAAEBAwIBAQIDASsEAf8EAwEEAQADAgEEAQEBAwUB/wQD/wQEAAIBAAMEAAgCAf8BAv8DAQACBAAACf//AwIBAwAAAwIBBAABLQMB/wQDAQICAAQDAQICAQIEBQYEAwEBAv8EAwEBAgABAQIDCAIBBAT//wIBBAQAAAEEAgMBLAQB/wQCAQT/AAMCAQQAAAT/AQMDAQAAAQMEAgAABwMB/wIDAAMBAAIEAAAJ//8DAQEDAAADAQEEAQEDBAFFBAQEAQMBAQEEAQMBAQEBAQEFBAQBAwMBAQQBAgMBAQEBAQUL/wQBAwIBAAQBAwIBAQECBQQEAQMBAf8EAQMBAQABAQEEAUoCCwIBAQMCAQIBAQQDAQEBAQULAv8BAwIBAgABBAMBAQECBQFSBAH/AAIBAgAAAAIBAwAABP8AAwMCAQAAAwQCAQAE//8EAwIBAAAEAwIBAAb/AAEEBAQAAAEEBAQBBAMFAVUEBAEBAwMCAQEBAwQCAQEBAAUE//8DAwIBAAADBAIBAAb//wEEBAQAAAEEBAQBBAMFCf8DAwEBAQADBAEBAQEBAwUBOAQB/wICAQIAAAIDAQQAAAn//wEBAQEAAAEBAQEBAQIFAf8CAgEC/wACAwEEAAAGAgIBAf//AgMBAQAAAQECAwFTBAH/AQIBAgAAAQMCBAAABgECAQEEBAECAQEEBAEBAAMGAQIBBAQEAQIBBAQEAQEAAgj//wECAgIAAAECAgIBAgMFATkEAf8DAgECAAAEAgEDAAAGAwIBAQQEAwIBAQQEAQECAwYDAgEEBAQDAgEEBAQBBAMFCf//AgEBAQAAAgEBAQEBAwUBPAQB//8AAQIAAAAAAQIAAAT//wADAgEAAAADAgEACf//AAEBAQAAAAEBAQEBAwUJAgMDAQEBAgMEAQEBAQEDBQE/BAH//wIBAgAAAAIBAwAABAABAwMCAQABAwQCAQEBAQUGAAIBAQQEAAIBAQQEAQECAwYAAgEEBAQAAgEEBAQBBAMFAVQEAf//AQECAAAAAQIDAAAG/wEBBAQEAAEBBAQEAQEBAgkDAwMBAQECAwQBAQEBAQMFCwEBAQMEAgEBAQMEAgEBAAIBQAQB//8DAQIAAAADAQIAAAP//wEEAwIAAAEEAwIABv8DAQQEBAADAQQEBAEEAwUBAQQCAf//AQQCAQAAAQEAAwFBBAH//wQBAgAAAAQBAgAABP//AQMCAQAAAQMCAQEBAgUJ/wEDAQEBAAEDAQEBAQEBBQn/AQMBAQQAAQMBAQQBAQEEAUIEBP//AgMCAQAAAgQDAQAJ/wIDAQEBAAIDAQEBAQEDBQn/AgMBAQQAAgMBAQQBAQMECf8CAwEB/wACAwEBAAEBAwQBMwQB/wADAQIBAAADAQIBAQEDBQH/AAMBAgQAAAMBAgQABP8AAwMDAQAAAgMEAQAE//8EAwMBAAAEAgMBAAFRBAQBAQMDAwEBAQIDBAEBAQAFBP//AwMDAQAAAgMEAQAG//8BAQEEAAABAQEEAQECBAn/AwMCAQEAAwQCAQEBAQQFATUEAf8CAwECAQACBAEDAQEBAwUGAgMBAQEEAgMBAQEEAQECBAYCAwEBBAQCAwEBBAQBAQIDCf//AQIBAQAAAQIBAQEBAgUBNAQB/wEDAQIBAAEDAQIBAQEBBQH/AQMBAgQAAQMBAgQBAQEDBgEDAQEBBAEDAQEBBAEBAAQGAQMBAQQEAQMBAQQEAQEAAwE2BAH/AwMBAgEAAwQBAgEBAQMFBgMDAQEBBAIDAQEBBAEBAgQGAwMBAQQEAgMBAQQEAQECAwn//wICAQEAAAIDAQEBAQQFATsEAf//AAECAQAAAAECAQEBAwUE//8AAwMBAAAAAwQBAAn//wACAQEAAAACAQEBAQQFCf//BAIBAQAABAIBAQEBBAUBLgQBAAQDAQIBAAQDAQIBAQEDBQH//wIBAgEAAAIBAwEBAQMFBAABAwMDAQABAgMEAQEBAQUGAAMBAQEEAAMBAQEEAQECBAFQBAH//wEBAgEAAAEBAgEBAQIFBv8BAQEBBAABAQEBBAEBAQQLAQEBAwQDAQEBAgQDAQEAAgb/AQEBAf8AAQEBAQABAQEEAS8EAQEEAwECAQEEAwECAQEBAAUBAf//AQIBAQEBAQIBAQEABQH//wMBAgEAAAMBAgEBAQMFAf//AwECBAAAAwECBAABMAQB//8EAQIBAAAEAQIBAQEDBQT//wEDAwEAAAEDBAEBAQIFCf8BAwIBAQABAwIBAQEBAQUG/wQBAQH/AAQBAQEAAQECBAExBAT//wIDAwEAAAIDBAEACf8CAwIBAQACBAMBAQEBBAUDAQIEBAT/AQIEBAQAAQQCBAn/AgMCAf8AAgQDAQAAAgAEAf//AAIDAgAAAAEDAgAC/wQDAQIBAAQDAQIBAQEDBQX/AQMDAwEAAQIDBAEBAQEFCgEDAwIBAQEDBAIBAQEBAAUCAQQB//8AAgMBAAAAAgMBAAUBAQMDAgEBAQMEAgEBAQAFBv8DAgIB/wAEAgMBAAAKAQMDAQEBAQMEAQEBAQEABQICBAH//wAB/wEAAAABAAIAA/8DAf8BAgAEAQACAwAF/wECAwL/AAECBAMAAAgDAf8DAv8DAQAEAgAAAgMEAf//AAEAAQAAAAIAAwAE/wIDAQMBAAIDAQQBAQEDBQf/AgAEAwEAAgAEAwEACgECAwEDAQECAwEEAQEBAAUCBAQB//8AAgMDAAAAAQICAQMEBQX//wADBAEAAAADBAEABf8BAQMEAQABAQMEAQEBAQUF/wEDAwQBAAECAwQBAQEBBQIFBAH//wACAwAAAAACAwAAAv//AQECBAAAAQECBAEBAgMFAQEDAwEBAQEDBAEBAQEABQf/AQEBBAQAAQEBBAQCAQEDBAQFAgYEAf//AAIDAwAAAAECAwAD/wMAAAEDAAMAAAEEAAUBAQMDBAEBAQIDBAEBAQAFCgEDAwMBAQECAwQBAQEBAAUCBwMF/wEBAwEBAAEBAwEBAQEBBQL/BAEBAgIABAEBAgICAQIDAgQFCgEBAwMBAwEBAgMBBAEBAAQCCAQB//8AAgEDAAAAAgEEAAP/AwMDAf8AAgMEAQAABQEBAwEEAQEBAwEEAQEBAAUKAQMBAwEBAQMBBAEBAQEABQIKBAH//wABAwIAAAABAwIAA/8DAv8BAgAEAgABAwAF/wECAwP/AAECAwQAAAn/AwADAQIAAwAEAQIAAgsEAf//AAMDAgAAAAIDAQAD/wMCAQH/AAMCAQEAAQEDBAcEAwIBAf8EAwIBAQABAQMECgH/AwIC/wEABAIDAAACDAMKAQP/////AQMAAAAAAAX/AQP///8AAQMAAAAACgEDA////wEDBAAAAAACDQQB//8AAgACAAAAAgADAAP/AwICAf8ABAIDAQAABf8BAwMDAwABAwMDBAEDAgUHAQMBAQQBAQMBAQQBAQEABQIOBAL/BAMBAAAABAMBAAAABP8CAQECAgACAQEDBAEBAgMJAgEBAQICAgEBAQMEAQEBAwv/AgIBAgIAAgIBAwQBAgEFAg8EAf//AAIBAgAAAAIBAwAD/wMCAwH/AAMCBAEAAAUBAQMBAwEBAQMBBAEBAQAFCgEDAQIBAQEDAQIBAQEBAAUCEAQB//8AAQECAAAAAQECAQEDBAP//wIDAQIAAAIEAQMABf8BAgED/wABAgEDAAEBAQMJAv8CAwH/AgADBAEAAAIRBAH//wADAQIAAAAEAQIABP8CAQL/AwACAQMABAAF/wEEAQMCAAEEAQMCAQEBAwoB/wECAv8BAAIDBAAAAhIEBAICAQICAgICAQMDBAECAAUH/wEAAQECAAEAAgMEAAkCAQIBAv8CAQMBBAABAQEDCgEDAQIBAwEDAQIBBAEBAAQCEwQE/wIBAgIBAAIBAwQBAQECBQX/AQIBAwAAAQMCBAAACQIBAgEBAgIBAwEBBAEBAQQKAQIBAv8DAQIBAwAEAQEAAgIUBAT/AgECAgMAAgEDAwQBAgEEBf8DAAEDAgADAAEEAgAJAgECAQP/AgEDAQQAAQEBAwoB/wECAgABAAIDBAAAAhUEAv//AAQDAQAAAAQDAQAE/wIBAgECAAIBAwEEAQECBAX/AgABAwEAAgABBAEBAQMFCAMCAwH//wMCBAEAAAACFgQE/wIBAgP/AAIBAwQAAAcAAAAEAQIAAAAEAQIAB/8CAQEBAgACAQEBAwEBAgQKAQMBAgEEAQMBAgEEAQEABAIXBAH//wAAAQIAAAAAAQIAA/8DAgMBAQADAgQBAQEBBAUF/wEBAQMBAAEBAQMBAQEBBQf/AwEBAgIBAQECAQEBAgQFAhgEAf//AAEBAgAAAAECAwAE/wIBAgIBAAIBAwQBAQECBQf/AwABAwIAAwABBAIACQIBAgEBAgIBAwEBBAEBAQQCGQQB//8ABAECAAAABAECAAUBAQEBAwMBAQEBAwQBAQADCAMCAAIAAQQCAAMAAQAKAf8BAgP/AQACAwQAAAIaBAH//wACAgIAAAABAQEBAgMFAv8EAwEBAQAEAwEBAQEBAwUFAQEDAgMBAQEDAgQBAQEABQf//wEBAQMAAAEBAQQBAQIEAhsEAf//AAECAgAAAAECAwAF/wECAgP/AAECAwQAAAkCAQMDAQECAQMEAQEBAQEFCgECAgL/AQECAwQAAQEBAAUCHAQB//8AAwICAAAABAIDAAIBBAMCAQEBBAMCAQEBAQAFBf8BAAIDAgABAAIEAwAJ//8AAwMBAAAAAgMBAAIdBAH//wACAgAAAAABAgAABf//AAIBAQAAAAIBAQEBBAUF/wEDAgEBAAEDAgEBAQEBBQn//wABAgEAAAABAgEBAQMFAh4EAv8EAQEBAQAEAQEBAQEBAgUE/wIBAwH/AAIBBAMAAAf/AwADAQMAAgADAQQACgH/AgIBAwEAAgMBBAEBAAQCHwQB//8AAAICAAAAAAEBAQIEBQUBAQECAwEBAQECAwEBAQAFB/8DAAECAwADAAECBAAKAQECAgEBAQECAwEBAQEABQIgBAH//wAEAgIAAAADAQEBAgQFAv8EAwMBAAAEAgMBAAAF/wEBAgMDAAEBAgMEAQEBAgkCAQEBAgECAQEBAwEBAQEFAiEEAf//AAIAAQAAAAIAAQAD/wMBAgEDAAMBAgEEAQECBAX/AQP/AgMAAQMAAgQACQL/AQICAgIAAQMDAwECAAUCIwUKAf8BAQH/AgADAwMAAAH//wACAQEAAAACAQEBAQQFBf8BAwECAQABAwECAQEBAQUG//8CAgEDAAACAwEEAAoBAwEBAQEBAwEBAQEBAQAFAiQEAf//AAEBAQAAAAEBAQEBAwUD/wMBAwECAAMBBAECAQECBAX/AQIBAv8AAQMCBAAACP8BAAMCAQABAAQDAgACJQQBAQAAAgEAAQAAAwIAAAP/AwEDAwMAAgEDBAQBAwEFBf8BAwECAAABBAIDAAAKAQMBAQEDAQMBAQEEAQEABAIiBAL/BAIBAAAABAIBAAAAA/8DAQIDAAADAQIEAAAG/wIAAgECAAIAAwEEAAr/AwMBAwMAAgIBAwQBAwEFAiYEAf//AAABAQAAAAABAQEBBAUD/wMBAwMBAAIBAwQBAQECBQgDAQMCAQEDAQQCAQEBAQEFCgEBAQEBAwEBAQEBBAEBAAQCJwQB//8AAgIBAAAAAgMBAAL/BAIBAQAABAIBAQABAQMEBQEBAwICAQEBBAIDAQEBAAUKAQMCAQEBAQMCAQEBAQEABQIoBAH//wABAgEAAAABAwIABAECAwMD/wECAwMDAAEDAgQF/wECAgL/AAECAwQAAAoBAgIB/wEBAgIBAAEBAQAFAikEA/8DAQQDAAACAQQDAAAF/wMAAgIBAAQAAgMBAAj/AQACAwIAAQACBAMACgEDAgEBAwEDAgEBBAEBAAQCKgQB//8AAAIBAAAAAAIBAAP/AwEEAwEAAgEEAwEBAQIFBQEBAQMDAQEBAQIDAQEBAAUKAQECAQEDAQECAQEEAQEABAIrBAL/BAMBBAEAAwIBBAEBAQMFBf8BAwMDAAABAgMEAAAH//8AAwEEAAAAAwEEAAr//wMCAQMAAAMCAQQAAi0EAv8EAwECAgAEAwECAgECBAUI//8ABAEDAAAABAEDAAcEAwEBAv8EAwEBAgABAQIDCQIBBAT//wIBBAQAAAEEAgMCLAQC/wQCAQIAAAQCAQMAAAL/BAIBBP8AAwIBBAAABf8BAwMCAAABAwQCAAAK//8DAQEDAAADAQEEAQEDBAJGBAH/AwACAQAAAwACAQAAAf8DAAIDAAACAAEDAAAFBAEDAQEBBAEDAQEBAQEBBQUEAQMDAQEEAQIDAQEBAQEFAksDAQEAAAIBAAEAAAMCAAABAQMAAgMAAQMAAgQAAAEB/wACAQABAAADAgAAAlIEAf8AAAIDAQAAAAIDAQAB/wADAgMBAAADAgQBAAX/AAMDAgEAAAMEAgEABQEBAwMCAQEBAwQCAQEBAAUCVQQBBAAAAgMBBAAAAgMBAAX//wIDAgEAAAIEAwEACv8CAwEBAQACAwEBAQEBAwUK/wIDAQEEAAIDAQEEAQEDBAI4BAH/AgACAwEAAgADBAEABwECAQEEBAECAQEEBAEBAAMHAQIBBAQEAQIBBAQEAQEAAgn//wECAgIAAAECAgIBAgMFAlMEAf8BAwIDAQABAwIEAQEBAQUF//8EAwIBAAAEAwIBAAj//wEDAwMAAAEDAwMBAwMFCv8EAwEBAQAEAwEBAQEBAwUCOQQB/wMAAgMBAAMAAgQBAAr//wEBAQEAAAEBAQEBAQIFAf8DAwID/wACAwEEAAAHAgIBAf//AgMBAQAAAQECAwI6BAH/BAACAwEABAACAwEABwMCAQEEBAMCAQEEBAEBAgMHAwIBBAQEAwIBBAQEAQQDBQr//wIBAQEAAAIBAQEBAQMFAj8EAQAAAAIDAQAAAAIDAQABAAADAgMBAAADAgQBAAH//wICAwEAAAIDBAEABQABAwMCAQABAwQCAQEBAQUCVAQB//8BAgMBAAABAgMBAQECBQoCAwMBAQECAwQBAQEBAQMFCv//BAEBAQAABAEBAQEBAwUG/wECAgH/AAECAwEAAQEBBAJABAH//wMCAwEAAAMCBAEAB/8CAQEEBAACAQEEBAEBAgMH/wIBBAQEAAIBBAQEAQQDBQoEAwMBAQEEAgMBAQEBAQMFAkEEAQIAAAIDAQIAAAMEAQAB//8EAgMBAAAEAgMBAAT//wEEAwIAAAEEAwIAB/8DAQQEBAADAQQEBAEEAwUCQgQBAwAAAgMBAwAAAgQBAAX//wEDAgEAAAEDAgEBAQIFCv8BAwEBAQABAwEBAQEBAQUK/wEDAQEEAAEDAQEEAQEBBAIzBAH/AAACAwIAAAABAgEBAgMFAf8ABAIDAgAAAwECAQECAwUC/wADAQIEAAADAQIEAAX/AAMDAwEAAAIDBAEAAlEEAQQAAAIDAgMAAAECAQECAwUBBAAEAgMCAwAEAQIBAQIDBQX//wIDAwEAAAIDBAEACv8CAwIBAQACBAMBAQEBBAUCNQQB/wIEAgMCAAEDAQIBAQIBBQL/AQMBAgQAAQMBAgQBAQEDBwEDAQEBBAEDAQEBBAEBAAQHAQMBAQQEAQMBAQQEAQEAAwI0BAH/AQACAwIAAQACBAMABf//BAMDAQAABAIDAQAI//8BBAMDAAABBAIDAAr/BAMCAQEABAMCAQEBAQQFAjYEAf8DAAIDAgACAAEDAQECAwUB/wMEAgMCAAIEAQMBAQIDBQcCAwEBAQQCAwEBAQQBAQIEBwIDAQEEBAIDAQEEBAEBAgMCNwQB/wQAAgMCAAMAAQIBAQIDBQH/BAQCAwIAAwQBAgEBAgMFBwMDAQEBBAIDAQEBBAEBAgQHAwMBAQQEAgMBAQQEAQECAwIuBAEAAAACAwIAAAABAgEBAgMFAQAABAIDAgAAAwECAQECAwUCAAQDAQIBAAQDAQIBAQEDBQH//wICAwIAAAEBAgEBAgIFAlAEAf//AQIDAgAAAQIEAwAK//8EAgEBAAAEAgEBAQEEBQb/AQICAv8AAQICAgABAgIECwECAgH//wECAwEAAAEBAAMCLwQBAQAAAgMCAQAAAgQDAAH//wMCAwIAAAIBAwEBAgMFB/8CAQEBBAACAQEBBAEBAgQBAQAEAgP/AQAEAgMAAAIwBAIBBAMBAgEBBAMBAgEBAQAFAQL//wIDAgEBAQECAQECAAUB//8EAgMCAAADAQIBAQIDBQL//wMBAgQAAAMBAgQAAjEEAQMAAAIDAgIAAAEDAQECAwUBAwAEAgMCAgAEAQMBAQIDBQL//wQBAgEAAAQBAgEBAQMFBf//AQMDAQAAAQMEAQEBAgUDAAQB//8BAwQDAAABAgQDAAP/BAMBAgEABAMBAgEBAQMFBv8BAwMDAQABAgMEAQEBAQUI//8BAQEEAAABAQEEAQECBAMBBAH//wEDBAIAAAEDBAIAAf//BAMEAgAAAwIEAQAGAQEDAwIBAQEDBAIBAQEABQsBAwMBAQEBAwQBAQEBAQAFAwIEAf//AQL/AgAAAQIAAwAE/wMB/wECAAQBAAIDAAb/AQIDAv8AAQIEAwAACQMB/wMC/wMBAAQCAAADAwQB//8BAgECAAABAwIEAAX/AgMBAwEAAgMBBAEBAQMFB///AQIBAgAAAQMCBAAKAv8BAgH/AgABAwEAAQECBAMEBAH//wEDBAQAAAEDBAQBBAQFBv8BAQMEAQABAQMEAQEBAQUG/wEDAwQBAAECAwQBAQEBBQsBAQMDAQEBAQMEAQEBAQAFAwUEAQEBAQMEAQEBAQMEAQEBAAUGAQEDAwEBAQEDBAEBAQEABQgEAQEDBP8DAQECBAABAQECCwEDA/8BAwECAwABBAEBAAQDBgQB//8BAwQEAAABAgMEAAYBAQMDBAEBAQIDBAEBAQAFCP//AQEC/wAAAQECAAEBAgMLAQMDAwEBAQIDBAEBAQEABQMHAwb/AQEDAQEAAQEDAQEBAQEFA/8EAQECAgAEAQECAgIBAgMCBAULAQEDAwEDAQECAwEEAQEABAMIBAH//wEDAgQAAAEDAgQABP8DAwMBAQACAwQBAQEBBAUGAQEDAQQBAQEDAQQBAQEABQsBAwEDAQEBAwEEAQEBAQAFAwoEAf//AQIEAwAAAQIEAwAE/wMCAAECAAQCAAEDAAb/AQIAA/8AAQIAAwAACgIB/wMBAgIBAAQBAwEBAQQDCwQD//8DAgIBAAAEAgMBAAT/AwIBAf8AAwIBAQABAQMECAQDAgEB/wQDAgEBAAEBAwQLAf8DAgL/AQAEAgMAAAMMAwsBA/////8BAwAAAAAABv8BA////wABAwAAAAALAQMD////AQMEAAAAAAMNBAH//wEDAQMAAAEDAQQBAQIEBP8DAgIB/wAEAgMBAAAG/wEDAwMDAAEDAwMDAQMCBQoC/wEDAv8CAAEEAwAAAw4EAf//AQABAQAAAgADBAAB/wMDAwQDAAEBAQIBAQMBBQX/AgEBAgIAAgEBAwQBAQIDCgIBAQECAgIBAQEDBAEBAQMDDwQB//8BAwIDAAABAwIEAAb/AQMBAwEAAQMBBAEBAQEFCP//AQEBAgAAAQEBAgEBAgQLAQMBAgEBAQMBAgEBAQEABQMQBAH//wECAgMAAAECAwQABP//AgMBAgAAAgQBAwAG/wECAQMBAAECAQMAAQEBBQoC/wIDAf8CAAMEAQAAAxEEAf//AQQCAwAAAQQCAwAG/wEEAQMCAAEEAQMCAQEBAwkDAgMAAAEDAgQAAAEACwH/AQIC/wEAAgMEAAADEgQB//8BAAIBAAABAAMCAAX/AgECAgIAAgEDAwQBAgEFCgIBAgH//wMBBAIAAAALAQMBAgEDAQMBAgEEAQEABAMTBAX/AgECAgEAAgEDBAEBAQIFBv8BAgABBAABAwACBAAKAgECAQECAQIAAwAEAQEBBAsBAgEC/wMBAgEDAAQBAQACAxQEAQMEAwQEAwECAQMEAQEDAAUF/wIBAgIDAAIBAwMEAQIBBAkDAv8CAAEEAgADAAEACgIBAgED/wIBAwEEAAEBAQMDFQQB//8BAAIAAAACAAQAAAX/AgECAQIAAgEDAQQBAQIEBv8BAwEDAAABAwEEAAEBAQMJAwIDAf//AwIEAQAAAAMWBAH//wEAAgIAAAIAAwQABf8CAQID/wACAQMEAAAI/wIBAQECAAIBAQEDAQECBAoCAQIC//8CAQMEAAAAAxcEAQEBAQECAwEBAQECAwEBAAME/wMCAwEBAAMCBAEBAQEEBQYAAQEBAwEAAQEBAwEBAQEFCwEBAQIBAQEBAQIBAQEBAAUDGAQB//8BAgIDAAABAgMEAAX/AgECAgEAAgEDBAEBAQIFBv8BAgED/wABAgEDAAEBAQMKAgECAQECAgEDAQEEAQEBBAMZBAX/AgECBAQAAgEDBAQBBAQFBgEBAQEDAwEBAQEDBAEBAAMJAwICAAEBBAIDAAEBAQEEBQsBAQECAwMBAQECAwQBAQACAxoEAf8BAQMDAwABAQMDAwIBAQIDAwUD/wQDAQEBAAQDAQEBAQEDBQYBAQMCAwEBAQMCBAEBAQAFCP//AQEBAwAAAQEBBAEBAgQDGwQB//8BAgMDAAABAgMEAAb/AQICAwEAAQICBAABAQEFCgIBAwMBAQIBAwQBAQEBAQULAQICAv8BAQICAgABAgEABQIBAwMcBAMBBAMCAQEBBAMCAQEBAQAFBf8CAQP/AwACAQMABAAG/wEEAgP/AAEEAgMAAAsB/wICAgEBAAIDBAEBAQAFAx0EAf//AQMDAQAAAQMEAQEBAgUG/wEDAgEBAAEDAgEBAQEBBQr//wQBAgEAAAQBAgEBAQMFA/8EAQEB/wAEAQEBAAEBAgQDHgQD/wQBAQEBAAQBAQEBAQECBQX/AgEDAv8AAgEEAwAACP8BAQEBAwABAQEBBAEBAQQL//8CAgEDAAACAwEEAAMfBAH//wEBAwMAAAEBAwQBAQIDBP8DAgQBAQADAgQBAQEBBAUGAQEBAgMBAQEBAgMBAQEABQsBAQICAQEBAQIDAQEBAQAFAyAEAf8DAQAD/wADAQAEAAAD/wQDAwEBAAQCAwEBAQEEBQb/AQECAwMAAQECAwQBAQECCgIBAQECAQIBAQEDAQEBAQUDIQQB/wEBAwECAAEBAwECAQEBBAT/AwECAQMAAwECAQQBAQIEB///AgIBAgAAAgMBBAALAQMDAQMBAQIDAQQBAQEABQMjBQsB/wEBAf8CAAMDAwAAAf//AQMCAgAAAQQCAwAGAQEDAQIBAQEDAQIBAQEABQf//wICAQMAAAIDAQQACwEDAQEBAQEEAQEBAQEBAAUDJAQB//8BAgICAAABAgICAQIDBQb/AQIBAv8AAQMCBAAAB///AQIBAwAAAQIBBAEBAgQKAv8CAgH/AgADBAEAAAMlBAT/AwEDAwMAAgEDBAQBAwEFB///AgQBAwAAAgQBAwAJ/wEDAgMDAAEDAgQEAQMCBQsBAwEBAQMBAwEBAQQBAQAEAyIEAQL/AQMBAQIAAQMBAQEBAgUE/wMBAgP/AAMBAgQAAAkDAQICAQEEAQIDAAABAQEFC///AwEDAwAAAgEDBAADJgQB//8BAQICAAABAQMEAQECAwT/AwEDAwEAAgEDBAEBAQIFCQMBAwIBAQMBBAIBAQEBAQULAQEBAQEDAQEBAQEEAQEABAMnBAH//wEDAwIAAAEDBAIAA/8EAgEB/wAEAwECAAAG/wEDAgIBAAEEAgMBAQEBBQsBAwIBAQEBAwIBAQEBAQAFAygEAf//AQIDAgAAAQIEAwAFAQIDAwP/AQIDAwMAAQMCBAb/AQICAv8AAQIDBAAACwECAgH/AQECAgEAAQIBAAUCAQIDKQQE/wMBBAP/AAIBBAMAAAYBBAMCAQEBBAMCAQEBAQAFCQMBBAL//wMBBAIAAAALAQMCAQEDAQMCAQEEAQEABAMqBAH/AQEBAwIAAQEBAwIBAQEDBP8DAQQDAQADAQQDAQEBAgUGAQEBAgIBAQEBAgMBAQEABQsBAQIBAQMBAQIBAQQBAQAEAysEA/8EAwEEAQADAgEEAQEBAwUF/wIBAAICAAIBAAMEAAoCAf8BAv8DAQACBAAAC///AwIBAwAAAwIBBAADLQQB//8BAAQEAAABAAQEAQQEBQP/BAMBAgIABAMBAgIBAgQFCAQDAQEC/wQDAQECAAEBAgMKAgEEBP//AgEEBAAAAQQCAwMsBAH//wQDBAEAAAMCBAEAA/8EAgEE/wADAgEEAAAE/wMB/wMDAAIBAAMEAAv//wMBAQMAAAMBAQQBAQMEA0cEAf8EAQMCAQAEAQMCAQEBAgUGBAEDAQEBBAEDAQEBAQEBBQYEAQMDAQEEAQIDAQEBAQEFBgQBAwEB/wQBAwEBAAEBAQQDTAIBAgEBAwIBAgEBBAMBAQEBBQEC/wEDAgECAAEEAwEBAQIFA1IEAf8AAQMEAgAAAQMEAgAB/wAEAwQCAAADAgQBAAb/AAMDAgEAAAMEAgEABv//AgMCAQAAAgQDAQADVQQG//8BAwIBAAABAwIBAQECBQv/AQMBAQEAAQMBAQEBAQEFC/8BAwEBBAABAwEBBAEBAQQL/wEDAQH/AAEDAQEAAQEBBAM4BAH/AgQDBAIAAQMCBAEBAgEFBv//BAMCAQAABAMCAQAJ//8BAwMDAAABAwMDAQMDBQv/BAMBAQEABAMBAQEBAQMFA1MEAf8BAQMEAgABAQMEAgEBAQIGAQEDAwIBAQEDBAIBAQEABQb//wMDAgEAAAMEAgEACP//AQQEBAAAAQQEBAEEAwUDOQQIAQIBAQQEAQIBAQQEAQEAAwgBAgEEBAQBAgEEBAQBAQACCv//AQICAgAAAQICAgECAwUB/wMEAwT/AAECAQMAAQMBAwM6BAv//wEBAQEAAAEBAQEBAQIFAf8EBAME/wACAwEEAAAIAgIBAf//AgMBAQAAAQECAwH/BP8DBAIAAwACBAEAAzwEAf//AAMEAgAAAAIDAQAG//8AAwIBAAAAAwIBAAgDAgEBBAQDAgEBBAQBAQIDCAMCAQQEBAMCAQQEBAEEAwUDPwQBAAEBAwQCAAEBAwQCAQEBAgH//wIDBAIAAAECAwEBAgIFBgABAwMCAQABAwQCAQEBAQUIAAIBAQQEAAIBAQQEAQECAwNABAEBAQEDBAIBAQEDBAIBAQACAf//AwMEAgAAAgMEAQAI/wEBBAQEAAEBBAQEAQEBAgsDAwMBAQECAwQBAQEBAQMFA0EEAf//BAMEAgAAAwIEAQAI/wIBAQQEAAIBAQQEAQECAwj/AgEEBAQAAgEEBAQBBAMFCwQDAwEBAQQCAwEBAQEBAwUDQgQC//8EAgMBAAAEAgMBAAX//wEEAwIAAAEEAwIACP8DAQQEBAADAQQEBAEEAwUDAQQCAf//AQQCAQAAAQEAAwMzBAH/AAEDBAMAAAECBAMAA/8AAwECAQAAAwECAQEBAwUD/wADAQIEAAADAQIEAAb/AAMDAwEAAAIDBAEAA1EEA///BAECAQAABAECAQEBAwUG//8BAwMBAAABAwQBAQECBQv/AQMCAQEAAQMCAQEBAQEFCP8EAQEB/wAEAQEBAAEBAgQDNQQG//8EAwMBAAAEAgMBAAn//wEEAwMAAAEEAgMAC/8EAwIBAQAEAwIBAQEBBAUC/wEEAgP/AAEEAgMAAAM0BAH/AQEDBAMAAQECBAMBAQECBgEBAwMDAQEBAgMEAQEBAAUG//8DAwMBAAACAwQBAAj//wEBAQQAAAEBAQQBAQIEAzYEA/8BAwECAQABAwECAQEBAQUD/wEDAQIEAAEDAQIEAQEBAwgBAwEBAQQBAwEBAQQBAQAECAEDAQEEBAEDAQEEBAEBAAMDNwQD/wIDAQIBAAIEAQMBAQEDBQgCAwEBAQQCAwEBAQQBAQIECAIDAQEEBAIDAQEEBAEBAgML//8BAgEBAAABAgEBAQECBQM7BAH//wADBAMAAAABAgEBAwMFA/8DAwECAQADBAECAQEBAwUG//8AAwMBAAAAAwQBAAgDAwEBAQQCAwEBAQQBAQIEAy4EAQABAQMEAwABAQIEAwEBAQIB//8CAwQDAAABAgQDAAMABAMBAgEABAMBAgEBAQMFBgABAwMDAQABAgMEAQEBAQUDLwQBAQEBAwQDAQEBAgQDAQEAAgH//wMDBAMAAAEBAgEBAwIFCP8BAQEBBAABAQEBBAEBAQQI/wEBAQH/AAEBAQEAAQEBBAMwBAH//wQDBAMAAAIBAwEBAwMFCP8CAQEBBAACAQEBBAEBAgQI/wIBAQH/AAIBAQEAAQECBAECAQEA//8DAQIAAAAAAzEEAwEEAwECAQEEAwECAQEBAAUBA///AwQDAQEBAQIBAQMABQP//wMBAgEAAAMBAgEBAQMFA///AwECBAAAAwECBAAEAAQBAAICAQAAAAIDAQAAAAL//wEDBAMAAAECBAMABP8EAwECAQAEAwECAQEBAwUH/wEDAwMBAAECAwQBAQEBBQQBBAEAAgIAAAAAAgMAAAAAAgABAQMEAgABAQMEAgEBAQIH/wEDAwIBAAEDBAIBAQEBBQkEAgEB//8EAwECAAAABAIEAf//AgP/AwAAAQIAAwAF/wMB/wECAAQBAAIDAAf/AQIDAv8AAQIEAwAACgMB/wMC/wMBAAQCAAAEAwQBAAECAAIAAAECAAMAAAH//wIDAgMAAAEDAgQABv8CAwED/wACAwEEAAALAv8BAgH/AgABAwEAAQECBAQEBAEAAAICAAAAAAECAAAAAQAAAgQAAAAAAQMAAAABAAICAgAAAAECAwAAAAH//wICAAAAAAECAAAABAUEAgEBAQMEAQEBAQMEAQEBAAUHAAEDAwEBAAEDBAEBAQEBBQkAAQEBAAAAAQIDAAAADAEDA/8BAwEDBAABBAEBAAQEBgQBAAICAgAAAAIDBAAAAAIAAQEDBAQAAQECAwQBAQECBwEBAwMEAQEBAgMEAQEBAAUJ//8BAQIAAAABAQIAAQECAwQHBAEAAAICAAIAAAECAAMAAQACAgIAAgABAgMABAAH/wEBAwEBAAEBAwEBAQEBBQT/BAEBAgIABAEBAgICAQIDAgQFBAgEAQACAAIAAAACAAMAAAAF/wMDAwEBAAIDBAEBAQEEBQcBAQMBBAEBAQMBBAEBAQAFCf//AQECAgAAAQECAwEBAgMECgQBAAECAf//AAEDAgAAAAL//wECBAMAAAECBAMABQADAv8BAgAEAgABAwAHAAECAwMAAAECAwQAAAQLBAEAAwIBAQAABAMBAgAABf8DAgEB/wADAgEBAAEBAwQH/wEEAwP/BAMCAQEAAAkEAwIBAQAEAwIBAQABAQMEBAwEDAED/////wEDAAAAAAAH/wED////AAEDAAAAAAwBAwP///8BAwQAAAAAAQACAv///wACAwAAAAAEDQQBAAICAQIAAAIDAQQAAAEAAgIEAgQAAQEDAQQBAgEEBf8DAgIB/wAEAgMBAAAH/wEDAwMDAAEDAwMDAQMCBQQOBAEAAgIBAgIAAgIBAwQBAgEFBv8CAQECAgACAQEDBAEBAgMJ/wEBAQEBAAEBAQEBAQEBBQsAAQEBAgIAAQEBAwQBAQEDBA8EAQACAAEAAAACAAEAAAAF/wMCAwH/AAMCBAEAAAcBAQMBAwEBAQMBBAEBAQAFCf//AQEBAgAAAQEBAgEBAgQEEAQBAAEAAQMAAAEAAgQAAAH//wIDAwQAAAECAwQABf//AgMBAgAAAgQBAwAH/wECAQP/AAECAQMAAQEBAwQRBAEAAwABAQAABAABAgAAAv//AQQCAwAAAQQCAwAH/wEEAQMCAAEEAQMCAQEBAwwB/wECAv8BAAIDBAAABBIEAQACAAEAAgACAAEAAwABBP8CBAMCAwABBAIBAQICBQYCAgECAgICAgEDAwQBAgAFCQABAQEBAgABAQEBAgEBAQQEEwQBAAECAQMCAAECAQQDAQEBAwMAAwIBAQIABAIBAQMBAQMEBv8CAQICAQACAQMEAQEBAgUHAAMCAQMAAAMCAQQAAAQUBAEAAwABAwIAAwABBAIABAACAQICAQACAQMEAQEBAgUG/wIBAgIDAAIBAwMEAQIBBAkAAQIBAQIAAQIBAQMBAQEEBBUEAQACAAEAAQADAAEAAgAEAAIAAQMBAAMAAQQBAQEDBQb/AgECAQIAAgEDAQQBAQIECgMCAwH//wMCBAEAAAAEFgQBAAIAAQADAAIAAQAEAAMAAwAAAQIAAwAAAQIABv8CAQID/wACAQMEAAAJAAIBAQECAAIBAQEDAQECBAQXBAEAAAABAAAAAAABAAAAAQAABAQDBAAAAgMBBAAF/wMCAwEBAAMCBAEBAQEEBQf/AQEBAwEAAQEBAwEBAQEFBBgEAQABAAEAAAABAAIAAAADAAMAAQMCAAMAAQQCAAb/AgECAgEAAgEDBAEBAQIFCwIBAgEBAgIBAwEBBAEBAQQEGQQBAAIAAQIAAAIAAQMAAAEAAAABAgIAAAABAgMABQABAgIBAAABAwQCAAAHAQEBAQMDAQEBAQMEAQEAAwQaBAEAAgEBAAAAAwECAAAAAf//AgQEBAAAAQMDAwEEAwUE/wQDAQEBAAQDAQEBAQEDBQcBAQMCAwEBAQMCBAEBAQAFBBsEAQABAQEEAAABAQEEAAEBAQMB//8CAwQEAAABAgMEAAf/AQICA/8AAQIDBAAACwABAwMBAQABAwQBAQEBAQUEHAQBAAMCAQQEAAMCAQQEAQQEBQQBBAMCAQEBBAMCAQEBAQAFB/8BBAID/wABBAIDAAAJAAMCAQEDAAMCAQEEAQEDBAQdBAEAAgIEBAIAAQEDBAEBAgEFAQACBAQEAgABAgMEAQECAQUB//8CBAQCAAABAwQBAQICBQQAAwEBAQQAAwEBAQQBAQIEBB4EAQACAQEAAgADAQIABAABBAICBAQCAgEBAwQBAQIBBQb/AgEDAv8AAgEEAwAACf//AQMBAwAAAQMBBAEBAgQEHwQBAAABAQAAAAABAgAAAAQAAAMBAQIAAAMBAQIBAQMEBwEBAQIDAQEBAQIDAQEBAAUJAAMBAQIDAAMBAQIEAQECAwQgBAEAAgEBAgIAAgEBAwQBAQIDBP8EAwMBAQAEAgMBAQEBBAUH/wEBAgMDAAEBAgMEAQEBAgsCAQEBAgECAQEBAwEBAQEFBCEEAQACAgACAAABAgADAAABAAICBAIDAAEBAwECAQIBBAX/AwECAQMAAwECAQQBAQIECP//AgIBAgAAAgMBBAAEIwcBAP8AAAD/AgADAwMAAAwB/wEBAf8CAAMDAwAAAQACAgADAAACAwAEAAABAAIAAAAAAAIAAAAAAAEAAgIEAwMAAQEEAgMBAgECBwEBAwECAQEBAwECAQEBAAUI//8CAgEDAAACAwEEAAQkBAEAAQIDAwMAAQIDAwMBAwMFB/8BAgEC/wABAwIEAAAI//8BAgEDAAABAgEEAQECBAsC/wICAf8CAAMEAQAABCUEAQACAAAAAgACAAAABAABAAICAAMCAAECAAQDAAX/AwEDAwMAAgEDBAQBAwEFCgABAwIDAQABAwIEAQEBAQUEIgQBAAICAAICAAEBAAIDAQIBBQED/wIEAgICAAEDAQEBAgIFBf8DAQIDAwADAQIEBAEDAQUKAAECAgMAAAECAwQAAAQmBAEAAAAAAAIAAAAAAAEAAwAAAwIBAAAAAwIBAAAF/wMBAwMBAAIBAwQBAQECBQoDAQMCAQEDAQQCAQEBAQEFBCcEAQACAQAAAAACAQAAAAABAAICBAQDAAEBAwQCAQIBAgT/BAIBAf8ABAIBAQABAQMEBwEBAwICAQEBBAIDAQEBAAUEKAQBAAEBAP8AAAECAAAAAAH//wIDBAMAAAECBAMABgECAwMD/wECAwMDAAEDAgQH/wECAgL/AAECAwQAAAQpBAEAAgEAAAIAAgEAAAMAAQD/BAQEAwAAAgIEAQEEAgQHAAQDAgEAAAQDAgEAAAwBAwIBAQMBAwIBAQQBAQAEBCoEAQAAAQAAAgAAAQAAAwAB/wICAgQDAAEBAQMCAQIBAwX/AwEEAwEAAgEEAwEBAQIFBwEBAQICAQEBAQIDAQEBAAUEKwQBAAICAQACAAIDAQAEAAT/BAMBBAEAAwIBBAEBAQMFBv8CAf8CAgACAQADBAAM//8DAgEDAAADAgEEAAQtBAIAAQEBBAMAAQEBBAMBAQEDBAAEAwECAgAEAwECAgECBAUE/wQDAQICAAQDAQICAQIEBQcAAQEDAwEAAQEDBAEBAQEFBCwEAf//AwEBAwAAAwEBBAEBAwQF/wQCAQT/AAMCAQQAAAb/AwEAAQMAAwEAAgQACP8BAwACAQABBAADAgAESAQC/wQBAwIBAAQBAwIBAQECBQcEAQMBAQEEAQMBAQEBAQEFBwQBAwMBAQQBAgMBAQEBAQUHBAEDAQH/BAEDAQEAAQEBBARNAwEDAgIEAwICAQEEAwEBAgEFAQP/AgADAgMAAQAEAgABA/8CBAMCAgABBAMBAQICBQRSBAH/AAIAAAAAAAEAAAAAAf8AAgAAAwAAAQAAAgAB/wACBAADAAABAwACAAL/AAEDBAIAAAEDBAIABFUEAQQCAgAAAAQBAgAAAAABBAICAAADBAECAAADAAP//wQCAwEAAAQCAwEABv//AQQDAgAAAQQDAgAEOAQB/wICAAAAAAECAAAAAAH/AgIAAAMAAQIAAAMAAf8CAgQAAwABAgQAAwAC/wEBAwQCAAEBAwQCAQEBAgRTBAH/AQIAAAAAAQIAAAAAAf8BAgAAAwABAgAAAwAB/wECBAADAAECBAADAAf//wIDAgEAAAIEAwEABDkEAf8DAgAAAAACAQAAAAAB/wMCAAADAAIBAAADAAH/AwIEAAMAAgEEAAMAA/8BAwIDAQABAwIEAQEBAQUEOgQB/wQCAAAAAAMBAAAAAAH/BAIAAAMAAwEAAAIAAf8EAgQAAwADAQQAAgAJAQIBAQQEAQIBAQQEAQEAAwQ8BAH//wAAAAAAAAAAAAAAA///AAIDAQAAAAIDAQAH//8AAwIBAAAAAwIBAAT/AgIBAv8AAgMBBAAABFQEAf//AQAAAAAAAQAAAAAJAwIBAQQEAwIBAQQEAQECAwkDAgEEBAQDAgEEBAQBBAMFBP8DAgEC/wAEAgEDAAAEQAQBAQICAAAAAQIDAAAAAAEBAgIAAAMBAgMAAAQAAf//AwAAAAAAAQAAAAAD//8BAgMBAAABAgMBAQECBQRBBAECAgIAAAABAgMAAAAAAQICAgAAAwECAwAABAACAQEBAwQCAQEBAwQCAQEAAgP//wICAwEAAAIDBAEABEIEAQMCAgAAAAMBAgAAAAABAwICAAADAwECAAAEAAEDAgIEAAADAQIEAAAAA///AwIDAQAAAwIEAQAEMwQB/wACAQAAAAACAQAAAAH/AAIBAAQAAAIBAAQAAf8AAgQABAAAAQMABAAC/wABAwQDAAABAgQDAARRBAQBBAMBAgEBBAMBAgEBAQAFBAH//wECAQEBAQECAQEBAAUE//8DAQIBAAADAQIBAQEDBQT//wMBAgQAAAMBAgQABDUEAf8CAgEAAAACAwEAAAAC/wEBAwQDAAEBAgQDAQEBAgcBAQMDAwEBAQIDBAEBAQAFB///AwMDAQAAAgMEAQAENAQB/wECAQAAAAEDAgAAAAf//wIDAwEAAAIDBAEAAf8BAgEA/wABAwIAAAAGAQIEBAT/AQIEBAQAAQQCBAQ2BAH/AwIBAAAAAwIBAAAAAf8DAgEABAADAgEABAAB/wMCBAAEAAIBAwAEAAf//wQDAwEAAAQCAwEABDcEAf8EAgEAAAAEAgEAAAAE/wEDAQIBAAEDAQIBAQEBBQT/AQMBAgQAAQMBAgQBAQEDCQEDAQEBBAEDAQEBBAEBAAQEOwQB//8AAQAAAAAAAQAAAAT//wABAgEAAAABAgEBAQMFBP8CAwECAQACBAEDAQEBAwUH//8AAwMBAAAAAwQBAARQBAH//wEBAAAAAAECAAAABP8DAwECAQADBAECAQEBAwUJAwMBAQEEAgMBAQEEAQECBAkDAwEBBAQCAwEBBAQBAQIDBC8EAQECAgEAAAEDBAIAAAAB//8DAQAAAAADAQAAAAP//wECAwIAAAECBAMAAQECAgEA/wEDBAIAAAAEMAQBAgICAQAAAgMEAQAAAAH//wQBAAAAAAQBAAAAAgEBAQMEAwEBAQIEAwEBAAIE//8BAQIBAAABAQIBAQECBQQxBAEDAgIBAAAEAgMBAAAABP//AgECAQAAAgEDAQEBAwUJ/wIBAQEEAAIBAQEEAQECBAEDAgIBAP8EAgMBAAAABQAFAQEDAwIBAQEDBAIBAQEBAAUB//8DAgEBAAADAgEBAQEEBQP//wEDBAMAAAECBAMABf8EAwECAQAEAwECAQEBAwUI/wEDAwMBAAECAwQBAQEBBQUBBAEBAwMBAQEBAwQBAQEBAQAFA///AQMEAgAAAQMEAgAI/wEDAwIBAAEDBAIBAQEBBQoEAgEB//8EAgEBAAABAQIDBQIEAf//AwT/BAAAAQIAAwAG/wMB/wECAAQBAAIDAAj/AQIDAv8AAQIEAwAACwMB/wMC/wMBAAQCAAAFAwQBAf8AAQABAQAAAgADAAH//wMEAwQAAAEDAQQBAwIEBwECAwEDAQECAwEEAQEBAAUMAv8BAgH/AwABBAIAAAUEBAEBAQMDAQEBAQMEAQEBAQAFAQEDAwMBAQECAwQBAQEBAAUB//8DAwEBAAADBAEBAQEEBQP//wEDBAQAAAEDBAQBBAQFBQUEAQEDA/8BAwECAwABBAEBAAQDAQEBAwQBAQEBAwQBAQEABQgBAQMDAQEBAQMEAQEBAQAFCgQBAQME/wMBAQIEAAEBAQIFBgQBAQMDAwEBAQIDBAEBAQEABQP//wEDBAQAAAECAwQACAEBAwMEAQEBAgMEAQEBAAUK//8BAQL/AAABAQIAAQECAwUHAwEBAQMDAQMBAQIDAQQBAQAECP8BAQMBAQABAQMBAQEBAQUF/wQBAQICAAQBAQICAgECAwIEBQUIBAEBAwEDAQEBAwEEAQEBAQAFBgEDAwMBAQECAwQBAQEBAAUIAQEDAQQBAQEDAQQBAQEABQr//wEBAgIAAAEBAwQBAQIDBQoEAQECAwIA/wECBAMAAAAD//8BAgADAAABAgADAAj/AQIDA/8AAQIDBAAADAIB/wMBAgIBAAQBAwEBAQQFCwQB//8DAgIBAAAEAgMBAAb/AwIBAf8AAwIBAQABAQMECP8B/wMDAgABAAMEAgAKBAMCAQH/BAMCAQEAAQEDBAUMAwEBA/////8BAwAAAAAACP8BA////wABAwAAAAABAQMD////AQMEAAAAAAUNBAEB/wMCAwEBAAMCBAEBAQAFA/8BAQMBAwABAQMBBAEBAQQG/wMCAgH/AAQCAwEAAAgBAQMDAwMBAQMDAwMCAQABAwIFBQ4EAQEAAAABAQEAAAACAwAB//8DAgMDAAACAQMEAAX/AQEBAgEAAQEBAgEBAQEFB/8CAQECAgACAQEDBAEBAgMFDwQBAQMBAgEBAQMBAgEBAQEABQP/AQEDAgMAAQEDAgQBAQECCAEBAwEDAQEBAwEEAQEBAAUK//8BAQECAAABAQECAQECBAUQBAEBAAECAAEBAAIEAAMAA///AQICAwAAAQIDBAAG//8CAwECAAACBAEDAAj/AQIBA/8AAQIBAwABAQEDBREEAQEAAQIC/wEAAgMEAAAD//8BBAIDAAABBAIDAAj/AQQBAwIAAQQBAwIBAQEDDAIBAv8D/wIBAwAEAAAFEgQBAQMBAgEDAQMBAgEEAQEABAH//wMCBAMAAAIBBAMABwICAQICAgICAQMDBAECAAUK/wEBAQECAAEBAQECAQEBBAUTBAEBAAEAAAEBAAIAAAMAB/8CAQICAQACAQMEAQEBAgUI/wECAAMEAAECAAMEAAwCAQIAAAICAQIAAAMBAgAFBRQEAQEAAQACAQEAAgAEAwAFAQIBAgIBAQIBAwQBAQEABQf/AgECAgMAAgEDAwQBAgEEDAIBAgED/wIBAwEEAAEBAQMFFQQBAQMBAgECAQQBAgEDAQEABAH//wMCBAIAAAIBAwEBAgMFB/8CAQIBAgACAQMBBAEBAgQLAwIDAf//AwIEAQAAAAUWBAEBAwECAQQBAwECAQQBAQAEAf//AwIEBAAAAgEDBAAH/wIBAgP/AAIBAwQAAAr/AgEBAQIAAgEBAQMBAQIEBRcEAQEBAQIBAQEBAQIBAQEBAAUDAQEBAQIDAQEBAQIDAQEAAwb/AwIDAQEAAwIEAQEBAQQFCP8BAQEDAQABAQEDAQEBAQUFGAQBAQABAAABAQACAAADAAP//wECAgMAAAECAwQAB/8CAQICAQACAQMEAQEBAgUI/wECAQMBAAECAQMBAQEBBQUZBAEBAwECAwEBAwECBAEBAQAFAQEBAQIDAwEBAQIDBAEBAAIH/wIBAgQEAAIBAwQEAQQEBQgBAQEBAwMBAQEBAwQBAQADBRoEAf//AwIBAAAAAwIBAAABAQMCAgEBAQQCAwEBAQEABQP/AQEDAwMAAQEDAwMBAQECCAEBAwIDAQEBAwIEAQEBAAUFGwQBAQACAgAAAQACAwAAAAP//wECAwMAAAECAwQACP8BAgID/wABAgMEAAAMAgEDAwEBAgEDBAEBAQEBBQUcBAEBAAICAgABAAIDBAAABQEEAwIBAQEEAwIBAQEBAAUI/wEEAgP/AAEEAgMAAAz//wQDAwEAAAQCAwEABR0EAf//AwABAAAAAwABAAAD//8BAwMBAAABAwQBAQECBQj/AQMCAQEAAQMCAQEBAQEFBf8EAQEB/wAEAQEBAAEBAgQFHgQBAQACAAEAAQADAAIAAAH//wICAQMAAAIDAQQAB/8CAQMC/wACAQQDAAAK//8BAwEDAAABAwEEAQECBAUfBAEBAQICAQEBAQIDAQEBAQAFA///AQEDAwAAAQEDBAEBAgMIAQEBAgMBAQEBAgMBAQEABQsDAgQAAQADAgQAAQAABSAEAQEAAAABAAEAAAACAAAB//8DAgMAAAACAQMAAAX/BAMDAQEABAIDAQEBAQQFCP8BAQIDAwABAQIDBAEBAQIFIQQBAf8AAQEBAQAAAgMEAAP//wEDAQIAAAEDAQIBAQIEBv8DAQIBAwADAQIBBAEBAgQJ//8CAgECAAACAwEEAAUjBgEB/wEBAf8CAAMDAwAADQH/AQEB/wIAAwMDAAABAQMBAQEBAQMBAQEBAQEABQP//wEDAgIAAAEEAgMACAEBAwECAQEBAwECAQEBAAUJ//8CAgEDAAACAwEEAAUkBAEB/wEBAP8BAAIDAAAAAf//AwQEBAAAAQICAgEEAwUI/wECAQL/AAEDAgQAAAsDAQMDAP8CAQMEAAAABSUEAQEDAQEBAwEDAQEBBAEBAAQB/wMDAAQEAAECAAMEAAb/AwEDAwMAAgEDBAQBAwEFCwMBAwADAwIBAwAEBAEDAAUFIgQBAQMDAQMDAQICAQMEAgEAAwMBBQMC/wEDAQECAAEDAQEBAQIFBv8DAQID/wADAQIEAAALAwECAAP/AwECAAQAAAUmBAEBAQEBAQMBAQEBAQQBAQAEAf//AwMEBAAAAQECAwEDAgMG/wMBAwMBAAIBAwQBAQECBQsDAQMCAQEDAQQCAQEBAQEFBScEAQEDAgEBAQEDAgEBAQEBAAUD//8BAwMCAAABAwQCAAgBAQMCAgEBAQQCAwEBAQAFDP//BAICAQAABAIDAQAFKAQBAQICAQAAAQIDAQAAAQEAAwP//wECAwIAAAECBAMABwECAwMD/wECAwMDAAEDAgQI/wECAgL/AAECAwQAAAUpBAEBAwIBAQMBAwIBAQQBAQAEA///AQADAgAAAQAEAgAG/wMBBAP/AAIBBAMAAAsDAf8CAwADAQACBAAABSoEAQEBAgEBAwEBAgEBBAEBAAQD/wEBAQMCAAEBAQMCAQEBAwb/AwEEAwEAAgEEAwEBAQIFCAEBAQICAQEBAQIDAQEBAAUFKwQB//8DAgEDAAADAgEEAAP//wEABAMAAAEABAMABf8EAwEEAQADAgEEAQEBAwUH/wIBAAICAAIBAAMEAAUtAgX/BAMBAgIABAMBAgIBAgQFCgQDAQEC/wQDAQECAAEBAgMFLAQB//8DAQEDAAADAQEEAQEDBAX/BAIBBP8AAwIBBAAABv8DAQABAwADAQACBAAI/wEDAAIBAAEEAAMCAAVJBAP/BAEDAgEABAEDAgEBAQIFCAQBAwEBAQQBAwEBAQEBAQUIBAEDAwEBBAECAwEBAQEBBQgEAQMBAf8EAQMBAQABAQEEBU4CAwIBAQMCAQIBAQQDAQEBAQUDAv8BAwIBAgABBAMBAQECBQVSBAH/AAMBAQEAAAMBAQEBAQMFAf8AAwEBBAAAAwEBBAEBAwQD/wABAwQCAAABAwQCAAT/AAMCAwEAAAMCBAEABVUEAQQDAwEBAQQCAwEBAQEBAwUE//8DAgMBAAADAgQBAAr/AgEBBAQAAgEBBAQBAQIDCv8CAQQEBAACAQQEBAEEAwUFOAQB/wIDAQEBAAIDAQEBAQEDBQH/AgMBAQQAAgMBAQQBAQMECP//AgMCAQAAAgQDAQAB/wIDAQH/AAIDAQEAAQEDBAVTBAH/AQMBAQEAAQMBAQEBAQEFAf8BAwEBBAABAwEBBAEBAQQI//8BAwIBAAABAwIBAQECBQH/AQMBAf8AAQMBAQABAQEEBTkEAf8DAwEBAQADBAEBAQEBAwUB/wMDAQEEAAIDAQEEAQEDBAP/AQEDBAIAAQEDBAIBAQECCAEBAwMCAQEBAwQCAQEBAAUFOgQB/wQDAQEBAAQDAQEBAQEDBQT/AQMCAwEAAQMCBAEBAQEFCP//BAMCAQAABAMCAQAL//8BAwMDAAABAwMDAQMDBQU8BAH//wABAQEAAAABAQEBAQMFBP//AAIDAQAAAAIDAQAI//8AAwIBAAAAAwIBAAoBAgEBBAQBAgEBBAQBAQADBT8EAQADAwEBAQADBAEBAQEBAwUBAAMDAQEEAAIDAQEEAQEDBAH//wIBAQEAAAIBAQEBAQMFAwABAQMEAgABAQMEAgEBAQIFVAQB//8BAQEBAAABAQEBAQECBQX/AgIBAv8AAgMBBAAACgICAQH//wIDAQEAAAEBAgME/wP/AgMBAAMAAgQBAAVBBAECAwMBAQECAwQBAQEBAQMFAf//BAEBAQAABAEBAQEBAwUE//8BAgMBAAABAgMBAQECBQECAwMBAf8CAwQBAQABAQMEBUIEAQMDAwEBAQIDBAEBAQEBAwUDAQEBAwQCAQEBAwQCAQEAAgT//wICAwEAAAIDBAEACv8BAQQEBAABAQQEBAEBAQIFMwQB/wADAgEBAAADAgEBAQEEBQP/AAEDBAMAAAECBAMABf8AAwECAQAAAwECAQEBAwUF/wADAQIEAAADAQIEAAVRBAEEAAMCAQEEAAMCAQEBAQQFBf//AgECAQAAAgEDAQEBAwUK/wIBAQEEAAIBAQEEAQECBAEEAAMCAf8EAAMCAQAABTUEAf8CAwIBAQACBAMBAQEBBAUI//8CAwMBAAACAwQBAAH/AgMCAf8AAgQDAQAABwECBAQE/wECBAQEAAEEAgQFNAQB/wEDAgEBAAEDAgEBAQEBBQX//wQBAgEAAAQBAgEBAQMFCP//AQMDAQAAAQMEAQEBAgUB/wEDAgH/AAEDAgEAAQEBBAU2BAH/AwMCAQEAAwQCAQEBAQQFA/8BAQMEAwABAQIEAwEBAQIIAQEDAwMBAQECAwQBAQEABQj//wMDAwEAAAIDBAEABTcEAf8EAwIBAQAEAwIBAQEBBAUI//8EAwMBAAAEAgMBAAv//wEEAwMAAAEEAgMAAf8EAwIB/wAEAwIBAAAFOwQB//8AAgEBAAAAAgEBAQEEBQX//wABAgEAAAABAgEBAQMFBf8BAwECAQABAwECAQEBAQUF/wEDAQIEAAEDAQIEAQEBAwUuBAEAAAMCAQEAAAMCAQEBAQQFAQADAwIBAQADBAIBAQEBBAUB//8CAgEBAAACAwEBAQEEBQMAAQEDBAMAAQECBAMBAQECBVAEAf//AQIBAQAAAQIBAQEBAgUF/wIDAQIBAAIEAQMBAQEDBQoCAwEBAQQCAwEBAQQBAQIECgIDAQEEBAIDAQEEBAEBAgMFMAQBAgADAgEBAgAEAwEBAQEEBQH//wQCAQEAAAQCAQEBAQQFBP//AQIDAgAAAQIEAwABAgADAgH/AgAEAwEAAAUxBAEDAAMCAQEDAAQCAQEBAQQFAwEBAQMEAwEBAQIEAwEBAAIF//8BAQIBAAABAQIBAQECBQr/AQEBAQQAAQEBAQQBAQEEBgAEAQIEBAMCAgEDBAIBAQECAAUE/wEBAwQDAAEBAgQDAQEBAgYBBAMBAgEBBAMBAgEBAQAFCQEBAwMDAQEBAgMEAQEBAAUGAQQBAgQEAgICAQMEAQEBAQIABQT/AQEDBAIAAQEDBAIBAQECBf//AwIDAQAAAwIEAQAJAQEDAwIBAQEDBAIBAQEABQYCBAECAP8CAf8CAAADAQAABP//AQL/AgAAAQIAAwAH/wMB/wECAAQBAAIDAAn/AQIDAv8AAQIEAwAABgMEAQL/AQIB/wIAAQMBAAEBAgQBAgMEAgQCAQIDAQQBAQIABQT//wECAQIAAAEDAgQACAECAwEDAQECAwEEAQEBAAUGBAQBAgIEBAICAQEDBAEBAQIABQECBAQEAgIBAgMEAQEBAgAFAf//BAQCAgAAAwQBAQECBAUE//8BAwQEAAABAwQEAQQEBQYFBAEC//8BAgICAAABAwQABAEBAQMEAQEBAQMEAQEBAAUJAQEDAwEBAQEDBAEBAQEABQsEAQEDBP8DAQECBAABAQECBgYEAQIEBAQCAgECAwQBAQECAAUE/wEBAwQEAAEBAgMEAQEBAgkBAQMDBAEBAQIDBAEBAQAFC///AQECBAAAAQECBAEBAgMGBwMBAgIEBAIEAQECAwEEAQIABAn/AQEDAQEAAQEDAQEBAQEFBv8EAQECAgAEAQECAgIBAgMCBAUGCAQBAgQCBAICAQMBBAEBAQIABQT//wEDAgQAAAEDAgQAB/8DAwMBAQACAwQBAQEBBAUJAQEDAQQBAQEDAQQBAQEABQYKBAH//wQDAQIAAAQDAQIAAQIDBAP/AgECBAMAAQECAAUE//8BAgQDAAABAgQDAAn/AQIDAwEAAQIDBAABAQEFBgsEAf//BAMDAgAABAIDAQAB//8EAwP/AAACAQEAAQMDBAf/AwIBAf8AAwIBAQABAQMECwQDAgEB/wQDAgEBAAEBAwQGDAMBAgT/////AQMAAAAAAAn/AQP///8AAQMAAAAAAQIEBP///wEDBAAAAAAGDQQBAv8BAwL/AgABBAMAAAEC/wQDBAIBAAMCBAEBAgAFBP8BAQMBAwABAQMBBAEBAQQJ/wEDAwMDAAEDAwMDAQMCBQYOBAECAQEBAgICAQEBAwQBAQEDAf//BAMEBAAAAgEDBAAG/wEBAQIBAAEBAQIBAQEBBQj/AgEBAgIAAgEBAwQBAQIDBg8EAQIEAgMCAgEDAQIBAQECAAUE/wEBAwIDAAEBAwIEAQEBAgf/AwIDAf8AAwIEAQAACQEBAwEDAQEBAwEEAQEBAAUGEAQBAv8CAwH/AgADBAEAAAT//wECAgMAAAECAwQAB/8BAgMBAgABAgQBAwEBAQQJ/wECAQMAAAECAQMAAQEBAwYRBAEC/wIDA/8BAAIDBAAABP//AQQCAwAAAQQCAwAH/wMCAQEAAAQDAQIAAAn/AQQBAwIAAQQBAwIBAQEDBhIEAQIEAgMCBAEDAQIBBAECAAQD//8CAQMCAAACAQQDAAgCAgECAgICAgEDAwQBAgAFC/8BAQEBAgABAQEBAgEBAQQGEwQBAgECAQECAgEDAQEEAQEBBAECAQIBAQACAQMBAQABAQEEA/8BAgEDAgABAgEEAwEBAQMI/wIBAgIBAAIBAwQBAQECBQYUBAECAQIBAwACAQMBBAABAQEDB/8DAgEDAAADAgEEAAAI/wIBAgIDAAIBAwMEAQIBBAsE/wIDAQAEAAIDAQAABhUEAQIBAgACAAIBAwAEAAAD//8CAQMBAAACAQMBAQEDBQj/AgECAQIAAgEDAQQBAQIEDAMCAwH//wMCBAEAAAAGFgQBAgECAgICAgEDAwMEAQIABQIBAwECAQQBAwECAQQBAQAEA///AgEDAwAAAgEDBAAI/wIBAgP/AAIBAwQAAAYXBAECAQIBAAADAQQCAAAABAEBAQECAwEBAQECAwEBAAMH/wMCAwEBAAMCBAEBAQEEBQn/AQEBAwEAAQEBAwEBAQEFBhgEAQIBAgEBAgIBAwEBBAEBAQQE//8BAgIDAAABAgMEAAj/AgECAgEAAgEDBAEBAQIFCf8BAgEDAQABAgEDAQEBAQUGGQQBAgIBAwAAAgMBBAAAAAECAgIDBAQBAQECAwQBAgACB/8DAgIBAAAEAgMBAAAJAQEBAQMDAQEBAQMEAQEAAwYaBAECBAMDAgIBBAIDAQEBAgAFBP8BAQMDAwABAQMDAwEBAQIG/wQDAQEBAAQDAQEBAQEDBQkBAQMCAwEBAQMCBAEBAQAFBhsEAQIBAwMBAQIBAwQBAQEBAQUE//8BAgMDAAABAgMEAAj/AgEDBAEAAgEDBAEBAQIFCf8BAgID/wABAgMEAAAGHAQBAv8DAwP/AQACAwQAAAYBBAMCAQEBBAMCAQEBAQAFCf8BBAID/wABBAIDAAAL//8CAQEDAAACAQEEAQEDBAYdBAH//wQBAgEAAAQBAgEBAQMFBP//AQMDAQAAAQMEAQEBAgUJ/wEDAgEBAAEDAgEBAQEBBQb/BAEBAf8ABAEBAQABAQIEBh4EAQIBAwECAQIBBAEDAQEBAQUBAv8DAwIEAQACAwEEAQIABAP//wIBBAIAAAIBBAMACAICAQMC/wICAQQDAAECAAQGHwQBAgIDAwICAQECAwEBAQIABQT//wEBAwMAAAEBAwQBAQIDCP8CAQMAAgACAQQAAwAJAQEBAgMBAQEBAgQBAQEABQYgBAECAQEBAgECAQEBAwEBAQEFBP8DAQEDAwACAQEDBAEBAgMG/wQDAwEBAAQCAwEBAQEEBQn/AQECAwMAAQECAwQBAQECBiEEAQL/AQICAgIAAQMDBAECAAUE/wEBAwECAAEBAwECAQEBBAf/AwECAQMAAwECAQQBAQIECP8CBAED/wACBAEDAAAGIwYBAv8CAgL/AgADAwMAAA4B/wEBAf8CAAMDAwAAAQIEAgICAgEDAQEBAQECAAUE//8BAwICAAABBAIDAAkBAQMBAgEBAQMBAgEBAQAFCv//AgIBAwAAAgMBBAAGJAQBAgACAgEAAgADBAEAAAT//wECAgIAAAECAgIBAgMFCf8BAgEC/wABAwIEAAAK//8BAgEDAAABAgEEAQECBAYlBAECAAIBAgACAAMBBAAAAQIEAgICBAECAQEBAwECAAQH/wMBAwMDAAIBAwQEAQMBBQr//wIEAQMAAAIEAQMABiIEAQIAAQECAgIAAQEDBAEBAgMBAgQEAgQEAQICAQMEAQQBBQQCAQEDAQECAQEDAQEBAQEFB/8DAQID/wADAQIEAAAGJgQBAgACAQAAAgADAQAAAAECAgICAgQBAQEBAQQBAgAEBP//AQECAgAAAQECAwEBAgMH/wMBAwMBAAIBAwQBAQECBQYnBAECBAMCAgIBAwIBAQEBAgAFBP8BAQMDAgABAQMEAgEBAQIG/wQCAQH/AAQCAQEAAQEDBAkBAQMCAgEBAQQCAwEBAQAFBigEAQIDAwL/AgECAwEAAQECAAUE//8BAgMCAAABAgQDAAgBAgMDA/8BAgMDAwABAwIECf8BAgIC/wABAgMEAAAGKQQBAgADAQIBAgAEAQMBAQEDBQECAAMBAv8CAAQBAwAAAQIEAwICBAEDAgEBBAECAAQH/wMBBAP/AAIBBAMAAAYqBAECAgMCAgQBAQIBAQQBAgAEBP8B",
+    "AQEDAgABAQEDAgEBAQMH/wMBBAMBAAIBBAMBAQECBQkBAQECAgEBAQECAwEBAQAFBisEAQIB/wECAgMBAAIEBAECAAUB//8EAwIEAAADAgEEAAb/BAMBBAEAAwIBBAEBAQMFCP8CAf8CAgACAQADBAAGLQQG/wQDAQICAAQDAQICAQIEBQECAQQDAP8CAQQDAAAAAQIEBAMA/wEDBAIAAAALBAMBAQL/BAMBAQIAAQECAwYsBAH//wQCAgQAAAMBAQQBAgMEAQIEBAICBAECAwEBBAECAAQG/wQCAQT/AAMCAQQAAAf/AwH/AwMAAgEAAwQABkoEAQAABAICBAAAAwEBBAECAwQBAAQEAgIEAAIDAQEEAQIDBAT/BAEDAgEABAEDAgEBAQIFCQQBAwEBAQQBAwEBAQEBAQUGTwIEAgEBAwIBAgEBBAMBAQEBBQQC/wEDAgECAAEEAwEBAQIFBlIEAf8ABAICAgAAAwEBAQECAwUC/wADAQEEAAADAQEEAQEDBAIEAwMBAQEEAgMBAQEBAQMFBP8AAQMEAgAAAQMEAgAGVQQBBAAEAgICAwAEAQEBAQIDBQEEBAQCAgICAwQBAQEBAgMFBAEBAQMEAgEBAQMEAgEBAAIF//8CAgMBAAACAwQBAAY4BAH/AgQCAgIAAQMBAQEBAgEFAv8BAwEBBAABAwEBBAEBAQQJ//8BAwIBAAABAwIBAQECBQH/AgQCAv8AAQMBAQABAgEEBlMEBf//BAIDAQAABAIDAQAI//8BBAMCAAABBAMCAAv/AwEEBAQAAwEEBAQBBAMFBgEEAgH//wEEAgEAAAEBAAMGOQQB/wMEAgICAAIDAQEBAQIDBQL/AgMBAQQAAgMBAQQBAQMECf//AgMCAQAAAgQDAQAB/wMEAgL/AAIDAQEAAQIDBAY6BAH/BAQCAgIAAwQBAQEBAgMFAv8DAwEBBAACAwEBBAEBAwQE/wEBAwQCAAEBAwQCAQEBAgkBAQMDAgEBAQMEAgEBAQAFBjwEAf//AAICAgAAAAEBAQECAwUC/wQDAQEBAAQDAQEBAQEDBQX//wACAwEAAAACAwEABf8BAwIDAQABAwIEAQEBAQUGPwQBAAAEAgICAAADAQEBAQIDBQEABAQCAgIAAwQBAQEBAgMFAgADAwEBBAACAwEBBAEBAwQB//8CAgICAAABAQEBAQICBQZUBAH//wECAgIAAAECAgIBAgMFCwECAQEEBAECAQEEBAEBAAMLAQIBBAQEAQIBBAQEAQEAAgb/AQIBAv8AAQIBAwABAQEDBkAEAf//AwICAgAAAgEBAQECAwULAwIBAQQEAwIBAQQEAQECAwsDAgEEBAQDAgEEBAQBBAMFBv8DAgEC/wAEAgEDAAAGQgQBAwAEAgICAgADAQEBAQIDBQEDBAQCAgICAwQBAQEBAgMFAv//BAEBAQAABAEBAQEBAwUF//8BAgMBAAABAgMBAQECBQYzBAH/AAQDAgIAAAMCAQEBAgQFBP8AAQMEAwAAAQIEAwAG/wADAQIBAAADAQIBAQEDBQb/AAMBAgQAAAMBAgQABlEEBAEBAQMEAwEBAQIEAwEBAAIG//8BAQIBAAABAQIBAQECBQv/AQEBAQQAAQEBAQQBAQEEC/8BAQEB/wABAQEBAAEBAQQGNQQB/wIEAwICAAEDAgEBAQIBBQb//wQBAgEAAAQBAgEBAQMFCf//AQMDAQAAAQMEAQEBAgUB/wIEAwL/AAEDAgEAAQIBBAY0BAYBBAMBAgEBBAMBAgEBAQAFBgH//wECAQEBAQECAQEBAAUG//8DAQIBAAADAQIBAQEDBQb//wMBAgQAAAMBAgQABjYEAf8DBAMCAgACBAMBAQECBAUJ//8CAwMBAAACAwQBAAH/AwQDAv8AAgQDAQAACAECBAQE/wECBAQEAAEEAgQGNwQB/wQEAwICAAMEAgEBAQIEBQT/AQEDBAMAAQECBAMBAQECCQEBAwMDAQEBAgMEAQEBAAUJ//8DAwMBAAACAwQBAAY7BAH//wADAgIAAAACAQEBAgQFAv8EAwIBAQAEAwIBAQEBBAUG//8AAQIBAAAAAQIBAQEDBQn//wADAwEAAAADBAEABi4EAQAEBAMCAgADBAIBAQECBAUB//8CAwICAAABAgEBAQICBQQAAQEDBAMAAQECBAMBAQECBgAEAwECAQAEAwECAQEBAwUGUAQB//8BAwICAAABBAIDAAb/AQMBAgEAAQMBAgEBAQEFBv8BAwECBAABAwECBAEBAQMLAQMBAQEEAQMBAQEEAQEABAYvBAH//wMDAgIAAAIDAQEBAgQFBv8DAwECAQADBAECAQEBAwULAwMBAQEEAgMBAQEEAQECBAsDAwEBBAQCAwEBBAQBAQIDBjEEAv//BAIBAQAABAIBAQEBBAUF//8BAgMCAAABAgQDAAr/AQICAv8AAQICAgABAgIEAQMEBAP//wECAwEAAAEDAAMHAAUBAwIAAAADAgEAAAADAAEDAgAAAAMDAgAAAAQAAwEDAwIBAQEDBAIBAQEBAAUF//8BAwQDAAABAgQDAAcBBAMBAgEBBAMBAgEBAQAFBwEEAQMBAAADAwIBAAADBAADAQMDAQEBAQMEAQEBAQEABQX//wEDBAIAAAEDBAIACgEBAwMCAQEBAwQCAQEBAAUHAgQBAwH/AwL/AwEABAIAAAX//wEC/wIAAAECAAMACP8DAf8BAgABAgQDAAAK/wECAwL/AAECBAMAAAcDBAEDAf8DAgADAQAEAgAAAQP/AgMCAAMAAQQCAAADAQIDAQMBAQIDAQQBAQEABQX//wECAQIAAAEDAgQABwQEAQMDAAABAwIDAAABBAADAQEDAwEBAQEDBAEBAQEABQMBAwMDAQEBAgMEAQEBAQAFA///AwMBAQAAAwQBAQEBBAUHBQQBAwAAAAMDAQAAAAIDAAUBAQEDBAEBAQEDBAEBAQAFB/8EAQECBAADAQECBAEBAgMKAQEDAwEBAQEDBAEBAQEABQcGBAEDAwAAAQMCAwAAAQQAAwEDAwMBAQECAwQBAQEBAAUF/wEBAwQEAAEBAwQEAgEBAgQEBQoBAQMDBAEBAQIDBAEBAQAFBwcFAQMDAAIB/wMEAAIBAAABAwMAAgP/AgMAAQQAAAEDAAACAQMDAAACAQQAAwEBAwMBAwEBAgMBBAEBAAQK/wEBAwEBAAEBAwEBAQEBBQcIBAEDAwAAAQECAwAAAQEBAQQFAwEDAQMBAQEDAQQBAQEBAAUI/wMDAwEBAAIDBAEBAQEEBQoBAQMBBAEBAQMBBAEBAQAFBwoEAQMC/wACAwMBAAACBAAF//8BAgADAAABAgADAAn/AgEAAAEAAwEAAAIACv8BAgMD/wABAgMEAAAHCwQBAwIBAAD/AwIBAAAAAAMB/wMCAv8BAAQCAwAABP//AgEB/wAAAgEBAAEBAwQI/wMCAQH/AAMCAQEAAQEDBAcMAwMBA/////8BAwAAAAAACv8BA////wABAwAAAAADAQMD////AQMEAAAAAAcNBAEDAgAAAAACAQAAAAAAAQP/AgQD/wIAAQQDAAAF/wEBAwEDAAEBAwEEAQEBBAr/AQMDAwMAAQMDAwQBAwIFBw4EAQMAAAAAAAEAAAAAAAABAwICAgMDAgEBAQMEAQIBAwT/AgIBAgIAAgIBAwQBAgEFCf8CAQECAgACAQEDBAEBAgMHDwQBAwIAAAABAwIAAAABAAMBAwECAQEBAwECAQEBAQAFBf8BAQMCAwABAQMCBAEBAQIKAQEDAQMBAQEDAQQBAQEABQcQBAED/wMEAv8CAAMEAQAABf//AQICAwAAAQIDBAAJ/wIBAgABAAMBBAACAAr/AQIBA/8AAQIBAwABAQEDBxEEAQMCAQAAAQQDAQAAAgABA/8DBAT/AQACAwQAAAX//wEEAgMAAAEEAgMACv8BBAEDAgABBAEDAgEBAQMHEgQBAwAAAAABAwAAAAABAAEDAgMCA/8CAQMBBAABAgEDAwEDAQIBAwEDAQIBBAEBAAQJAgIBAgICAgIBAwMEAQIABQcTBAEDAgMCAgMCAQMBAQQBAgEEAwECAQIAAwECAQMABAEBAAIJ/wIBAgIBAAIBAwQBAQECBQv/AgEAAAMAAgEAAAMABxQEAQMAAQAAAQMAAgAAAQABAwIDAgT/AgEDAQQAAAn/AgECAgMAAgEDAwQBAgEEDP8BAgABAgABAwACBAAHFQQBAwIAAQMBAwIAAQQBAQEDBQED/wMEAwQBAAECAQMBAwAEBP//AgEDAQAAAgEDAQEBAwUJ/wIBAgECAAIBAwEEAQECBAcWBAEDAgADAAEDAgAEAAEAAwEDAQIEBAEDAQIEBAIBAAIEBAUE/wICAQMDAAIDAQQEAQMEBQn/AgECA/8AAgEDBAAABxcEAQMCAAABAQMCAAABAQEBBAUFAQEBAQIDAQEBAQIDAQEAAwj/AwIDAQEAAwIEAQEBAQQFCv8BAQEDAQABAQEDAQEBAQUHGAQBAwIDAgIDAgEDAQEEAQIBBAX//wECAgMAAAECAwQACf8CAQICAQACAQMEAQEBAgUK/wECAQMBAAECAQMBAQEBBQcZBAEDAAIAAAEDAAIAAAEAAwH/AQIDAwEAAQIDBAEBAAIDAQMBAgMBAQMBAgQBAQEABQn/AgECAgQAAgEDAwQBAgEEBxoEAQMCAAAAAgMCAAAAAQADAQMCAgEBAQQCAwEBAQEABQX/AQEDAwMAAQEDAwMCAQECAwMFCv8BAwIDAQABAwIEAQEBAQUHGwQBAwIEBAICAgEDBAEBAQIBBQEDBAQE//8BAgMEAAAABf//AQIDAwAAAQIDBAAK/wECAgP/AAECAwQAAAccBAH//wEAAAIAAAEAAAMAAQP/BAQE/wEAAgMEAAAHAQQDAgEBAQQDAgEBAQEABQr/AQQCA/8AAQQCAwAABx0EAQMAAAADAgIAAAADAQABAwAAAgMCAgAAAQMBAQIDBQEDAAQAAwICAAQAAwEAAQMABAIDAgIABAEDAQECAwUHHgQBAwAAAAACAgAAAAABAAEDAgQCAwICAQQBAwEBAgEFA///AgIBAwAAAgMBBAAJ/wIBAwL/AAIBBAMAAAcfBAEDAgAAAQIEAgAAAQMAAQMDBAQDAwEBAgMBAQEDAAUH//8DAAECAAADAAECAAoBAQECAwEBAQECAwEBAQAFByAEAQMCAgIDAgMBAQEDAQICAQUDAAQDAQECAgMBAQECAwQBAQEABQf/BAMDAQEABAIDAQEBAQQFCv8BAQIDAwABAQIDBAEBAQIHIQQBA/8CAwMDAgABAwQEAQMABQMBAwMBAwEBAgMBBAEBAQAFBf8BAQMBAgABAQMBAgEBAQQI/wMBAgEDAAMBAgEEAQECBAcjBQED/wMDA/8CAAMDAwAAAwEDAQEBAQEDAQEBAQEBAAUF/wEBAwICAAEBBAIDAQEBAgj/AwEDAQMAAgEDAQQBAQIECgEBAwECAQEBAwECAQEBAAUHJAQBA///AwIBAwAABAIBAAED/wMDAv8CAAMEAQAABf//AQICAgAAAQICAgECAwUK/wECAQL/AAEDAgQAAAclBAEDAAADAwECAAADBAEAAwEDAQEBAwEDAQEBBAEBAAQG//8CAAEBAAACAAEBAQEEBQj/AwEDAwMAAgEDBAQBAwEFByIEAQMBAAIDAAMBAAIEAAAD/wMDAQMDAAICAQMEAQMBBQUCAQEDAQECAQEDAQEBAQEFCP8DAQIDAwADAQIEBAEDAQUHJgQBA/8DAwH/AgADBAEAAAMBAQEBAQMBAQEBAQQBAQAEBf//AQEDAwAAAQECAwEBAgMI/wMBAwMBAAIBAwQBAQECBQcnBAEDAQAAAwIDAQAABAIAAwEDAgEBAQEDAgEBAQEBAAUF/wEBAwMCAAEBAwQCAQEBAgr/AQMCAgEAAQQCAwEBAQEFBygEAQMEBAP/AwECAwEAAQEDAAUF//8BAgMCAAABAgQDAAkBAgMDA/8BAgMDAwABAwIECv8BAgIC/wABAgMEAAAHKQQBAwAAAwMCAgAAAwQBAAMBAwIBAQMBAwIBAQQBAQAEBv//AgACAQAAAgADAQAI/wMBBAP/AAIBBAMAAAcqBAMBAQIBAQMBAQIBAQQBAQAEBf8BAQEDAgABAQEDAgEBAQMI/wMBBAMBAAIBBAMBAQECBQoBAQECAgEBAQECAwEBAQAFBysEAQMAAAIAAwIAAAEAAwAB//8DAgEEAAADAgEEAAf/BAMBBAEAAwIBBAEBAQMFCf8CAQACAgACAQADBAAHLQQBAwIAAAEDAwIAAAEEAAf/BAMBAgIABAMBAgIBAgQFAQMCAAAB/wMCAAABAAABAwIABAH/AwIABAEAAAcsBAEDAQACAwMDAQACBAQBAwAFA///AwEBAwAAAwEBBAEBAwQG//8CAAMBAAACAAMBAAf/BAIBBP8AAwIBBAAAB0sEBf8EAQMCAQAEAQMCAQEBAgUKBAEDAQEBBAEDAQEBAQEBBQoEAQMDAQEEAQIDAQEBAQEFCgQBAwEB/wQBAwEBAAEBAQQHRAIFAgEBAwIBAgEBBAMBAQEBBQUC/wEDAgECAAEEAwEBAQIFB1IEAf8AAAMDAwAAAAEBAQEDAwUD/wADAQEBAAADAQEBAQEDBQP/AAMBAQQAAAMBAQQBAQMEAwMDAwEBAQIDBAEBAQEBAwUHVQQDAgMDAQEBAgMEAQEBAQEDBQP//wQBAQEAAAQBAQEBAQMFBv//AQIDAQAAAQIDAQEBAgUBBAEAAAP/BAEAAAMAAAc4BAH/AgADAwMAAQACAgIBAwMFBv//BAIDAQAABAIDAQAJ//8BBAMCAAABBAMCAAcBBAIB//8BBAIBAAABAQADB1MEAf8BAAAD/wABAAADAAADBAMDAQEBBAIDAQEBAQEDBQb//wMCAwEAAAMCBAEAAwQDAwEB/wQCAwEBAAEBAwQHOQQD/wEDAQEBAAEDAQEBAQEBBQP/AQMBAQQAAQMBAQQBAQEECv//AQMCAQAAAQMCAQEBAgUD/wEDAQH/AAEDAQEAAQEBBAc6BAH/BAADAwMAAgABAQEBAwMFA/8CAwEBAQACAwEBAQEBAwUD/wIDAQEEAAIDAQEEAQEDBAr//wIDAgEAAAIEAwEABzwEAf//AAMDAwAAAAEBAQEDAwUD/wMDAQEBAAMEAQEBAQEDBQP/AwMBAQQAAgMBAQQBAQMEBf8BAQMEAgABAQMEAgEBAQIHPwQB//8CAwMDAAABAgICAQMDBQMAAwMBAQEAAwQBAQEBAQMFAwADAwEBBAACAwEBBAEBAwQFAAEBAwQCAAEBAwQCAQEBAgdUBAH//wEDAwMAAAEDAwMBAwMFA/8EAwEBAQAEAwEBAQEBAwUG/wEDAgMBAAEDAgQBAQEBBQr//wQDAgEAAAQDAgEAB0AEAQEBAAADAwECAAAEBAEDBAUBAQEAAwMDAQIABAQEAQMDBQH//wMDAwMAAAEBAQEBAwIFAQEBAAAD/wECAAAEAAAHQQQB//8EAwMDAAACAQEBAQMDBQECAQAAA/8CAQAAAwAAB/8DAgEC/wAEAgEDAAABAgEAAP//AgEAAAAAAAczBAH/AAAAAAMAAAAAAAEAAf8AAAQAAwAAAAIAAQAB/wAABAMDAAAAAgEBAQMEBQP/AAMCAQEAAAMCAQEBAQQFB1EEAQQCAAAAAwMBAAAAAgABBAIAAAMDAwEAAAICAQMEBQP//wQCAQEAAAQCAQEBAQQFBv//AQIDAgAAAQIEAwAHNQQB/wIAAAADAAEAAAACAAH/AgAAAwMAAQAAAgIBAwQFAf8CAAQAAwABAAMAAgAB/wIABAMDAAEABAIDAAc0BAH/AQAAAAMAAQAAAAMAAf8BAAQAAwABAAQAAwAH//8CAQIBAAACAQMBAQEDBQH/AQAAAP8AAQAAAAAABzYEAf8DAAAAAwABAAAAAgAB/wMABAADAAEAAwACAAP/AQMCAQEAAQMCAQEBAQEFB///BAECAQAABAECAQEBAwUHNwQB/wQAAAADAAIAAAABAAH/BAAEAAMAAgADAAEAAf8EAAQDAwACAAMBAQEDBAUD/wIDAgEBAAIEAwEBAQEEBQc7BAH//wAAAAMAAAAAAAEAAf//AAQAAwAAAAIAAQAB//8ABAMDAAAAAgEBAQMEBQP/AwMCAQEAAwQCAQEBAQQFBy4EAQACAAAAAwABAAAAAgABAAIAAAMDAAEAAAICAQMEBQEAAgAEAAMAAQADAAIAAQACAAQDAwABAAQCAwAHUAQB//8BBAMDAAABBAIDAAP/BAMCAQEABAMCAQEBAQQFCv//BAMDAQAABAIDAQAD/wQDAgH/AAQDAgEAAAcvBAEBAgAAAAMBAgAAAAMAAQECAAQAAwECAAQAAwAB//8DBAMDAAABAgEBAQMCBQf/AgMBAgEAAgQBAwEBAQMFBzAEAQICAAAAAwECAAAAAwABAgIAAAMDAQIAAAMDAQMEBQECAgAEAAMBAgAEAAMAAf//BAQDAwAAAgMBAQEDBAUIAAQBBAMBAQH/AwIBAQEAAQECBAQBAwMCAQEBAwQCAQEBAQAFBv8BAQMEAwABAQIEAwEBAQIIAQQDAQIBAQQDAQIBAQEABQgBBAQBAwMBAQEBAwQBAQEBAQAFBv//AQMEAgAAAQMEAgAH//8DAgMBAAADAgQBAAsBAQMDAgEBAQMEAgEBAQAFCAIEAQQC/wQD/wMBAAQCAAAG//8BAv8CAAABAgADAAn/AwH/AQIABAEAAgMAC/8BAgMC/wABAgQDAAAIAwQB//8AAQABAAAAAQACAAEE/wMEAwQCAAEDAQQBAwIEBv//AQIBAgAAAQMCBAAKAQIDAQMBAQIDAQQBAQEABQgEBAQBAQMDAQEBAQMEAQEBAQAFBAEDAwMBAQECAwQBAQEBAAUE//8DAwEBAAADBAEBAQEEBQb//wEDBAQAAAEDBAQBBAQFCAUEAQT//wMEBAIAAAEDBAAEAQMD/wEDAQIDAAEEAQEABAYBAQEDBAEBAQEDBAEBAQAFCwEBAwMBAQEBAwQBAQEBAAUIBgQB//8BAQIEAAABAQIEAQECAwQBAwMDAQEBAgMEAQEBAQAFBv8BAQMEBAABAQIDBAEBAQILAQEDAwQBAQECAwQBAQEABQgIBAH//wEBAgIAAAEBAgICAQIDAgQFBAEDAQMBAQEDAQQBAQEBAAUJ/wMDAwEBAAIDBAEBAQEEBQsBAQMBBAEBAQMBBAEBAQAFCAoEA///BAMBAgAABAMBAgAG//8BAgQDAAABAgQDAAr/AgEEBAEAAgEEBAECAQIFBAMEC/8BAgMD/wABAgMEAAAICwQBBAMCAQH/BAMCAQEAAQEDBAQB/wMCAv8BAAQCAwAABf//AgEB/wAAAgEBAAEBAwQJ/wMCAQH/AAMCAQEAAQEDBAgMAwQBA/////8BAwAAAAAAC/8BA////wABAwAAAAAEAQMD////AQMEAAAAAAgNBAH/AwEBAQEAAwEBAQEBAQIFAwL/AQMC/wIAAQQDAAAG/wEBAwEDAAEBAwEEAQEBBAn/AwICAf8ABAIDAQAACA4EAf8BAQEBAQABAQEBAQEBAQUBBAMDAwQEAgEBAQMEAQMBAwX//wIBAgIAAAIBAwQACv8CAQECAgACAQEDBAEBAgMIDwQB//8BAQECAAABAQECAQECBAQBAwECAQEBAwECAQEBAQAFBv8BAQMCAwABAQMCBAEBAQILAQEDAQMBAQEDAQQBAQEABQgQBAMC/wIDAf8CAAMEAQAABv//AQICAwAAAQIDBAAJ/wECAwECAAECBAEDAQEBBAv/AQIBA/8AAQIBAwABAQEDCBEEBAH/AQICAAEAAgMEAAAG//8BBAIDAAABBAIDAAn/AwIDAQAAAwIEAQAAC/8BBAEDAgABBAEDAgEBAQMIEgQBBAMEAwT/AgEDAQQAAQMBAwQBAwECAQMBAwECAQQBAQAEBf//AgEDAgAAAgEEAwAKAgIBAgICAgIBAwMEAQIABQgTBAEEAwAD/wIEAgADAAEAAQQDBAMDBAIBAwEBBAEDAQQEAQIBAv8DAQIBAwAEAQEAAgr/AgECAgEAAgEDBAEBAQIFCBQEAQIBAgEBAgIBAwEBBAEBAQQDAgECAQMAAgEDAQQAAQEBAwT//wECAgMAAAECAwQACv8CAQICAAACAQMEAAAIFQQB/wABAQECAAABAQECAQECBAT//wECAQIBAAECAQMBAQIEBf//AgEDAQAAAgEDAQEBAwUK/wIBAgECAAIBAwEEAQECBAgWBAEEAwQEBAQCAQMDAwQBBAAFBAEDAQIEBAEDAQIEBAIBAAIEBAUF//8CAQMDAAADAQQEAQMEBQr/AgECA/8AAgEDBAAACBcEBAEBAQIBAQEBAQIBAQEBAAUGAQEBAQIDAQEBAQIDAQEAAwn/AwIDAQEAAwIEAQEBAQQFC/8BAQEDAQABAQEDAQEBAQUIGAQDAv8CAwH/AgADBAEAAAb//wECAgMAAAECAwQACv8CAQICAQACAQMEAQEBAgUL/wECAQMBAAECAQMBAQEBBQgZBAEEAQMBAQIEAQMBAQIBAQEEBAEDAQIDAQEDAQIEAQEBAAUEAQEBAgMDAQEBAgMEAQEAAgr/AgECBAQAAgEDBAQBBAQFCBoEBAEDAgIBAQEEAgMBAQEBAAUG/wEBAwMDAAEBAwMDAQEBAgn/AwIEAf8AAwIEAQAACwEBAwIDAQEBAwIEAQEBAAUIGwQDAgEDAwEBAgEDBAEBAQEBBQQBAgIC//8BAgMEAAAABgAAAQIDAwAAAQIDBAEDBAUL/wECAgP/AAECAgQAAQICAwgcBAEEAwIAAQAEAwIAAQAAAwIBAwADAAIBAwAEAAAIAQQDAgEBAQQDAgEBAQEABQv/AQQCA/8AAQQCAwAACB0EA///BAECAQAABAECAQEBAwUG//8BAwMBAAABAwQBAQECBQv/AQMCAQEAAQMCAQEBAQEFCP8EAQEB/wAEAQEBAAEBAgQIHgQB/wEBAQEDAAEBAQEEAQEBBAMCAQMBAgECAQQBAwEBAQEFBAEDAgIBAwEDAgIBBAEBAAQKAgIBAwL/AgIBBAMAAQIABAgfBAEEAwEAAv8EAwEAAgAABAEBAgIBAQEBAgMBAQEBAAUG//8BAQMDAAABAQMEAQECAwsBAQECAwEBAQECAwEBAQAFCCAEAQQDAwMEAwIBAQEDAQEDAQUEAQECAgMBAQECAwQBAQEABQj/BAMDAQEABAIDAQEBAQQFC/8BAQIDAwABAQIDBAEBAQIIIQQBBP8DBAT/AgABAwQAAAQBAwMBAwEBAgMBBAEBAQAFBv8BAQMBAgABAQMBAgEBAQQJ/wMBAgEDAAMBAgEEAQECBAgjBQEE/wQEBP8CAAMDAwAABAEDAQEBAQEDAQEBAQEBAAUG/wEBAwICAAEBBAIDAQEBAgn/AwEDAf8AAgEDAQABAQIECwEBAwECAQEBAwECAQEBAAUIJAQB//8AAQACAAAAAQADAAEE/wQEA/8CAAMEAQAABv//AQICAgAAAQICAgECAwUL/wECAQL/AAEDAgQAAAglBAEEAQEBAAIEAQECAAMBAQEDBAEDAQEBAwEDAQEBBAEBAAQHAQMCAgMBAQMCAgQBAQICAwn/AwEDAwMAAgEDBAQBAwEFCCIEAwL/AQICBAIAAQMDBAECAAQEAQMDAQMDAQICAQMEAgEAAwMBBQYCAQEDAQECAQEDAQEBAQEFCf8DAQIDAwADAQIEBAEDAQUIJgQBBAIEAwICAwEEAgEBAQIBBQQBAQEBAQMBAQEBAQQBAQAEBv//AQECAgAAAQECAwEBAgMJ/wMBAwMBAAMBAwQBAQECBQgnBAH/AgEBBAMAAgEBBAMBAQIDBAEDAgEBAQEDAgEBAQEBAAUG/wEBAwMCAAEBAwQCAQEBAgv/AQMCAgEAAQQCAwEBAQEFCCgEBAECAgH/AQECAwEAAQEBAAUG//8BAgMCAAABAgQDAAoBAgMDA/8BAgMDAwABAwIEC/8BAgIC/wABAgMEAAAIKQQDAv8DAQACAgAEAQADAAQBAwIBAQMBAwIBAQQBAQAEBgEBAQMDAgEBAQMEAgEBAAIJ/wMBBAP/AAIBBAMAAAgqBAQBAQIBAQMBAQIBAQQBAQAEBv8BAQEDAgABAQEDAgEBAQMJ/wMBBAMBAAIBBAMBAQECBQsBAQECAgEBAQECAwEBAQAFCCsEAQQD/wME/wMBAAIEAAAE//8DAgEDAAADAgEEAAj/BAMBBAEAAwIBBAEBAQMFCv8CAf8CAgACAQADBAAILQMI/wQDAQICAAQDAQICAQIEBQEEAwEBAv8EAwEBAgABAQIDAwIBBAT//wIBBAQAAAEEAgMILAQBBAL/AwT/AwEAAgQAAAT//wMBAQMAAAMBAQQBAQMEBAEDAwEBAwECAwEBBAEBAAQI/wQCAQT/AAMCAQQAAAhMBAb/BAEDAgEABAEDAgEBAQIFCwQBAwEBAQQBAwEBAQEBAQULBAEDAwEBBAECAwEBAQEBBQsEAQMBAf8EAQMBAQABAQEECEUCBgIBAQMCAQIBAQQDAQEBAQUGAv8BAwIBAgABBAMBAQECBQhSBAH/AAEBAAQAAAECAAQAAf8AAQQEBAAAAQQEBAEEAwUE/wADAQEBAAADAQEBAQEDBQT/AAMBAQQAAAMBAQQBAQMECDgEAf8CAQEEBAACAQEEBAEBAgMB/wIBBAQEAAIBBAQEAQQDBQQEAwMBAQEEAgMBAQEBAQMFB///AwIDAQAAAwIEAQAIUwQB/wEBBAQEAAEBBAQEAQEBAgQDAwMBAQECAwQBAQEBAQMFBgEBAQMEAgEBAQMEAgEBAAIH//8CAgMBAAACAwQBAAg5BAH/AwEEBAQAAwEEBAQBBAMFB///BAIDAQAABAIDAQAK//8BBAMCAAABBAMCAAH/AwEBAP8ABAECAAAACDoEBP8BAwEBAQABAwEBAQEBAQUE/wEDAQEEAAEDAQEEAQEBBAv//wEDAgEAAAEDAgEBAQIFAf8EAQEA/wAEAQIAAAAIPAQB//8ABAQEAAAAAQEBAQQDBQT/AgMBAQEAAgMBAQEBAQMFBP8CAwEBBAACAwEBBAEBAwQH//8AAgMBAAAAAgMBAAg/BAEAAgEBBAQAAgEBBAQBAQIDAQACAQQEBAACAQQEBAEEAwUB//8CBAQEAAABAwMDAQQDBQQAAwMBAQEAAwQBAQEBAQMFCFQEAf//AQEABAAAAQIABAAB//8BBAQEAAABBAQEAQQDBQT/AwMBAQEAAwQBAQEBAQMFBP8DAwEBBAACAwEBBAEBAwQIQAQBAQIBAQQEAQIBAQQEAQEAAwEBAgEEBAQBAgEEBAQBAQACAf//AwQEBAAAAQICAgEEAwUBAQIBAQD/AQQCAwAAAAhBBAH//wQEBAQAAAEBAQEBBAIFAQICAQEA/wMEAQIAAAAI/wICAQL/AAIDAQQAAAECAgEB//8CAwEBAAABAQIDCEIEAQMCAQEEBAMCAQEEBAEBAgMBAwIBBAQEAwIBBAQEAQQDBQT//wIBAQEAAAIBAQEBAQMFAQMCAQEA/wQDAQIAAAAIMwQB/wABAQEEAAABAQEEAQECBAT/AAMCAQEAAAMCAQEBAQQFBP//BAIBAQAABAIBAQEBBAUG/wABAwQDAAABAgQDAAg1BAH/AgEBAQQAAgEBAQQBAQIECP//AgECAQAAAgEDAQEBAwUB/wIBAQH/AAIBAQEAAQECBAUDAgIB//8EAgMBAAAACDQEAf8BAQEBBAABAQEBBAEBAQQGAQEBAwQDAQEBAgQDAQEAAgj//wEBAgEAAAEBAgEBAQIFAf8BAQEB/wABAQEBAAEBAQQINgQB/wMBAQEEAAMBAQEEAQECBAH/AwEBBAQAAwEBBAQBAQIDCAEEAwECAQEEAwECAQEBAAUIAf//AQIBAQEBAQIBAQEABQg3BAT/AQMCAQEAAQMCAQEBAQEFCP//BAECAQAABAECAQEBAwUL//8BAwMBAAABAwQBAQECBQH/BAEBAf8ABAEBAQABAQIECDsEBP//AAIBAQAAAAIBAQEBBAUE/wIDAgEBAAIEAwEBAQEEBQj//wABAgEAAAABAgEBAQMFC///AAMDAQAAAAMEAQAILgQBAAMBAQEEAAMBAQEEAQECBAEAAwEBBAQAAwEBBAQBAQIDAv//AQQDAwAAAQQCAwAEAAMDAgEBAAMEAgEBAQEEBQhQBAH//wEBAQQAAAEBAQQBAQIEBP8DAwIBAQADBAIBAQEBBAUG/wEBAwQDAAEBAgQDAQEBAgsBAQMDAwEBAQIDBAEBAQAFCC8EAQEDAQEBBAEDAQEBBAEBAAQBAQMBAQQEAQMBAQQEAQEAAwP//wEDAgIAAAEEAgMACP8BAwECAQABAwECAQEBAQUIMAQBAgMBAQEEAgMBAQEEAQECBAECAwEBBAQCAwEBBAQBAQIDBP//AQIBAQAAAQIBAQEBAgUI/wIDAQIBAAIEAQMBAQEDBQgxBAEDAwEBAQQCAwEBAQQBAQIEAQMDAQEEBAIDAQEEBAEBAgME//8CAgEBAAACAwEBAQEEBQj/AwMBAgEAAwQBAgEBAQMFCQAEAf8AAgICAAAAAQIDAAAC/wABAQEEAAABAQEEAQECBAUBAwMCAQEBAwQCAQEBAQAFB/8AAQMEAwAAAQIEAwAJAQQB/wACAgEAAAACAwEAAAL/AAEEBAQAAAEEBAQBBAMFBQEDAwEBAQEDBAEBAQEBAAUH/wABAwQCAAABAwQCAAkCBAH/AAECAf8AAAEDAgAAAwMB/wIB/wMBAAQCAAAH//8BAv8CAAABAgADAAr/AwH/AQIABAEAAgMACQMEAf8AAQIBAgAAAQMCBAAEAv8BAgH/AgABAwEAAQECBAUBAgMBAwEBAgMBBAEBAQAFB/8AAQIBAgAAAQMCBAEBAgQJBAQB/wAAAgMAAAAAAQIAAAH/AAICAwAAAAECAwAAAv8AAQECBAAAAQECBAEBAgMF/wADAwEBAAADBAEBAQEEBQkFBAH/AAICAAAAAAIDAAAAAf8AAgQAAAAAAQQAAAAHAQEBAwQBAQEBAwQBAQEABQn/AAEBAAAAAAECAAAACQYEAf8AAgIDAAAAAQIDAAAB/wAA/wMAAAAAAAEAAAUBAwMDAQEBAwMEAQECAQAFAwEDB/8BAQMEBAABAQIDBAEBAQIJBwMB/wAAAgAAAAAAAQAAAAUBAQMDAQMBAQIDAQQBAQAEAgQEAQP//wMEAQIAAAAJCAQB/wACAAMAAAACAAMAAAUBAwEDAQEBAwEEAQEBAQAFB/8AAQMCBAAAAQMCBAAK/wMDAwEBAAIDBAEBAQEEBQkKBAH/AAECAv8AAAECAwAABP8ABAMBAgAABAMBAgAI/wAEAQMCAAAEAQMCAAz/AQIDA/8AAQIDBAAACQsEAf8AAwICAQAABAIDAQACBAMCAQH/BAMCAQEAAQEDBAUB/wMCAgEBAAQCAwEBAQAFCv8DAgEB/wADAgEBAAEBAwQJDAMFAQP/////AQMAAAAAAAH/AAL///8AAAEAAAAABQEDA////wEDBAAAAAAJDQQB/wACAgICAAABAQEBAQICBQQC/wEDAv8CAAEEAwAABQED/wIDAQEDAAIEAQEBAAUK/wMCAgH/AAQCAwEAAAkOBAH/AAQEAgIAAAMEAQEBAgQFBAIBAQECAgIBAQEDBAEBAQMG/wICAQICAAICAQMEAQIBBQv/AgEBAgIAAgEBAwQBAQIDCQ8EAf8AAgACAAAAAgADAAAB/wACAgIDAAABAQECAQICBAUBAwECAQEBAwECAQEBAQAFB/8AAQMCAwAAAQMCBAAJEAQB/wABAgIDAAABAgMEAAT/AAIDAQIAAAIEAQMAB///AQICAwAAAQIDBAAK/wECAwECAAECBAEDAQEBBAkRBAH/AAMAAgEAAAMAAgEAAf8AAwICAwAAAgEBAwECAwQF/wABAgIBAAABAgMBAQECBQf//wEEAgMAAAEEAgMACRIEAgQDAQAAAAQDAQAAAAAB/wACBAIDAAABAwECAQICBAUBAwECAQMBAwECAQQBAQAEC/8CAQICAgACAQMDAwECAQUJEwQB/wABBAIDAAABBAIDAAQCAQIBAQICAQMBAQQBAQEECP8AAgEBAgAAAgEBAwEBAwQL/wIBAgIBAAIBAwQBAQECBQkUBAH/AAMEAgMAAAIEAQMAAwMCAQAAAwMCAQAABAAF/wABAgIDAAABAgMEAAv/AgECAAMAAgEDAAQACRUEAf8AAgMCAwAAAQIBAwECAgQFAQMBAgECAQQBAgEDAQEABAb//wIBAwEAAAIBAwEBAQMFC/8CAQIBAgACAQMBBAEBAgQJFgQFAQMBAgQEAQMBAgQEAgEAAgQEBQb//wIBAwMAAAIBAwQACP8AAwIBAgAABAIBAwAL/wIBAgP/AAIBAwQAAAkXBAH/AAAAAgAAAAAAAgAAAwMCAAAAAQMCAAAAAQAFAQEBAgEBAQEBAgEBAQEABQcBAQEBAgMBAQEBAgMBAQADCRgEAf8AAQACAAAAAQADAAAEAgECAQECAgEDAQEEAQEBBAf//wECAgMAAAECAwQAC/8CAQICAQACAQMEAQEBAgUJGQQB/wACAAICAAABAAIDAAMDAgIAAQAEAgMAAQAABQEDAQIDAQEDAQIEAQEBAAUL/wIBAgQEAAIBAwQEAQQEBQkaBAH/AAIBAgAAAAIBAwAAAf8AAgICBAAAAQEBBAECAgQFAQMCAgEBAQQCAwEBAQEABQf/AAEDAwMAAAEDAwMBAwMFCRsEAf8AAQECBAAAAQECBAEBAgMB/wABAgIEAAABAgIEAQIDBAUBAgIC//8BAgMEAAAAB/8AAQIDAwAAAQIDBAAJHAQB/wADAQIBAAADAQIBAQEDBQH/AAMCAgQAAAIBAQMBAgMEBf8AAgICAQAAAgMEAQAJAQQDAgEBAAQDAgEBAQEABQkdBAH/AAIBAAAAAAIBAAAAAf8AAgEABAAAAgEABAAB/wACAgAEAAABAgAEAAH/AAIEAAQAAAEDAAQACR4EAf8AAgQCBAAAAQMBBAECAgQEAgEDAQIAAgEEAQMAAQEBAwX/AAICAQMAAAIDAQQACwICAQMC/wICAQQDAAECAAQJHwQB/wAAAQIAAAAAAQIAAAH/AAACAgQAAAABAQQBAgMEBQEBAgIBAwEBAgMBBAEBAAQJAgABAQEBAgABAQEBAQECBQkgBAH/AAIBAgIAAAIBAwQABAIBAQECAQIBAQEDAQEBAQUG/wABAQICAAABAQMEAQECAwn/BAMDAQEABAIDAQEBAQQFCSEEAf8AAgIBAgAAAgMBBAAEAv8BAgICAgABAwMEAQIABQUBAwMBAwEBAgMBBAEBAQAFB/8BAQMBAgABAQMBAgEBAQQJIwYB/wACAAEAAAACAAEAAAH/AAICAQMAAAIDAQQABQH/AQEB/wIAAwMDAAAF/wABAQEBAAABAQEBAQECBQUBAwEBAQEBAwEBAQEBAQAFB/8BAQMCAgABAQQCAwEBAQIJJAQB/wABAAH/AAACAAMAAAQC/wICAf8CAAMEAQAABQECAwEEAQECAwEEAQEBAAUH//8BAgICAAABAgICAQIDBQklBAH/AAIEAQMAAAIEAQMABQEDAQEBAwEDAQEBBAEBAAQIAQACAAEAAQADAAIAAAr/AwEDAwMAAgEDBAQBAwEFCSIEBP8AAQIAAAAAAgQAAAAFAQMDAQMDAQICAQMEAgEAAwMBBQcCAAEDAQECAAEDAQEBAQIFCv8DAQIDAwADAQIEBAEDAQUJJgQB/wAAAAEAAAAAAAEAAAMDAQMCAQEDAQQCAQEBAQEFBQEBAQEBAwEBAQEBBAEBAAQK/wMBAwMBAAIBAwQBAQECBQknBAH/AAIBAQAAAAMBAgAABQEDAgEBAQEDAgEBAQEBAAUH/wEBAwMCAAEBAwQCAQEBAgn/BAIBAf8ABAIBAQABAQMECSgEAf8AAQEBBAAAAQEBBAEBAgQFAQICAf8BAQIDAQABAQEABQf//wECAwIAAAECBAMACwECAwMD/wECAwMDAAEDAgQJKQQDAwEEAgAAAwEEAgAAAAT/AAMCAAEAAAMCAAEABQEDAgEBAwEDAgEBBAEBAAQI/wACAgIBAAACAwQBAAkqBAH/AAABAQAAAAABAgAABQEBAgEBAwEBAgEBBAEBAAQH/wABAQMCAAABAQMCAQECAwr/AwEEAwEAAgEEAwEBAQIFCSsEAf8AAgQCAAAAAQMCAAAF//8DAgEDAAADAgEEAAn/BAMBBAEAAwIBBAEBAQMFC/8CAf8CAgACAQADBAAJLQQH/wABAQQDAAABAQQDAQECAwn/AAMBAgIAAAMBAgIBAgQFCf8ABAECAQAABAECAQEBAwUJ/wQDAQICAAQDAQICAQIEBQksBAH/AAIEAQAAAAIEAQAABf//AwEBAwAAAwEBBAEBAwQH//8BAwACAAABAwACAAn/BAIBBP8AAwIBBAAACU0EAQMAAgAAAAIAAQAAAAABAwACAAADAgABAAADAAEDAAICAAADAAECAAAAAQMAAgQAAAIAAQMAAAAJRgIHAgEBAwIBAgEBBAMBAQEBBQcC/wEDAgECAAEEAwEBAQIFCVUEAgMCAQEEBAMCAQEEBAEBAgMCAwIBBAQEAwIBBAQEAQQDBQX//wIBAQEAAAIBAQEBAQMFAgMCAQEE/wMCAQEEAAEBAgMJOAQB/wICAgEAAAIDBAEAAAL/AQEEBAQAAQEEBAQBAQECBQMDAwEBAQIDBAEBAQEBAwUHAQEBAwQCAQEBAwQCAQEAAglTBAH/AQICAQAAAQMEAgAABQIDAwEBAQIDBAEBAQEBAwUF//8EAQEBAAAEAQEBAQEDBQj//wECAwEAAAECAwEBAQIFCTkEAf8DAgIBAAAEAgMBAAAC/wIBAQQEAAIBAQQEAQECAwL/AgEEBAQAAgEEBAQBBAMFBQQDAwEBAQQCAwEBAQEBAwUJOgQC/wMBBAQEAAMBBAQEAQQDBQj//wQCAwEAAAQCAwEAC///AQQDAgAAAQQDAgAJAQQCAf//AQQCAQAAAQEAAwk8BAH//wACAQAAAAACAQAABf//AAEBAQAAAAEBAQEBAwUF/wEDAQEBAAEDAQEBAQEBBQX/AQMBAQQAAQMBAQQBAQEECT8EAQAAAgIBAAAAAgMBAAABAAMCAgEAAAQCAwEAAAIAAgEBBAQAAgEBBAQBAQIDAgACAQQEBAACAQQEBAEEAwUJVAQB//8BAgEAAAABAwIAAAX/AgMBAQEAAgMBAQEBAQMFBf8CAwEBBAACAwEBBAEBAwQF/wIDAQH/AAIDAQEAAQEDBAlABAH//wMCAQAAAAMCAQAAA///AQMDAwAAAQMDAwEDAwUF/wQDAQEBAAQDAQEBAQEDBQj/AQMCAwEAAQMCBAEBAQEFCUEEAQIAAgIBAAIAAwQBAAAB//8EAgEAAAAEAgEAAAIBAgEBBAQBAgEBBAQBAQADAgECAQQEBAECAQQEBAEBAAIJQgQBAwACAgEABAACAwEAAAX//wEBAQEAAAEBAQEBAQIFAQMAAgIB/wQAAgMBAAAJ/wICAQL/AAIDAQQAAAlRBAIDAwEBAQQCAwEBAQQBAQIEAgMDAQEEBAIDAQEEBAEBAgMF//8CAgEBAAACAwEBAQEEBQn/AwMBAgEAAwQBAgEBAQMFCTUEAf8CAgICAAABAgMEAAAC/wEBAQEEAAEBAQEEAQEBBAcBAQEDBAMBAQECBAMBAQACCf//AQECAQAAAQECAQEBAgUJNAQB/wECAgIAAAECAwQAAAX//wQCAQEAAAQCAQEBAQQFCP//AQIDAgAAAQIEAwAB/wECAgL/AAECAgIAAQICBAk2BAH/AwICAgAABAECAwAAAv8CAQEBBAACAQEBBAEBAgQJ//8CAQIBAAACAQMBAQEDBQH/AwICAv8AAgEBAQABAgIECTcEAv8DAQEBBAADAQEBBAEBAgQC/wMBAQQEAAMBAQQEAQECAwkBBAMBAgEBBAMBAgEBAQAFCQH//wECAQEBAQECAQEBAAUJOwQB//8AAgIAAAAAAQIAAAX//wACAQEAAAACAQEBAQQFBf8BAwIBAQABAwIBAQEBAQUJ//8AAQIBAAAAAQIBAQEDBQkuBAEAAAICAgAAAAECAwAAAgADAQEBBAADAQEBBAEBAgQCAAMBAQQEAAMBAQQEAQECAwH//wICAgAAAAECAwAACVAEAf//AQICAAAAAQIDAAAF/wIDAgEBAAIEAwEBAQEEBQX/AgMCAf8AAgQDAQAACwECBAQE/wECBAQEAAEEAgQJLwQBAQACAgIAAQACAwQAAAH//wMCAgAAAAMBAgAAA///AQQDAwAAAQQCAwAF/wQDAgEBAAQDAgEBAQEEBQkwBAECAAICAgABAAIDBAAAAf//BAICAAAABAECAAACAQMBAQEEAQMBAQEEAQEABAIBAwEBBAQBAwEBBAQBAQADCTEEAQMAAgICAAQAAQIDAAACAgMBAQEEAgMBAQEEAQECBAICAwEBBAQCAwEBBAQBAQIDBf//AQIBAQAAAQIBAQEBAgUKAAQB/wEDAwMBAAECAwQBAQEBBQMEAwEBAf8EAwEBAQABAQIEBgEDAwIBAQEDBAIBAQEBAAUI/wEBAwQDAAEBAgQDAQEBAgoBBAH/AQMDAgEAAQMEAgEBAQEFBgEDAwEBAQEDBAEBAQEBAAUG//8DAQEBAAADAQEBAQEDBQj//wEDBAIAAAEDBAIACgIEAf8BAgMC/wABAgQDAAAEAwH/AwL/AwEABAIAAAj//wEC/wIAAAECAAMAC/8DAf8BAgAEAQACAwAKAwQB/wECAAIAAAECAAMAAAH//wIDAgMAAAEDAgQABgECAwEDAQECAwEEAQEBAAUI//8BAgECAAABAwIEAAoEBAH/AQEDBAEAAQEDBAEBAQEFAf8BAwMEAQABAgMEAQEBAQUGAQEDAwEBAQEDBAEBAQEABQYBAwMDAQEBAgMEAQEBAQAFCgUEAQEBAwMBAQEBAwQBAQEBAAUDBAEBAwT/AwEBAgQAAQEBAggBAQEDBAEBAQEDBAEBAQAFCv8EAQECBAADAQECBAEBAgMKBgQB/wEDAwQBAAECAwQBAQEBBQP//wEBAgQAAAEBAgQBAQIDBgEDAwMBAQEDAwMBAQEBAAUI/wEBAwQEAAEBAgMEAQEBAgoHAwH/AQEDAQEAAQEDAQEBAQEFBgEBAwMBAwEBAgMBBAEBAAQDBAQBA///AwQBAgAAAAoIBAH/AQMBBAEAAQMBBAEBAQEFAf//AwMEBAAAAQECAgIDAgMEBAUGAQMBAwEBAQMBBAEBAQEABQj//wEDAgQAAAEDAgQACgoEAf8BAgMDAAABAgMEAAAFAgMAAwEAAgMABAEAAAYBAgAC/wEBAwAEAAIACP//AQIEAwAAAQIEAwAKCwQB/wEEAwP/AAEEAgMAAAMEAwIBAf8EAwIBAQABAQMEBv//AwICAQAABAIDAQAH//8CAQH/AAACAQEAAQEDBAoMAwYBA/////8BAwAAAAAAAf8BA////wABAwAAAAAGAQMD////AQMEAAAAAAoNBAH/AQMDAwMAAQMDAwMBAwIFBQIBAAACAgIBAAADBAAGAQP/AgMBAQMAAgQAAQEABQr/BAICAf8ABAIDAQAACg4EAf8BAAABAQABAAACAwAFAgEBAQICAgEBAQMEAQEBAwf/AgIBAgIAAgIBAwQBAgEFDP8CAQECAgACAQEDBAEBAgMKDwQB/wEDAQMBAAEDAQQBAQEBBQYBAwECAQEBAwECAQEBAQAFCP8BAQMCAwABAQMCBAEBAQIL/wMCAwH/AAMCBAEAAAoQBAH/AQIBA/8AAQIBAwABAQEDBQL/AgMBAAIAAwQBAAAI//8BAgIDAAABAgMEAAv/AwIDAQAAAwIEAQAAChEEAf8BBAEDAgABBAEDAgEBAQMGAf8BAgL/AQACAwQAAAj//wEEAgMAAAEEAgMADP8CAQL/AwACAQMABAAKEgQB/wEAAQEBAAEAAgMEAAUCAQIBAv8CAQMBBAABAQEDBgEDAQIBAwEDAQIBBAEBAAQM/wIBAgICAAIBAwMDAQIBBQoTBAH/AQABAQAAAQACAwAABAP/AAICAQQAAAIDAQAFAgECAQECAgEDAQEEAQEBBAz/AgECAgAAAgEDBAAAChQEAf8BAAEBAgABAAIDBAABBAMEAwMEAgEDAQEEAQMBBAUCAQIBA/8CAQMBBAABAQEDBgH/AQICAwEAAQIDBAEBAAIKFQQB/wEAAQABAAEAAgADAAQDAgMB//8DAgQBAAAABgH/AQIBAgEAAQIBAwEBAAQM/wIBAgECAAIBAwEEAQECBAoWBAH/AQABAv8AAQACAwAABgEDAQIEBAEDAQIEBAIBAAIEBAUH//8CAQMDAAACAQMEAAz/AgECA/8AAgEDBAAAChcEAf8BAQEDAQABAQEDAQEBAQUEAwIAAgEBBAIAAwEBAQEEBQgBAQEBAgMBAQEBAgMBAQADC/8DAgMBAQADAgQBAQEBBAUKGAQB/wEAAQEAAAEAAgMAAAUCAQIBAf8CAQMBAQABAQEECP//AQICAwAAAQIDBAAM/wIBAgIBAAIBAwQBAQECBQoZBAH/AQABAwMAAQACBAQBAwQFBAMCAAABAQMCAAABAQEBBAUGAQEBAgMDAQEBAgMEAQEAAgz/AgECBAQAAgEDBAQBBAQFChoEAf8BAwIDAQABAwIEAQEBAQUD//8BAQEDAAABAQEEAQECBAYBAwICAQEBBAIDAQEBAQAFCP8BAQMDAwABAQMDAwIBAQIDAwUKGwQB/wECAgP/AAECAwQAAAUCAQMDAQECAQMEAQEBAQEFBgECAgL/AAECAwQAAAAI//8BAgMDAAABAgMEAAocBAH/AQACAwIAAQACBAMAA///AgEBAwAAAgEBBAEBAwQGAf8CAgL/AQACAwQAAAoBBAMCAQEBBAMCAQEBAQAFCh0EAf8BAwIBAQABAwIBAQEBAQUF//8EAQIBAAAEAQIBAQEDBQj//wEDAwEAAAEDBAEBAQIFAf8BAwIB/wABAwIBAAEBAQQKHgQBAQEAAgH/AQEAAwIAAQEABAMEAQEBAQMEAQEBAQMBAQEEBQIBAwEC/wIBBAEDAAEBAQMGAQMCAgEDAQMCAgEEAgEABAICAwofBAH/AQECAwEAAQECAwEBAQEFBAP/AAIBAgQAAAIBAwAGAQECAgEBAQECAwEBAQEABQj//wEBAwMAAAEBAwQBAQIDCiAEAf8BAQIDAwABAQIDBAEBAQIFAgEBAQIBAgEBAQMBAQEBBQYBAQICAwEBAQIDBAEBAQAFCv8EAwMBAQAEAgMBAQEBBAUKIQQB/wED/wIDAAEDAAIEAAP/AgMBBP8AAgMBBAAABQL/AQICAgIAAQMDBAECAAUGAQMDAQMBAQIDAQQBAQEABQojBQUB/wEBAf8CAAMDAwAAAf8BAwECAQABAwECAQEBAQUB//8DAwIEAAACAwEEAAYBAwEBAQEBAwEBAQEBAQAFCP8BAQMCAgABAQQCAwEBAQIKJAQB/wECAQL/AAEDAgQAAAH//wIDAgQAAAECAQQBAgIEBQL/AgIB/wIAAwQBAAAI//8BAgICAAABAgICAQIDBQolBAL//wIEAQMAAAIEAQMABAMB/wIDAQMBAAIEAQEBAQUGAQMBAQEDAQMBAQEEAQEABAv/AwEDA/8AAgEDBAAACiIEBQL/AQICBAIAAQMDBAECAAQGAf8DAQMDAQACAQMEAQEAAwgC/wEDAQECAAEEAQEBAQIFC/8DAQID/wADAQIEAAAKJgQEAwEDAgEBAwEEAgEBAQEBBQYBAQEBAQMBAQEBAQQBAQAECP//AQECAgAAAQECAwEBAgML/wMBAwMBAAIBAwQBAQECBQonBAH/AQMCAgEAAQQCAwEBAQEFBgEDAgEBAQEDAgEBAQEBAAUI/wEBAwMCAAEBAwQCAQEBAgr/BAIBAf8ABAIBAQABAQMECigEAf8BAgICAAABAgMEAAAFAgP/AgEBAgQAAwEBAQEEBQYBAgIB/wEBAgMBAAEBAQAFCP//AQIDAgAAAQIEAwAKKQQEAwH/AgMCAwEAAgQCAQIDBQQDAQQC//8DAQQCAAAABgEDAgEBAwEDAgEBBAEBAAQIAQEBAwMCAQEBAwQCAQEAAgoqBAH/AQECAgEAAQECAwEBAQEFBgEBAgEBAwEBAgEBBAEBAAQI/wEBAQMCAAEBAQMCAQEBAwv/AwEEAwEAAgEEAwEBAQIFCisEAf8BAAMBAQABAAQCAwAG//8DAgEDAAADAgEEAAf//wIB/wIAAAIBAAMACv8EAwEEAQADAgEEAQEBAwUKLQQK/wQDAQICAAQDAQICAQIEBQH/AQADBP8AAQADBAAAAwQDAQEC/wQDAQECAAEBAgMFAgEEBP//AgEEBAAAAQQCAwosBAH/BAMDAf8ABAIDAQAABAMB/wID/wMBAAIEAAAG//8DAQEDAAADAQEEAQEDBAr/BAIBBP8AAwIBBAAACk4EAQQBAwEBAQQBAwEBAQEBAQUBBAEDAwEBBAECAwEBAQEBBQj/BAEDAgEABAEDAgEBAQIFAQQBAwEB/wQBAwEBAAEBAQQKRwIIAgEBAwIBAgEBBAMBAQEBBQgC/wEDAgECAAEEAwEBAQIFClIEAf8AAwMCAQAAAwQCAQAD/wABBAQEAAABBAQEAQQDBQMDAgEBBAQDAgEBBAQBAQIDAwMCAQQEBAMCAQQEBAEEAwUKVQQG//8BAQEBAAABAQEBAQECBQr/AgIBAv8AAgMBBAAAAQQEAwP//wIDAQEAAAEDAgMDAv8BBAQEAgABBAQEAQQDBQo4BAYCAwMBAQECAwQBAQEBAQMFBv//BAEBAQAABAEBAQEBAwUJ//8BAgMBAAABAgMBAQECBQH/AgMDAv8AAQIDAQABAgEECjkEA/8BAQQEBAABAQQEBAEBAQIGAwMDAQEBAgMEAQEBAQEDBQgBAQEDBAIBAQEDBAIBAQACCf//AgIDAQAAAgMEAQAKOgQD/wIBAQQEAAIBAQQEAQECAwP/AgEEBAQAAgEEBAQBBAMFBgQDAwEBAQQCAwEBAQEBAwUJ//8DAgMBAAADAgQBAAo8BAH//wADAgEAAAADAgEAA/8DAQQEBAADAQQEBAEEAwUG//8AAQEBAAAAAQEBAQEDBQn//wACAwEAAAACAwEACj8EAQABAwMCAQABAwQCAQEBAQUB//8CAwIBAAACBAMBAAMAAgEBBAQAAgEBBAQBAQIDAwACAQQEBAACAQQEBAEEAwUKVAQB//8BAwIBAAABAwIBAQECBQb/AQMBAQEAAQMBAQEBAQEFBv8BAwEBBAABAwEBBAEBAQQG/wEDAQH/AAEDAQEAAQEBBApABAEBAQMDAgEBAQMEAgEBAQAFAf//AwMCAQAAAwQCAQAD//8BBAQEAAABBAQEAQQDBQb/AwMBAQEAAwQBAQEBAQMFCkEEAf//BAMCAQAABAMCAQAE//8BAwMDAAABAwMDAQMDBQb/BAMBAQEABAMBAQEBAQMFCf8BAwIDAQABAwIEAQEBAQUKQgQDAQIBAQQEAQIBAQQEAQEAAwMBAgEEBAQBAgEEBAQBAQACBf//AQICAgAAAQICAgECAwUDAQIBAQT/AQIBAQQAAQEAAwozBAH/AAADAwEAAAADBAEAAf8AAwMDAQAAAgMEAQAD/wABAQEEAAABAQEEAQECBAMDAwEBAQQCAwEBAQQBAQIEClEEAwIDAQEBBAIDAQEBBAEBAgQDAgMBAQQEAgMBAQQEAQECAwb//wECAQEAAAECAQEBAQIFCv8CAwECAQACBAEDAQEBAwUKNQQB/wIAAwMBAAIAAwQBAAb//wQCAQEAAAQCAQEBAQQFCf//AQIDAgAAAQIEAwAB/wIDAwP/AAECAgIAAQMCBAo2BAH/AwADAwEAAgADBAEAA/8BAQEBBAABAQEBBAEBAQQIAQEBAwQDAQEBAgQDAQEAAgr//wEBAgEAAAEBAgEBAQIFCjcEAf8EAAMDAQAEAAIDAQAD/wIBAQEEAAIBAQEEAQECBAr//wIBAgEAAAIBAwEBAQMFAf8EAwMD/wACAQEBAAEDAgQKOwQB//8AAwMBAAAAAwQBAAP//wABBAQAAAABBAQBBAQFA/8DAQEBBAADAQEBBAEBAgQD/wMBAQQEAAMBAQQEAQECAwouBAEAAQMDAwEAAQIDBAEBAQEFAf//AgMDAQAAAgMEAQADAAMBAQEEAAMBAQEEAQECBAMAAwEBBAQAAwEBBAQBAQIDClAEAf//AQMDAQAAAQMEAQEBAgUG/wEDAgEBAAEDAgEBAQEBBQr//wQBAgEAAAQBAgEBAQMFA/8EAQEB/wAEAQEBAAEBAgQKLwQBAQEDAwMBAQECAwQBAQEABQH//wMDAwEAAAIDBAEAA///AQEBBAAAAQEBBAEBAgQG/wMDAgEBAAMEAgEBAQEEBQowBAH//wQDAwEAAAQCAwEABP//AQQDAwAAAQQCAwAG/wQDAgEBAAQDAgEBAQEEBQECAQMDA/8CAQMDAwABAwIECjEEAwEDAQEBBAEDAQEBBAEBAAQDAQMBAQQEAQMBAQQEAQEAAwX//wEDAgIAAAEEAgMACv8BAwECAQABAwECAQEBAQULAAQBAgIEBAQCAQECAwQBAQIABQT//wEBAQQAAAEBAQQBAQIEBwEDAwIBAQEDBAIBAQEBAAUJ/wEBAwQDAAEBAgQDAQEBAgsBBAECAgQEAwIBAQMEAgEBAgAFBwEDAwEBAQEDBAEBAQEBAAUJ//8BAwQCAAABAwQCAAr//wMCAwEAAAMCBAEACwIEAf8CAP8AAQADAAAAAgAB/wIDBAP/AAECBAMAAAUDAf8DAv8DAQAEAgAACf//AQL/AgAAAQIAAwALAwQB/wIDAQMBAAIDAQQBAQEDBQH//wMEAwQAAAEDAgQABgL/AQIB/wMAAQQCAAAHAQIDAQMBAQIDAQQBAQEABQsEBAH/AgQEAAAAAQMEAAAAAv8BAQMEAQABAQMEAQEBAQUC/wEDAwQBAAECAwQBAQEBBQcBAQMDAQEBAQMEAQEBAQAFCwUEAQICBAQCAgEBAwQBAQECAAUGAv//AQICAgAAAQMEAAkBAQEDBAEBAQEDBAEBAQAFC/8EAQECBAADAQECBAEBAgMLBgQCAQEDAwQBAQECAwQBAQEABQT//wEBAgQAAAEBAgQBAQIDBwEDAwMBAQECAwQBAQEBAAUJ/wEBAwQEAAEBAwQEAgEBAgQEBQsHAwH/AgIEAgIAAQEDAQEBAgEFBwEBAwMBAwEBAgMBBAEBAAQEBAQBA///AwQBAgAAAAsIBAH/AgICAAAAAQIDAAAAAgEBAwEEAQEBAwEEAQEBAAUE//8BAQICAAABAQICAgECAwIEBQcBAwEDAQEBAwEEAQEBAQAFCwoEAf8CAwQE/wABAgMEAAAG//8EAwECAAAEAwECAAcBAgMCAP8BAgQDAAAACf//AQIAAwAAAQIAAwALCwQB/wIBAAD/AAIBAAAAAAP//wMCAgEAAAQCAwEABwH/AwIC/wEABAIDAAAM/wMCAQEAAAMCAQEAAQEDBAsMAwcBA/////8BAwAAAAAAAf8CBP///wABAwAAAAAHAQMD////AQMEAAAAAAsNBAH/AgEBAP8AAwECAAAAAf8CBAQEBAABAwMDAwEEAgUHAf8DAgP/AQADAgQAAAn//wEDAQMAAAEDAQQBAQIECw4EAf8CAQECAgACAQEDBAEBAgMGAgEBAQICAgEBAQMEAQEBAwj/AgIBAgIAAgIBAwQBAgEFC/8EAQMCAQAEAQMCAQEBAgULDwQB/wIBAgACAAIBAwAEAAECAgQCBAIBAQMBBAEBAgAFBP//AQEBAgAAAQEBAgEBAgQHAQMBAgEBAQMBAgEBAQEABQsQBAH/AgECAAEAAwEEAAIAAf8CAwIE/wABAgEDAAAGAv8CAwH/AgADBAEAAAn//wECAgMAAAECAwQACxEEAf8CAQIAAwACAQMABAAC/wEEAQMCAAACAQEDAQEBAwcB/wECAv8BAAIDBAAACf//AQQCAwAAAQQCAwALEgQB/wIBAgICAAIBAwMEAQIBBQQEAQEDAQIEAQEDAQIBAQEEBwEDAQIBAwEDAQIBBAEBAAQI//8CAQMCAAACAQQDAAsTBAH/AgECAgEAAgEDBAEBAQIFBgIBAgEBAgIBAwEBBAEBAQQHAQIBAv8DAQIBAwAEAQEAAg3/AgECAgEAAgEDBAEBAQIFCxQEAf8CAQICAwACAQMDBAECAQQEAgECAQECAgEDAQEEAQEBBAYCAQIBA/8CAQMBBAABAQEDCwECAQICAQECAQMEAQEBAAULFQQB/wIBAgECAAIBAwEEAQECBAUDAgMB//8DAgQBAAAABwH/AQIBAgEAAQIBAwEBAAQI//8CAQMBAAACAQMBAQEDBQsWBAH/AgECA/8AAgEDBAAABQMCAAMAAQMCAAQAAQAHAQMBAgQEAQMBAgQEAgEAAgQEBQj//wIBAwMAAAIBAwQACxcEAf8CAQIAAAACAQMAAAABAgICAgQCAQEBAQMBAQIABQcBAQECAQEBAQECAQEBAQAFCQEBAQECAwEBAQECAwEBAAMLGAQB/wIBAgIBAAIBAwQBAQECBQH/AgMCBAIAAQIBAwEBAgEFBgL/AgMB/wIAAwQBAAAJ//8BAgIDAAABAgMEAAsZBAH/AgECBAQAAgEDBAQBBAQFAQICAgIEBAEBAQEDBAECAAMEBAEDAQECBAEDAQECAQEBBAcBAQECAwMBAQECAwQBAQACCxoEAQICBAMEAgEBAwIEAQECAAUE//8BAQEDAAABAQEEAQECBAcBAwICAQEBBAIDAQEBAQAFCf8BAQMDAwABAQMDAwIBAQIDAwULGwQB/wIDAwT/AAECAwQAAAYCAQMDAQECAQMEAQEBAQEFBwECAgIA/wECAwQAAAAJ//8BAgMDAAABAgMEAAscBAH/AgEDAAMAAgEDAAQAAv8BBAID/wABBAIDAAAGAgEDAAP/AgEDAAMAAAsBBAMCAQEBBAMCAQEBAQAFCx0EAf8CBAMCAgABAwIBAQECAQUG//8EAQIBAAAEAQIBAQEDBQn//wEDAwEAAAEDBAEBAQIFAf8CBAMC/wABAwIBAAECAQQLHgQBAgIBAwL/AgIBBAMAAQIABAT//wEDAQMAAAEDAQQBAQIEBgIBAwEC/wIBBAEDAAEBAQMI//8CAQQCAAACAQQDAAsfBAH/AgEDAAAAAgEDAAAAAQICAgMEAgEBAQIDAQECAAUHAQECAgEDAQECAgEDAQEABAn//wEBAwMAAAEBAwQBAQIDCyAEAf8CAgMEBAABAQIDBAECAQIGAgEBAQIBAgEBAQMBAQEBBQcBAQICAwEBAQIDBAEBAQAFC/8EAwMBAQAEAgMBAQEBBAULIQQBAgIAAQACAgMAAQAEAAH//wQEAwQAAAIDAQQABgL/AQIC/wIAAQMEAAAHAQMDAQMBAQIDAQQBAQEABQsjBQcB/wEBAf8CAAMDAwAAAQICBAIDAgEBAwECAQECAAUD//8CAgEDAAACAwEEAAcBAwEBAQEBAwEBAQEBAQAFCf8BAQMCAgABAQQCAwEBAQILJAQB/wIDAgP/AAEDAgQAAAYC/wICAf8CAAMEAQAABwECAwEEAQECAwEEAQEBAAUJ//8BAgICAAABAgICAQIDBQslBAH/AgACAgIAAQACAwQAA/8CAgIBAwACAwMBBAECAQMHAQMBAQEDAQMBAQEEAQEABAoBAwICAwEBAwICBAECAQAFAgIDCyIEAf8CAAECAgACAAEDBAAF/wECAgMDAAECAgMDAgICAwMEBQcBAwMBAwMBAgIBAwQCAQADAwEFCQL/AQMBAQIAAQMBAQEBAgULJgQB/wIAAgIAAAEAAgMAAAUDAQMCAQEDAQQCAQEBAQEFBwEBAQEBAwEBAQEBBAEBAAQJ//8BAQICAAABAQIDAgECAwIEBQsnBAH/AgADAAIAAQADAAIAAQICBAMDAgEBBAIDAQECAAUHAQMCAQEBAQMCAQEBAQEABQn/AQEDAwIAAQEDBAIBAQECCygEAf8CAwMD/wABAgMEAAAGAgP/AgEBAgQAAwEBAQEEBQcBAgIB/wEBAgMBAAEBAQAFCf//AQIDAgAAAQIEAwALKQQB/wIAAwICAAEABAIDAAUDAQQCAP8DAQQCAAAABwEDAgEBAwEDAgEBBAEBAAQM/wMBBAP/AAMBBAMAAAsqBAH/AgADAgAAAQADAgAAAQICAgMDAgEBAQIDAQECAAUHAQECAQEDAQECAQEEAQEABAn/AQEBAwIAAQEBAwIBAQEDCysEAf8CAf8CAgACAQADBAAGAgH/AQICAwEAAgQEAQIABQf//wMCAQMAAAMCAQQAC/8EAwEEAQADAgEEAQEBAwULLQQB/wIBBAAAAAIBBAAAAAv/BAMBAgIABAMBAgIBAgQFBAQDAQEC/wQDAQECAAEBAgMGAgEEBP//AgEEBAAAAQQCAwssBAL/BAMDAf8ABAIDAQAABQMBAAID/wMBAAIEAAAH//8DAQEDAAADAQEEAQEDBAv/BAIBBP8AAwIBBAAAC08EAgQBAwEBAQQBAwEBAQEBAQUCBAEDAwEBBAECAwEBAQEBBQn/BAEDAgEABAEDAgEBAQIFAgQBAwEB/wQBAwEBAAEBAQQLSAIJAgEBAwIBAgEBBAMBAQEBBQkC/wEDAgECAAEEAwEBAQIFC1IEAf8ABAQDAgAAAwQCAQAB/wAABAACAAAAAwABAAH/AAAEAwIAAAADAgEABP8AAQQEBAAAAQQEBAEEAwULVQQBBP8EBAP/AgADBAEAAAQBAgEBBAQBAgEBBAQBAQADBAECAQQEBAECAQQEBAEBAAIG//8BAgICAAABAgICAQIDBQtTBAH/AQAEAAIAAQAEAAIABAMCAQEEBAMCAQEEBAEBAgMEAwIBBAQEAwIBBAQEAQQDBQf//wIBAQEAAAIBAQEBAQMFCzkEAf8DAAQAAgACAAMAAQAB/wMABAMCAAIABAMBAAcCAwMBAQECAwQBAQEBAQMFB///BAEBAQAABAEBAQEBAwULOgQB/wQABAACAAMABAABAAH/BAAEAwIAAwAEAgEABP8BAQQEBAABAQQEBAEBAQIHAwMDAQEBAgMEAQEBAQEDBQs8BAH//wAEAAIAAAADAAEAAf//AAQDAgAAAAMCAQAE//8AAQQEAAAAAQQEAQQEBQT/AgEBBAQAAgEBBAQBAQIDCz8EAQACAAQAAgABAAQAAgABAAIEBAMCAAEDBAIBAQIBBQH//wIEAwIAAAEDAgEBAgIFBAACAQEEBAACAQEEBAEBAgMLVAQB//8BBAMCAAABBAMCAAT/AwEEBAQAAwEEBAQBBAMFCv//BAIDAQAABAIDAQALAQQCAf//AQQCAQAAAQEAAwtABAH//wMEAwIAAAIEAwEAB/8CAwEBAQACAwEBAQEBAwUH/wIDAQEEAAIDAQEEAQEDBAf/AgMBAf8AAgMBAQABAQMEC0EEAQICBAQDAgEBAwQCAQECAAUB//8EBAMCAAADBAIBAAT//wEEBAQAAAEEBAQBBAMFB/8DAwEBAQADBAEBAQEBAwULQgQC//8EAwIBAAAEAwIBAAX//wEDAwMAAAEDAwMBAwMFB/8EAwEBAQAEAwEBAQEBAwUK/wEDAgMBAAEDAgQBAQEBBQszBAH/AAEEAAIAAAEEAAIAAf8ABAQEAgAAAgMEAQAE/wABAQEEAAABAQEEAQECBAQCAwEBAQQCAwEBAQQBAQIEC1EEBAEDAQEBBAEDAQEBBAEBAAQEAQMBAQQEAQMBAQQEAQEAAwb//wEDAgIAAAEEAgMAC/8BAwECAQABAwECAQEBAQULNAQEAwMBAQEEAgMBAQEEAQECBAQDAwEBBAQCAwEBBAQBAQIDB///AgIBAQAAAgMBAQEBBAUL/wMDAQIBAAMEAQIBAQEDBQs2BAH/AwEEAAIAAwEEAAIAB///BAIBAQAABAIBAQEBBAUK//8BAgMCAAABAgQDAAH/AwQEBP8AAQICAgABBAIECzcEBP8BAQEBBAABAQEBBAEBAQQJAQEBAwQDAQEBAgQDAQEAAgv//wEBAgEAAAEBAgEBAQIFAf8EBAQE/wABAQEBAAEEAQQLOwQB//8ABAQCAAAAAwQBAAT/AgEBAQQAAgEBAQQBAQIEB///AAIBAQAAAAIBAQEBBAUL//8AAQIBAAAAAQIBAQEDBQsuBAEAAgQEBAIAAQIDBAEBAgEFAf//AgQEAgAAAQMEAQECAgUEAAMBAQEEAAMBAQEEAQECBAQAAwEBBAQAAwEBBAQBAQIDC1AEAf//AQQAAgAAAQQAAgAE/wMBAQEEAAMBAQEEAQECBAT/AwEBBAQAAwEBBAQBAQIDCwEEAwECAQEEAwECAQEBAAULLwQB//8DBAQCAAACAwQBAAf/AgMCAQEAAgQDAQEBAQQFAQECBAQE/wECBAQEAAEEAgQH/wIDAgH/AAIEAwEAAAswBAECAgQEBAIBAQIDBAEBAgAFAf//BAQEAgAAAgMEAQAE//8BAQEEAAABAQEEAQECBAf/AwMCAQEAAwQCAQEBAQQFCzEEAv//BAMDAQAABAIDAQAF//8BBAMDAAABBAIDAAf/BAMCAQEABAMCAQEBAQQFAQMCBAQE/wIBAwMDAAEEAgQ=",
+};
+
+
+// Ukulele: 552 chords, 2114 voicings, 25637 bytes.
+const int kUkuleleTuning[] = {67, 60, 64, 69};
+
+const PCWSTR kUkuleleKeys[] = {
+    L"C", L"Db", L"D", L"Eb", L"E", L"F", L"Gb", L"G", L"Ab", L"A", L"Bb", L"B",
+};
+
+const PCWSTR kUkuleleSuffixes[] = {
+    L"major", L"minor", L"dim", L"dim7", L"sus2", L"sus4",
+    L"7sus4", L"alt", L"aug", L"6", L"69", L"7",
+    L"7b5", L"aug7", L"9", L"9b5", L"aug9", L"7b9",
+    L"7b9#5", L"7#9", L"11", L"9#11", L"13", L"13b9",
+    L"13b5b9", L"b13b9", L"b13#9", L"maj7", L"maj7b5", L"maj7#5",
+    L"maj9", L"maj11", L"maj13", L"m6", L"m7", L"m7b5",
+    L"m9", L"m69", L"m9b5", L"m11", L"mmaj7", L"mmaj7b5",
+    L"mmaj9", L"mmaj11", L"add9", L"madd9",
+};
+
+const PCWSTR kUkuleleSuffixNames[] = {
+    L"", L"m", L"dim", L"dim7", L"sus2", L"sus4", L"7sus4", L"alt",
+    L"aug", L"6", L"69", L"7", L"7b5", L"aug7", L"9", L"9b5",
+    L"aug9", L"7b9", L"7b9#5", L"7#9", L"11", L"9#11", L"13", L"13b9",
+    L"13b5b9", L"b13b9", L"b13#9", L"maj7", L"maj7b5", L"maj7#5", L"maj9", L"maj11",
+    L"maj13", L"m6", L"m7", L"m7b5", L"m9", L"m69", L"m9b5", L"m11",
+    L"mmaj7", L"mmaj7b5", L"mmaj9", L"mmaj11", L"add9", L"madd9",
+};
+
+const char* const kUkuleleChunks[] = {
+    "CQAEAQIBAAACAQAAAAIBAwQDAQIEAwAEAwECAQQBAgEBAQEDCQEBAQQBAQEEAQEAAgkBBAECAAAAAgAAAAABAgAAAwIAAAMAAgEDBAIBAwQCAAMDAgMBAwIEAQAJAgQCAQIEAgECBAMAAwMBAwEDAQQBAQEBAwYDBAMBAgQDAQALBAIBAgQCAQMACQMEAQIDAgMBAwIEAAUBAgECAQMCBAAIAQIBAgEDAgQACwECAQIBAwIEAAkEBAIBAwQBAQMEAQEBAAMEAQECBAEBAgQBAQABBwMDAQEDBAEBAQECAwkBAwQEAQIDAwEEAgMJBQQBAgIAAAIDAAAAAgEDBAQBAgMEAAQEAQICBAECAgECAgMEBAECBAMBAgQACQYEAQACAAAAAgAAAAIBAwIEAQMCBAAFAwMBAwIDAQQACQEBAgIBAQICAgEAAQICAwkHAwIBAgQDAQIEAwADBAEDAgQBAwIABgEEBAEBAwQBAQEAAwkIBAECAQEAAwECAAABAgEBBAIBAQQBAQECAgEEBAMBAwQCAAUCAQEEAgEBBAEBAQIJCQQBAgQCBAEDAgQABQICAQMCAwEEAAkBAQEBAQEBAQEBAAMLAQMCAgEEAgMACQoEAQQEAgQCAwEEAAYBAQICAQECAgIBAAECAgMJAQMBAQEDAQEBAQADCwEDAgQBAwIEAAkLBAEAAQAAAAEAAAABAgQDBAEDAgQABQIDAQMCAwEEAAkBAQECAQEBAgEBAAIJDAQBAgMDBAECAwQABQIDAQICBAEDAAgBAgIDAQIDBAALAgMBAgIEAQMACQ0EAQABAQAAAQIAAAIBBAIDAQQCAwAFAgMBBAIDAQQACQIBAQICAQEDAQEBAgkOBAEAAQACAAEAAgABBAQDBAIDAQQABgECAgIBAgMEAAkBAwECAQMBAgEBAAIJDwQBBAMDBAIBAQMBAwECBgECAgEBAgIBAgEAAwIBAggBBAIDAQQCAwALAgMBBAIDAQQACRAEAQABAQIAAQECAQEBAgMCAwECAgQBAwAGAQICAwECAgMBAgECCQIDAQICBAEDAAkRBAEAAQABAAEAAgABAwQDBAEDAgQABgECAQIBAwIEAAkBAgECAQMCBAAJEgQBAAEBAQABAgMAAwEDAQIBAwECAQEAAgYBAgEDAQIBAwEBAAIJAgIBAgIDAQQACRMEAQABAAMAAQADAAMDAgECBAIBAwADBAIBAQQCAQEBAQIDBgECAwIBAgQDAAkUAwEEAgMEAwECBAAEBAQEAQIDBAEABQIDAwECAwQBAAkVBAEEAwMEAgEBAwEDAQIGAQICAQECAgECAQADAgECCAEEAgMBBAIDAAsCAwEEAgMBBAAJFgQBAAECAgABAgMAAwIEAQICBAEDAAYBAgIEAQIDBAAJAwMBAgMEAQIACRcEAQABAgEAAQMCAAMBBAECAQQBAgEBAAIGAQIBBAECAQQBAQACCQQCAQEEAgEBAQECAwkYBAMBBAEEAQMBBAEBAAIGAwIBBAMCAQQACQACAwEAAgMBAAoCAQIBAwEEAgAJGQQBAAEBAQABAgMAAwEDAQIBAwECAQEAAgYBAgEDAQIBAwEBAAIJAgIBAgIDAQQACRoEAQABAQMAAQIDAAMDAwECAwQBAgADBAMBAQQDAQEBAQIDBgECAwMBAgMEAAkbBAEBAQAAAQIAAAABAgQEBAECAwQABQIEAQMCBAEDAAkBAQEDAQEBAwEBAAIJHAQBAgMEBAECAwQABQIEAQICBAEDAAgBAgIEAQIDBAALBAMBAQQDAQEBAQIDCR0EAQEBAQABAgMAAAIBBAMDAQQCAwAFAgQBBAIDAQQACQIBAQMCAQEDAQEBAgkeBAEBAQACAQIAAwABBAQEBAEBAQEBBAADBgEDAgIBAwICAQICAwkBAwEDAQMCBAAJHwIBBAIEBAIBAwQABQIEAwECBAMBAAkgBAEBAQICAQECAgIBAAECAgMEAQMBAQEDAQEBAQADBgEDAgQBAwIEAAkDAwEDAgMBBAAJIQQBAgQCAwEDAQIBAgACBQECAQMBAgEDAQEAAggCAgECAgMBBAALAQICAgECAwQACSIEAQAAAAAAAAAAAAECBAMDAQMCAgEDAgMFAQMBAwEDAgQACAICAQMCAgEDAQIAAQkjBAECAwMDAQIDBAAFAQMBAgEDAQIBAQACCAECAQMBAgEDAQEAAgsCAgECAgMBBAAJJAQBAAAAAgAAAAIAAgQDAgEEAwIBAAEEBAMDAgIBAQIDAgMEAAEFAQMDAwECAwQACSUEAQQEAgMDBAECAAIEAwEBBAMBAQEBAgMFAQIDAwECAwQACAIEAQICBAEDAAkmBAIEAgIBBAICAQECAQIBBAMDAwIBAQEBAwEDBQEDAwIBAwQCAAgBBAEDAQQBAwEBAAIJJwMBBAIDAwMBAgIBAwIDAgQBAgEEAQIBAQEBAwUBAwMBAQMEAQEBAAMJKAQBAQAAAAEAAAAAAQIEBAMBAwQCAAUBBAEDAQQBAwEBAAIIAgIBBAICAQQBAgABCSkEAQIDBAMBAgQDAAUBBAECAQQBAgEBAAIIAQIBBAECAQQBAQACCwMCAQIEAgEDAAkqBAEBAAACAQAAAgACBAMDAQQCAwEAAQQEBAMCAwQBAAUBBAMDAQQCAwAJKwMBBAIEAwMBBAIAAgQBAwEEAQMBAQEBAwUBBAMBAQQDAQEBAAMJLAQBAgEAAgIBAAMABAEBAgEBAQIBAQEAAwYBBAICAQQCAgECAgMJAQMBBAEDAQQBAQACCS0DAQIAAAICAAADAAIEAwQBAwIEAQADAgIDAQICAwEBAgABCAAEAQEDBAMBAgQDAAMDAQIBAwECAQEBAQMDAwECBAMBAgQACAEBAQQBAQEEAQEAAggBBAEBAwQCAQMEAgABBAMEAgMCBAEAAwIBAgQCAQMEAAYDAwIBAwQCAQAIAgQBAQIEAgECBAMAAQQCBAIDAQQBAQIBAwUDBAMBAgQDAQAKBAIBAgQCAQMACAMEAQECAQIBAwIEAAQBAgECAQMCBAAHAQIBAgEDAgQACgECAQIBAwIEAAgEBAEBAwQBAQMEAQEBAAMDAQECBAEBAgQBAQABBgMDAQEDBAEBAQECAwgBAwQEAQIDAwEEAgMIBQQBAQMEBAECAwQAAwQBAgIEAQICAQICAwMEAQIEAwECBAAGAQMEAQEDBAEBAQADCAYEAQEDAgQBAwIEAAQDAwEDAgMBBAAIAQECAgEBAgICAQABAgIDCwEDAQEBAwEBAQEAAwgHAgIEAQMCBAEDAgAFAQQEAQEDBAEBAQADCAgEAQEAAAMBAAADAAEBBAQDAQMEAgADAwICAQMCAgEBAgECBAIBAQQCAQEEAQEBAggJBAEBAwEDAQMCBAAEAgIBAwIDAQQACAEBAQEBAQEBAQEAAwoBAwICAQQCAwAICgQBAwMBAwIDAQQABQEBAgIBAQICAgEAAQICAwgBAwEBAQMBAQEBAAMKAQMCBAEDAgQACAsEAQEDAgMBAwIEAAQCAwEDAgMBBAAIAQEBAgEBAQIBAQACCwECAQEBAgEBAQEAAwgMBAEBAgIDAQIDBAAEAgMBAgIEAQMABwECAgMBAgMEAAoCAwECAgQBAwAIDQQBAQQCAwEEAgMABAIDAQQCAwEEAAgCAQECAgEBAwEBAQILAQICAQECAgECAQADAgECCA4EAQMDAgMCAwEEAAUBAgICAQIDBAAIAQMBAgEDAQIBAQACCwECAQMBAgEDAQEAAggPBAEDAgIDAgEBAwECAQIFAQICAQECAgECAQADAgECBwEEAgMBBAIDAAoCAwEEAgMBBAAIEAQBAwQCAwIEAQMABQECAgMBAgIDAQIBAggCAwECAgQBAwALAQICAwECAwQACBEEAQIDAgMBAwIEAAUBAgECAQMCBAAIAQIBAgEDAgQACwECAQIBAwIEAAgSBAECBAIDAQMBAgECAAIFAQIBAwECAQMBAQACCAICAQICAwEEAAsBAgICAQIDBAAIEwQBBAMCAwQCAQMAAgQCAQEEAgEBAQECAwUBAgMCAQIEAwAIAQQBAgEEAQIBAQACCBQDAQMBAgMDAQIEAAMEBAQBAgMEAQAEAgMDAQIDBAEACBUEAQMCAgMCAQEDAQIBAgUBAgIBAQICAQIBAAMCAQIHAQQCAwEEAgMACgIDAQQCAwEEAAgWBAICBAECAgQBAwAFAQICBAECAwQACAMDAQIDBAECAAgEAwEBBAMBAQEBAgMIFwQCAQQBAgEEAQIBAQACBQECAQQBAgEEAQEAAggEAgEBBAIBAQEBAgMLAQIDAgECBAMACBgEAgEEAQQBAwEEAQEAAgUDAgEEAwIBBAAIBAIDAQQCAwEACQIBAgEDAQQCAAgZBAECBAIDAQMBAgECAAIFAQIBAwECAQMBAQACCAICAQICAwEEAAsBAgICAQIDBAAIGgQCBAMBAQQDAQEBAQIDAQQEAgMDBAECAAUBAgMDAQIDBAAIAgQBAgIEAQMACBsEAQEDAwMBAgMEAAQCBAEDAgQBAwAIAQEBAwEBAQMBAQACCgQDAgEEAwIBAAgcBAEBAgMDAQIDBAAEAgQBAgIEAQMABwECAgQBAgMEAAoEAwEBBAMBAQEBAgMIHQQBAQQDAwEEAgMABAIEAQQCAwEEAAgCAQEDAgEBAwEBAQIKBAMDAQQCAwEACB4EAQMDAwMBAQEBAQMAAwUBAwICAQMCAgECAgMIAQMBAwEDAgQACwICAQMCAgEDAQIAAQgfAgEDAQMDAgEDBAAEAgQDAQIBAwQACCAEAQAAAQEAAAECAAMBAwEBAQMBAQEBAAMFAQMCBAEDAgQACAMDAQMCAwEEAAghBAEBAwECAQMBAgEBAAIEAQIBAwECAQMBAQACBwICAQICAwEEAAoBAgICAQIDBAAIIgQBAQMCAgEDAgIBAgIDBAEDAQMBAwIEAAcCAgEDAgIBAwECAAELAQEBAQEBAQEBAQADCCMEAQECAgIBAgMEAAQBAwECAQMBAgEBAAIHAQIBAwECAQMBAQACCgICAQICAwEEAAgkBAEEAwIBBAMCAQABAwMCAgICAQECAgIDAwABBAEDAwMBAgMEAAcCBAEDAgQBAwAIJQQBAwMBAgMEAQIAAQQDAQEEAwEBAQECAwQBAgMDAQIDBAAHAgQBAgIEAQMACCYEAQQCAgEEAgIBAQIBAgEDAgICAgEBAQECAQMEAQMDAgEDBAIABwEEAQMBBAEDAQEAAggnAwEDAQICAwECAgECAgMBBAECAQQBAgEBAQEDBAEDAwEBAwQBAQEAAwgoBAEBAwMCAQMEAgAEAQQBAwEEAQMBAQACBwICAQQCAgEEAQIAAQoEAgIBBAICAQECAQIIKQQBAQIDAgECBAMABAEEAQIBBAECAQEAAgcBAgEEAQIBBAEBAAIKAwIBAgQCAQMACCoEAQQDAwEEAgMBAAEDAwMCAgMEAQAEAQQDAwEEAgMABwIEAQQCAwEEAAgrAwEDAQMCAwEEAgABBAEDAQQBAwEBAQEDBAEEAwEBBAMBAQEAAwgsBAEDAwQDAQECAQEDAAMFAQQCAgEEAgIBAgIDCAEDAQQBAwEEAQEAAgsDAgEDAwIBBAAILQMBBAMEAQMCBAEAAQMDBAICAgMBAQMAAQsDAQEDAwEBBAEBAQILAAQBBAMCAgMCAQEBAgIDBAEDBAMBAgQDAAYDAQIBAwECAQEBAQMLAQEBBAEBAQQBAQACCwEEAQQCAgIDAQEBAQIBAwIDAQEEAwEBBAEBAQIEAQMEAgEDBAIABQMCAwEDAgQBAAsCBAEEAgECBAIBAwAEAQIEAgECBAMABQMBAwEDAQQBAQEBAwgDBAMBAgQDAQALAwQBAQIBAgEDAgQABAECAQIBAwIEAAcBAgECAQMCBAAKAQIBAgEDAgQACwQEBAEDBAEBAwQBAQEAAwYBAQIEAQECBAEBAAEJAwMBAQMEAQEBAQIDCwEDBAQBAgMDAQQCAwsFBAEEBAICAwQBAQECAgMEAQMEBAECAwQABgQBAgIEAQICAQICAwYEAQIEAwECBAALBgQBAgQCAgEDAQEBAgADBAEDAgQBAwIEAAcDAwEDAgMBBAALAQECAgEBAgICAQABAgIDCwcDAQQDAQIEAwECAAQBAgQDAQIEAwAFBAEDAgQBAwIACwgEAQADAwIAAgMBAAEEAwMCAwICAQEDAQIDAgEBBAIBAQQBAQECBAEEBAMBAwQCAAsJBAEBAwICAQQCAwAEAQMBAwEDAgQABwICAQMCAwEEAAsBAQEBAQEBAQEBAAMLCgQBAQMCBAEDAgQABAMDAQMCAwEEAAgBAQICAQECAgIBAAECAgMLAQMBAQEDAQEBAQADCwsEAQIDAgIBAgEBAQIAAwQBAwIDAQMCBAAHAgMBAwIDAQQACwEBAQIBAQECAQEAAgsMBAECAwECAgQBAwAEAQICAwECAwQABwIDAQICBAEDAAoBAgIDAQIDBAALDQQBAgMDAgECAgECAgADAwECBAEEAgMBBAIDAAcCAwEEAgMBBAALAgEBAgIBAQMBAQECCw4EAQIDAgQBAgEDAQIAAgUCAgECAgMBBAAIAQICAgECAwQACwEDAQIBAwECAQEAAgsPBAECAwEEAgMBBAAFAgEBAgIBAQMBAQECCAECAgEBAgIBAgEAAwIBAgoBBAIDAQQCAwALEAQBAgMDBAECAgMBAwECBQIDAQICBAEDAAgBAgIDAQICAwECAQILAgMBAgIEAQMACxEEAQIDAgMBAwIEAAUBAgECAQMCBAAIAQIBAgEDAgQACwECAQIBAwIEAAsSBAECAwMDAQIDBAAFAQMBAgEDAQIBAQACCAECAQMBAgEDAQEAAgsCAgECAgMBBAALEwQCAQIBBAECAQQBAQACBQMCAQIEAgEDAAUEAgEBBAIBAQEBAgMIAQIDAgECBAMACxQEAQIDAAQBAgADAAQDAQIDAwECBAAGBAQEAQIDBAEABwIDAwECAwQBAAsVBAECAwEEAgMBBAAFAgEBAgIBAQMBAQECCAECAgEBAgIBAgEAAwIBAgoBBAIDAQQCAwALFgQBAgMEBAECAwQABQIEAQICBAEDAAgBAgIEAQIDBAALAwMBAgMEAQIACxcEAQIDBAMBAgQDAAUBBAECAQQBAgEBAAIIAQIBBAECAQQBAQACCwQCAQEEAgEBAQECAwsYBAEBAAEAAQACAAACAQQDAgEEAwIABQEEAQQBAwEEAQEAAggDAgEEAwIBBAALGQQBAgMDAwECAwQABQEDAQIBAwECAQEAAggBAgEDAQIBAwEBAAILAgIBAgIDAQQACxoEAgECAgQBAgMEAAUEAwEBBAMBAQEBAgMFAwMBAgQDAQIACAECAwMBAgMEAAsbBAEEAwIBBAMCAQABAwMCAgIDAQEBAgIDBAEDAwMBAgMEAAcCBAEDAgQBAwALHAQBBAMBAQQDAQEBAQIDAQMDAQIDBAECAAQBAgMDAQIDBAAHAgQBAgIEAQMACx0EAQQDAwEEAgMBAAEDAwMCAgMEAQAEAQQDAwEEAgMABwIEAQQCAwEEAAseBAEDAwIEAgIBAwEDAAEGAQEBAQEBAQEBAQADCAEDAgIBAwICAQICAwsBAwEDAQMCBAALHwMBAwMABAECAAMABAMBAwMCAQMEAAcCBAMBAgQDAQALIAQBAwMEBAEBAgICAwABBAIDBgEDAQEBAwEBAQEAAwgBAwIEAQMCBAALAwMBAwIDAQQACyEEAQECAgIBAgMEAAQBAwECAQMBAgEBAAIHAQIBAwECAQMBAQACCgICAQICAwEEAAsiBAECAgICAQEBAQECAAMEAQMCAgEDAgIBAgIDBwEDAQMBAwIEAAoCAgEDAgIBAwECAAELIwQBAgIBAgIDAQQABAECAgIBAgMEAAcBAwECAQMBAgEBAAIKAQIBAwECAQMBAQACCyQEAQICAgQBAQEDAQIAAgQEAwIBBAMCAQAFAgIBAQICAQECAQIDAgABBwEDAwMBAgMEAAslBAEBAgIEAQIDBAAEAwMBAgMEAQIABAQDAQEEAwEBAQECAwcBAgMDAQIDBAALJgQBAgIBBAICAQQBAgABBAQCAgEEAgIBAQIBAgUCAQEBAgEBAQEBAQMHAQMDAgEDBAIACycDBAMBAgIDAQICAQICAwQEAQIBBAECAQEBAQMHAQMDAQEDBAEBAQADCygEAQQCAgEEAgIBAQIBAgEDAgICAgEBAQECAQMEAQMDAgEDBAIABwEEAQMBBAEDAQEAAgspBAEDAgECBAIBAwABBAIBAQQCAQEBAQIDBAECAwIBAgQDAAcBBAECAQQBAgEBAAILKgQBAwICBAIBAQMBAgECBAQDAwEEAgMBAAUCAgIBAgMEAQAHAQQDAwEEAgMACysDBAMBAwIDAQQCAAQEAQMBBAEDAQEBAQMHAQQDAQEEAwEBAQADCywEAQQDAgQDAgEEAAYBAQIBAQECAQEBAAMIAQQCAgEEAgIBAgIDCwEDAQQBAwEEAQEAAgstAwECAAACAgAAAwACBAMEAQMCBAEAAwICAwECAgMBAQIAAQoABAEDAgEBAwIBAQEBAgMDAQMEAwECBAMABQMBAgEDAQIBAQEBAwoBAQEEAQEBBAEBAAIKAQQBAwEBAQMBAQEBAQEDAQMBAQQDAQEEAQEBAgMBAwQCAQMEAgAEAwIDAQMCBAEACgIEAQMBAAEDAQACAAMBAgQCAQIEAwAEAwEDAQMBBAEBAQEDBwMEAwECBAMBAAoDBAEAAQABAAEAAgABAwQDBAEDAgQABgECAQIBAwIEAAkBAgECAQMCBAAKBAQDAQMEAQEDBAEBAQADBQEBAgQBAQIEAQEAAQgDAwEBAwQBAQEBAgMKAQMEBAECAwMBBAIDCgUEAQMDAQEDBAEBAQECAwMBAwQEAQIDBAAFBAECAgQBAgIBAgIDBQQBAgQDAQIEAAoGBAEBAwEBAQMBAQEBAAMDAQMCBAEDAgQABgMDAQMCAwEEAAoBAQICAQECAgIBAAECAgMKBwQBAwIAAQMCAAEAAwECBAMBAgQDAAQEAQMCBAEDAgAHAQQEAQEDBAEBAQADCggEAQMCAgEDAgIBAQIBAgICAQEEAgEBBAEBAQIDAQQEAwEDBAIABgIBAQQCAQEEAQEBAgoJBAEAAgEBAAIBAQEBAgMDAQMBAwEDAgQABgICAQMCAwEEAAoBAQEBAQEBAQEBAAMKCgQBAAIBAwACAQMAAwMDAQMCAwEEAAcBAQICAQECAgIBAAECAgMKAQMBAQEDAQEBAQADCgsEAQECAQEBAgEBAQEAAwMBAwIDAQMCBAAGAgMBAwIDAQQACgEBAQIBAQECAQEAAgoMBAEBAgABAQMAAgADAQICAwECAwQABgIDAQICBAEDAAkBAgIDAQIDBAAKDQQBAQICAQECAgECAQADAgECAwEEAgMBBAIDAAYCAwEEAgMBBAAKAgEBAgIBAQMBAQECCg4EAQECAQMBAgEDAQEAAgQCAgECAgMBBAAHAQICAgECAwQACgEDAQIBAwECAQEAAgoPBAEBAgADAQIAAwAEAgEBAgIBAQMBAQECBwECAgEBAgIBAgEAAwIBAgkBBAIDAQQCAwAKEAQBAQICAwECAgMBAgECBAIDAQICBAEDAAcBAgIDAQICAwECAQIKAgMBAgIEAQMAChEEAQECAQIBAwIEAAQBAgECAQMCBAAHAQIBAgEDAgQACgECAQIBAwIEAAoSBAEBAgICAQIDBAAEAQMBAgEDAQIBAQACBwECAQMBAgEDAQEAAgoCAgECAgMBBAAKEwQBAQIBBAECAQQBAQACBAMCAQIEAgEDAAQEAgEBBAIBAQEBAgMHAQIDAgECBAMAChQDAwMBAgMDAQIEAAUEBAQBAgMEAQAGAgMDAQIDBAEAChUEAQECAAMBAgADAAQCAQECAgEBAwEBAQIHAQICAQECAgECAQADAgECCQEEAgMBBAIDAAoWBAEBAgMDAQIDBAAEAgQBAgIEAQMABwECAgQBAgMEAAoDAwECAwQBAgAKFwQBAQIDAgECBAMABAEEAQIBBAECAQEAAgcBAgEEAQIBBAEBAAIKBAIBAQQCAQEBAQIDChgEAQEEAwIBBAMCAAQBBAEEAQMBBAEBAAIHAwIBBAMCAQQACgQCAwEEAgMBAAoZBAEBAgICAQIDBAAEAQMBAgEDAQIBAQACBwECAQMBAgEDAQEAAgoCAgECAgMBBAAKGgQBAQICBAECAwQABAQDAQEEAwEBAQECAwQDAwECAwQBAgAHAQIDAwECAwQAChsEAQMCAQADAgEAAAECAgEBAgMBAQEBAgMDAQMDAwECAwQABgIEAQMCBAEDAAocBAEDAgAAAwIAAAABAgIAAQIDAAEAAwECAwMBAgMEAAYCBAECAgQBAwAKHQQBAwICAAMBAgAAAQICAgECAwQBAAMBBAMDAQQCAwAGAgQBBAIDAQQACh4EAQICAQMCAgEDAQIAAQUBAQEBAQEBAQEBAAMHAQMCAgEDAgIBAgIDCgEDAQMBAwIEAAofAgMDAQMDAgEDBAAGAgQDAQIEAwEACiAEAQICAwMBAQICAgIAAQMCAwUBAwEBAQMBAQEBAAMHAQMCBAEDAgQACgMDAQMCAwEEAAohBAEAAQEBAAECAwADAQMBAgEDAQIBAQACBgECAQMBAgEDAQEAAgkCAgECAgMBBAAKIgQBAQEBAQEBAQEBAQADAwEDAgIBAwICAQICAwYBAwEDAQMCBAAJAgIBAwICAQMBAgABCiMEAQEBAAEBAgADAAEDBAQEAQIDBAAGAQMBAgEDAQIBAQACCQECAQMBAgEDAQEAAgokBAEBAQEDAQEBAwEBAAIEAgIBAQICAQECAQIDAgABAwQDAgEEAwIBAAYBAwMDAQIDBAAKJQQBAAEBAwACAQQAAwMDAQIDBAECAAMEAwEBBAMBAQEBAgMGAQIDAwECAwQACiYEAQEBAAMBAgAEAAQCAQEBAgEBAQEBAQMDBAICAQQCAgEBAgECBgEDAwIBAwQCAAonAwMDAQICAwECAgECAgMDBAECAQQBAgEBAQEDBgEDAwEBAwQBAQEAAwooBAEDAQEAAwECAAABAgEBAQIBAQEBAQEDAwEDAwIBAwQCAAYBBAEDAQQBAwEBAAIKKQQBAgEAAQMBAAIAAQMBAAADAQAAAAMBAgMCAQIEAwAGAQQBAgEEAQIBAQACCioEAQIBAQMCAQEDAQEBAgQCAgIBAgMEAQADBAMDAQQCAwEABgEEAwMBBAIDAAorAwMDAQMCAwEEAgADBAEDAQQBAwEBAQEDBgEEAwEBBAMBAQEAAwosBAEDAgEDAwIBBAAFAQECAQEBAgEBAQADBwEEAgIBBAICAQICAwoBAwEEAQMBBAEBAAIKLQMBAwEBAwMBAQQBAQECAwQDBAEDAgQBAAQCAgMBAgIDAQECAAEAAAQBAAAAAwAAAAMAAQAEAwMAAgEBAQMCAwMDAgEBAwIBAQEBAgMFAQMEAwECBAMAAAEEAQADAwMAAQIDAAMDAQEBAwEBAQEBAQMDAwEBBAMBAQQBAQECBQEDBAIBAwQCAAACBAIEAgECBAIBAwAFAQIEAgECBAMABgMBAwEDAQQBAQEBAwkDBAMBAgQDAQAAAwQBAgMCAwEDAgQABQECAQIBAwIEAAgBAgECAQMCBAALAQIBAgEDAgQAAAQEAQACAwMAAQICAQMCAwUBAwQBAQMEAQEBAAMHAQECBAEBAgQBAQABCgMDAQEDBAEBAQECAwAFBAEAAAEDAAABAwADAwMBAQIDAQEBAQIDBQEDBAQBAgMEAAcEAQIEAwECBAAABgQBAAABAQAAAQIAAwEDAQEBAwEBAQEAAwUBAwIEAQMCBAAIAwMBAwIDAQQAAAcDAgQDAQIEAwECAAUBAgQDAQIEAwAGBAEDAgQBAwIAAAgEAQEAAAMBAAAEAAEBBAQDAQMEAgADAwICAQQCAwEABAIBAQQCAQEEAQEBAgAJBAEAAAAAAAAAAAABAgQDAwEEAgMABQEDAQMBAwIEAAgCAgEDAgIBAwECAAEACgQBAAIAAAACAAAAAgEDAgQBAwIEAAUDAwEDAgMBBAAJAQECAgEBAgICAQABAgIDAAsEAQAAAAEAAAABAAEDBAMDAQIBAQEDAAMFAQMCAwEDAgQACAIDAQMCAwEEAAAMBAEDBAIDAgQBAwAFAQICAwECAgMBAgECCAIDAQICBAEDAAsBAgIDAQIDBAAADQQBAQAAAQEAAAIAAQMEBAMBBAMCAAUBBAIDAQQCAwAIAgMBBAIDAQQAAA4EAQACAAEAAgABAAMBAgEDAQIBAwEBAAIGAgIBAgIDAQQACQECAgIBAgMEAAAPBAICAwEEAgMBBAAGAgEBAgIBAQMBAQECCQECAgEBAgIBAgEAAwIBAgsBBAIDAQQCAwAAEAQBAQIAAQEDAAIAAwECAgMBAgMEAAYCAwECAgQBAwAJAQICAwECAwQAABEEAQABAAEAAQACAAEDBAMEAQMCBAAGAQIBAgEDAgQACQECAQIBAwIEAAASBAEBAQABAQIAAwABAwQEBAECAwQABgEDAQIBAwECAQEAAgkBAgEDAQIBAwEBAAIAEwQBAAMAAQADAAEAAwECAQQBAgEEAQEAAgYDAgECBAIBAwAGBAIBAQQCAQEBAQIDABQBBQMBAgMDAQIEAAAVBAICAwEEAgMBBAAGAgEBAgIBAQMBAQECCQECAgEBAgIBAgEAAwIBAgsBBAIDAQQCAwAAFgQBAgIAAQIDAAEAAQMCAAADAgAAAAMBAgMDAQIDBAAGAgQBAgIEAQMAABcEAQIBAAEDAQACAAEDAQAAAwEAAAADAQIDAgECBAMABgEEAQIBBAECAQEAAgAYAwECAQIBAwEEAgABAwECAAMBAgAAAwEEAwIBBAMCAAAZBAEBAQABAQIAAwABAwQEBAECAwQABgEDAQIBAwECAQEAAgkBAgEDAQIBAwEBAAIAGgQBAQMAAQEDAAIAAwECAgQBAgMEAAYEAwEBBAMBAQEBAgMGAwMBAgMEAQIAABsEAQAAAAIAAAACAAIEAwIBBAMCAQABBAQDAwIDAQEBAwIDBQEDAwMBAgMEAAAcBAIEAwEBBAMBAQEBAgMBBAQCAwMEAQIABQECAwMBAgMEAAgCBAECAgQBAwAAHQQBAQAAAgEAAAIAAgQDAwEEAgMBAAEEBAQDAgMEAQAFAQQDAwEEAgMAAB4EAQACAAIAAQACAAMCAgEDAgIBAwECAAEHAQEBAQEBAQEBAQADCQEDAgIBAwICAQICAwAfAgUDAQMDAgEDBAAIAgQDAQIEAwEAACAEAQICAAIBAgADAAQBAQICAQECAgIBAAECAgMHAQMBAQEDAQEBAQADCQEDAgQBAwIEAAAhBAECAwMDAQIDBAAFAQMBAgEDAQIBAQACCAECAQMBAgEDAQEAAgsCAgECAgMBBAAAIgQBAwMDAwEBAQEBAwADBQEDAgIBAwICAQICAwgBAwEDAQMCBAALAgIBAwICAQMBAgABACMEAQMDAgMCAwEEAAUBAgICAQIDBAAIAQMBAgEDAQIBAQACCwECAQMBAgEDAQEAAgAkBAMBAQEDAQEBAwEBAAIFBAMCAQQDAgEABgICAQECAgEBAgECAwIAAQgBAwMDAQIDBAAAJQQCAQICBAECAwQABQMDAQIDBAECAAUEAwEBBAMBAQEBAgMIAQIDAwECAwQAACYEAgICAQQCAgEEAQIAAQUEAgIBBAICAQECAQIGAgEBAQIBAQEBAQEDCAEDAwIBAwQCAAAnAwUDAQICAwECAgECAgMFBAECAQQBAgEBAQEDCAEDAwEBAwQBAQEAAwAoBAIEAgIBBAICAQECAQIBBAMDAwIBAQEBAwEDBQEDAwIBAwQCAAgBBAEDAQMBAgEBAAIAKQMBBAMCAwQCAQMAAgQCAQEEAgEBAQECAwUBAgMCAQIEAwAAKgQDAgEBAwIBAQMBAQECBQQDAwEEAgMBAAYCAgIBAgMEAQAIAQQDAwEEAgMAACsDBQMBAwIDAQQCAAUEAQMBBAEDAQEBAQMIAQQDAQEEAwEBAQADACwEAQACAAMAAgADAAMDAgEDAwIBBAAHAQECAQEBAgEBAQADCQEEAgIBBAICAQICAwAtAwMDAQEDAwEBBAEBAQIFBAMEAQMCBAEABgICAwECAgMBAQIAAQIABAECAgIAAQIDAAACAQEBBAEBAQQBAQACBQMCAQEDAgEBAQECAwcBAwQDAQIEAwACAQQBAgIBAAIDAQAAAgEEBAQBAgMEAAUDAQEBAwEBAQEBAQMFAwEBBAMBAQQBAQECAgIEBAQCAQIEAgEDAAcBAgQCAQIEAwAIAwEDAQMBBAEBAQEDCwMEAwECBAMBAAIDBAEBAgECAQMCBAAEAQIBAgEDAgQABwECAQIBAwIEAAoBAgECAQMCBAACBAQCAQMEBAECAwMBBAIDBwEDBAEBAwQBAQEAAwkBAQIEAQECBAEBAAEMAwMBAQMEAQEBAQIDAgUEAQACAwAAAgMAAAECAgMAAQIDAAACAQECBAEBAgQBAQABBQMDAQEDBAEBAQECAwIGBAECAgMDAQECAgICAAEDAgMFAQMBAQEDAQEBAQADBwEDAgQBAwIEAAoDAwEDAgMBBAACBwMEBAMBAgQDAQIABwECBAMBAgQDAAgEAQMCBAEDAgACCAQBAwICAQMCAgEBAgECAgIBAQQCAQEEAQEBAgMBBAQDAQMEAgAGAgEBBAIBAQQBAQECAgkEAQICAgIBAQEBAQIAAwQBAwICAQQCAwAHAQMBAwEDAgQACgICAQMCAgEDAQIAAQIKBAECBAICAQMBAQECAAMEAQMCBAEDAgQABwMDAQMCAwEEAAsBAQICAQECAgIBAAECAgMCCwQBAgICAwEBAQIBAgACBQECAQEBAgEBAQEAAwcBAwIDAQMCBAAKAgMBAwIDAQQAAgwEAQECAgMBAgMEAAQCAwECAgQBAwAHAQICAwECAwQACgIDAQICBAEDAAINBAEDAgIDAgEBAwECAQIFAQICAQECAgECAQADAgECBwEEAgMBBAIDAAoCAwEEAgMBBAACDgQBAgQCAwEDAQIBAgACBQECAQMBAgEDAQEAAggCAgECAgMBBAALAQICAgECAwQAAg8EAQEEAgMBBAIDAAQCAwEEAgMBBAAIAgEBAgIBAQMBAQECCwECAgEBAgIBAgEAAwIBAgIQAwEDBAIDAgQBAwAFAQICAwECAwQACAIDAQICBAEDAAIRBAECAwIDAQMCBAAFAQIBAgEDAgQACAECAQIBAwIEAAsBAgECAQMCBAACEgQBAwMCAwIDAQQABQECAgIBAgMEAAgBAwECAQMBAgEBAAILAQIBAwECAQMBAQACAhMEAgEEAQIBBAECAQEAAgUBAgEEAQIBBAEBAAIIAwIBAgQCAQMACAQCAQEEAgEBAQECAwIUAgEABAIDAAMBAgAHAwECAwMBAgQAAhUEAQEEAgMBBAIDAAQCAwEEAgMBBAAIAgEBAgIBAQMBAQECCwECAgEBAgIBAgEAAwIBAgIWBAEEBAIDAwQBAgACBAMBAQQDAQEBAQIDBQECAwMBAgMEAAgCBAECAgQBAwACFwQCBAIBAQQCAQEBAQIDAQQDAgMEAgEDAAUBAgMCAQIEAwAIAQQBAgEEAQIBAQACAhgDAgQCAwEEAgMBAAEEAwQDAwEEAgAFAQQDAgEEAwIAAhkEAQMDAgMCAwEEAAUBAgICAQIDBAAIAQMBAgEDAQIBAQACCwECAQMBAgEDAQEAAgIaBAICBAECAgQBAwAFAQICBAECAwQACAQDAQEEAwEBAQECAwgDAwECAwQBAgACGwQBAgICBAEBAQMBAgACBAQDAgEEAwIBAAUCAgEBAgMBAQEBAgMHAQMDAwECAwQAAhwEAQECAgQBAgMEAAQEAwEBBAMBAQEBAgMEAwMBAgMEAQIABwECAwMBAgMEAAIdBAEDAgIEAgEBAwECAQIEBAMDAQQCAwEABQICAgECAwQBAAcBBAMDAQQCAwACHgQBAgQCBAEDAgQABQICAQMCAgEDAQIAAQkBAQEBAQEBAQEBAAMLAQMCAgEDAgIBAgIDAh8DAQAEAgQAAgEDAAcDAQMDAgEDBAAKAgQDAQIEAwEAAiAEAQQEAgQCAwEEAAYBAQICAQECAgIBAAECAgMJAQMBAQEDAQEBAQADCwEDAgQBAwIEAAIhBAECAgECAgMBBAAEAQICAgECAwQABwEDAQIBAwECAQEAAgoBAgEDAQIBAwEBAAICIgQBAgIBAwICAQMBAgABBQEBAQEBAQEBAQEAAwcBAwICAQMCAgECAgMKAQMBAwEDAgQAAiMEAQECAQMBAgEDAQEAAgQCAgECAgMBBAAHAQICAgECAwQACgEDAQIBAwECAQEAAgIkBAECBAEDAgQBAwAFAQEBAwEBAQMBAQACBwQDAgEEAwIBAAgCAgEBAgIBAQIBAgMCAAECJQQBAgQBAgIEAQMABAECAgQBAgMEAAcDAwECAwQBAgAHBAMBAQQDAQEBAQIDAiYEAQEEAQMBBAEDAQEAAgQCAgEEAgIBBAECAAEHBAICAQQCAgEBAgECCAIBAQECAQEBAQEBAwInAwcDAQICAwECAgECAgMHBAECAQQBAgEBAQEDCgEDAwEBAwQBAQEAAwIoBAECAgEEAgIBBAECAAEEBAICAQQCAgEBAgECBQIBAQECAQEBAQEBAwcBAwMCAQMEAgACKQQBAQIBBAECAQQBAQACBAMCAQIEAgEDAAQEAgEBBAIBAQEBAgMHAQIDAgECBAMAAioEAQIEAQQCAwEEAAUCAQEDAgEBAwEBAQIHBAMDAQQCAwEACAICAgECAwQBAAIrAwcDAQMCAwEEAgAHBAEDAQQBAwEBAQEDCgEEAwEBBAMBAQEAAwIsBAIBAwEEAQMBBAEBAAIFAwIBAwMCAQQACQEBAgEBAQIBAQEAAwsBBAICAQQCAgECAgMCLQMFAwEBAwMBAQQBAQECBwQDBAEDAgQBAAgCAgMBAgIDAQECAAEBAAQBAQEBBAEBAQQBAQACBAMCAQEDAgEBAQECAwYBAwQDAQIEAwAIAwECAQMBAgEBAQEDAQEEAQEEBAQBAgMEAAQDAQEBAgEBAQEBAQMEAwEBBAMBAQQBAQECBgEDBAIBAwQCAAECBAMEAgECBAIBAwAGAQIEAgECBAMABwMBAwEDAQQBAQEBAwoDBAMBAgQDAQABAwQBAAEAAQABAAIAAQMEAwQBAwIEAAYBAgECAQMCBAAJAQIBAgEDAgQAAQQEAQEDBAQBAgMDAQQCAwYBAwQBAQMEAQEBAAMIAQECBAEBAgQBAQABCwMDAQEDBAEBAQECAwEFBAEBAQIEAQECBAEBAAEEAwMBAQMEAQEBAQIDBgEDBAQBAgMEAAgEAQIEAwECBAABBgQBAQECAgEBAgICAQABAgIDBAEDAQEBAwEBAQEAAwYBAwIEAQMCBAAJAwMBAwIDAQQAAQcEAQABAQQAAQEEAQEBAgMEAwECBAMBAgAGAQIEAwECBAMABwQBAwIEAQMCAAEIBAECAQEAAwECAAABAgEBBAIBAQQBAQECAgEEBAMBAwQCAAQDAgIBBAIDAQABCQQBAQEBAQEBAQEBAQADAwEDAgIBBAIDAAYBAwEDAQMCBAAJAgIBAwICAQMBAgABAQoEAQEDAQEBAwEBAQEAAwMBAwIEAQMCBAAGAwMBAwIDAQQACgEBAgIBAQICAgEAAQICAwELBAEBAQECAQEBAgEBAAIEAQIBAQECAQEBAQADBgEDAgMBAwIEAAkCAwEDAgMBBAABDAQBAAEBAgABAgMAAwIDAQICBAEDAAYBAgIDAQIDBAAJAgMBAgIEAQMAAQ0EAQIBAQICAQEDAQEBAgQBAgIBAQICAQIBAAMCAQIGAQQCAwEEAgMACQIDAQQCAwEEAAEOBAEBAwECAQMBAgEBAAIEAQIBAwECAQMBAQACBwICAQICAwEEAAoBAgICAQIDBAABDwQBAAMBAgADAQIAAwIDAQQCAwEEAAcCAQECAgEBAwEBAQIKAQICAQECAgECAQADAgECARAEAQIDAQICBAEDAAEEAwEAAwIBAAAEAQICAwECAwQABwIDAQICBAEDAAERBAEBAgECAQMCBAAEAQIBAgEDAgQABwECAQIBAwIEAAoBAgECAQMCBAABEgQBAgIBAgIDAQQABAECAgIBAgMEAAcBAwECAQMBAgEBAAIKAQIBAwECAQMBAQACARMEAQEEAQIBBAECAQEAAgQBAgEEAQIBBAEBAAIHAwIBAgQCAQMABwQCAQEEAgEBAQECAwEUAQYDAQIDAwECBAABFQQBAAMBAgADAQIAAwIDAQQCAwEEAAcCAQECAgEBAwEBAQIKAQICAQECAgECAQADAgECARYEAQMDAQIDBAECAAEEAwEBBAMBAQEBAgMEAQIDAwECAwQABwIEAQICBAEDAAEXBAEEAgEBBAIBAQEBAgMBAwIBAgQCAQMABAECAwIBAgQDAAcBBAECAQQBAgEBAAIBGAMBBAIDAQQCAwEAAQMCAwIDAQQCAAQBBAMCAQQDAgABGQQBAgIBAgIDAQQABAECAgIBAgMEAAcBAwECAQMBAgEBAAIKAQIBAwECAQMBAQACARoEAQIEAQICBAEDAAQBAgIEAQIDBAAHBAMBAQQDAQEBAQIDBwMDAQIDBAECAAEbBAEBAQEDAQEBAwEBAAIEAgIBAQIDAQEBAQIDAwQDAgEEAwIBAAYBAwMDAQIDBAABHAQBAAEBAwABAgMAAwMDAQIDBAECAAMEAwEBBAMBAQEBAgMGAQIDAwECAwQAAR0EAQIBAQMCAQEDAQEBAgQCAgIBAgMEAQADBAMDAQQCAwEABgEEAwMBBAIDAAEeBAEBAwEDAQMCBAAEAgIBAwICAQMBAgABCAEBAQEBAQEBAQEAAwoBAwICAQMCAgECAgMBHwIGAwEDAwIBAwQACQIEAwECBAMBAAEgBAEDAwEDAgMBBAAFAQECAgEBAgICAQABAgIDCAEDAQEBAwEBAQEAAwoBAwIEAQMCBAABIQQBAQEAAQECAAMAAQMEBAQBAgMEAAYBAwECAQMBAgEBAAIJAQIBAwECAQMBAQACASIEAQEBAAIBAgADAAEEBAQEAQEBAQEEAAMGAQMCAgEDAgIBAgIDCQEDAQMBAwIEAAEjBAEAAQACAAEAAgABBAQDBAIDAQQABgECAgIBAgMEAAkBAwECAQMBAgEBAAIBJAQBAQMAAgEDAAIABAEBAQMBAQEDAQEAAgYEAwIBBAMCAQAHAgIBAQICAQECAQIDAgABASUEAQEDAAEBAwACAAMBAgIEAQIDBAAGAwMBAgMEAQIABgQDAQEEAwEBAQECAwEmBAEAAwACAAIAAQADAgIBBAICAQQBAgABBgQCAgEEAgIBAQIBAgcCAQEBAgEBAQEBAQMBJwMGAwECAgMBAgIBAgIDBgQBAgEEAQIBAQEBAwkBAwMBAQMEAQEBAAMBKAQBAQEAAwECAAQABAIBAQECAQEBAQEBAwMEAgIBBAICAQECAQIGAQMDAgEDBAIAASkEAQABAAMAAQADAAMDAgECBAIBAwADBAIBAQQCAQEBAQIDBgECAwIBAgQDAAEqBAEBAwADAQIAAwAEAgEBAwIBAQMBAQECBgQDAwEEAgMBAAcCAgIBAgMEAQABKwMGAwEDAgMBBAIABgQBAwEEAQMBAQEBAwkBBAMBAQQDAQEBAAMBLAQBAQMBBAEDAQQBAQACBAMCAQMDAgEEAAgBAQIBAQECAQEBAAMKAQQCAgEEAgIBAgIDAS0DBAMBAQMDAQEEAQEBAgYEAwQBAwIEAQAHAgIDAQICAwEBAgABBAAEAQEEAAIBBAACAAEEBAQCAgMEAQAEAQEBBAEBAQQBAQACBwMCAQEEAwEBAQECAwQBBAEABAMCAAMCAQABBAQDAgMEAgEABAEEBAQBAgMEAAcDAQEBAwEBAQEBAQMEAgQBAwQDAQIEAwEABgQCAQIEAgEDAAkBAgQCAQIEAwAKAwEDAQMBBAEBAQEDBAMEAQABAAEAAQACAAEDBAMEAQMCBAAGAQIBAgEDAgQACQECAQIBAwIEAAQEBAEEBAICAwQBAQECAgMEAQMEBAECAwMBBAIDCQEDBAEBAwQBAQEAAwsBAQIEAQECBAEBAAEEBQQCAQMEAQECAwEBAQADAgMDBAECAwQBAAQBAQIEAQECBAEBAAEHAwMBAQMEAQEBAQIDBAYEAQICAAIBAgADAAQBAQICAQECAgIBAAECAgMHAQMBAQEDAQEBAQADCQEDAgQBAwIEAAQHAwYEAwECBAMBAgAJAQIEAwECBAMACgQBAwIEAQMCAAQIBAEBAAADAQAAAwABAQQEAwEDBAIAAwMCAgEDAgIBAQIBAgQCAQEEAgEBBAEBAQIECQQBAQEAAgECAAMAAQQEBAQBAQEBAQQAAwYBAwICAQQCAwAJAQMBAwEDAgQABAoEAQEBAgIBAQICAgEAAQICAwQBAwEBAQMBAQEBAAMGAQMCBAEDAgQACQMDAQMCAwEEAAQLBAEBAgACAQIAAwAEAQEBAgEBAQIBAQACBwECAQEBAgEBAQEAAwkBAwIDAQMCBAAEDAQBAQIAAQEDAAIAAwECAgMBAgMEAAYCAwECAgQBAwAJAQICAwECAwQABA0EAQECAAMBAgADAAQCAQECAgEBAwEBAQIHAQICAQECAgECAQADAgECCQEEAgMBBAIDAAQOBAEBAgICAQIDBAAEAQMBAgEDAQIBAQACBwECAQMBAgEDAQEAAgoCAgECAgMBBAAEDwQBAQICAQECAgECAQADAgECAwEEAgMBBAIDAAYCAwEEAgMBBAAKAgEBAgIBAQMBAQECBBAEAQECAgMBAgIDAQIBAgQCAwECAgQBAwAHAQICAwECAwQACgIDAQICBAEDAAQRBAEBAgECAQMCBAAEAQIBAgEDAgQABwECAQIBAwIEAAoBAgECAQMCBAAEEgQBAQIBAwECAQMBAQACBAICAQICAwEEAAcBAgICAQIDBAAKAQMBAgEDAQIBAQACBBMEAQECAwIBAgQDAAQBBAECAQQBAgEBAAIHAQIBBAECAQQBAQACCgMCAQIEAgEDAAQUAQEBAgIAAQIDAAAEFQQBAQICAQECAgECAQADAgECAwEEAgMBBAIDAAYCAwEEAgMBBAAKAgEBAgIBAQMBAQECBBYEAQECAgQBAgMEAAQDAwECAwQBAgAEBAMBAQQDAQEBAQIDBwECAwMBAgMEAAQXBAEBAgEEAQIBBAEBAAIEBAIBAQQCAQEBAQIDBAMCAQIEAgEDAAoBBAECAQQBAgEBAAIEGAQBAwIBBAMCAQQABAQCAwEEAgMBAAUCAQIBAwEEAgAHAQQDAgEEAwIABBkEAQECAQMBAgEDAQEAAgQCAgECAgMBBAAHAQICAgECAwQACgEDAQIBAwECAQEAAgQaBAEBAgMDAQIDBAAEAgQBAgIEAQMABwECAgQBAgMEAAoEAwEBBAMBAQEBAgMEGwQBAQMAAgEDAAIABAEBAQMBAQEDAQEAAgYEAwIBBAMCAQAHAgIBAQIDAQEBAQIDBBwEAQEDAAEBAwACAAMBAgIEAQIDBAAGBAMBAQQDAQEBAQIDBgMDAQIDBAECAAQdBAEBAwADAQIAAwAEAgEBAwIBAQMBAQECBgQDAwEEAgMBAAcCAgIBAgMEAQAEHgQBAQMCAgEDAgIBAgIDBAEDAQMBAwIEAAcCAgEDAgIBAwECAAELAQEBAQEBAQEBAQADBB8CAQEDAgABAwIAAAkDAQMDAgEDBAAEIAQBAQMCBAEDAgQABAMDAQMCAwEEAAgBAQICAQECAgIBAAECAgMLAQMBAQEDAQEBAQADBCEEAQABAAIAAQACAAEEBAMEAgMBBAAGAQICAgECAwQACQEDAQIBAwECAQEAAgQiBAEAAgACAAEAAgADAgIBAwICAQMBAgABBwEBAQEBAQEBAQEAAwkBAwICAQMCAgECAgMEIwQBAAIAAQACAAEAAwECAQMBAgEDAQEAAgYCAgECAgMBBAAJAQICAgECAwQABCQEAQACAgIAAQIDAAMCBAEDAgQBAwAHAQEBAwEBAQMBAQACCQQDAgEEAwIBAAQlBAEAAQICAAECAwADAgQBAgIEAQMABgECAgQBAgMEAAkDAwECAwQBAgAEJgQBAAICAQACAwEAAwEEAQMBBAEDAQEAAgYCAgEEAgIBBAECAAEJBAICAQQCAgEBAgECBCcDAQACAgAAAgMAAAkDAQICAwECAgECAgMJBAECAQQBAgEBAQEDBCgEAQADAAIAAgABAAMCAgEEAgIBBAECAAEGBAICAQQCAgEBAgECBwIBAQECAQEBAQEBAwQpBAEAAwABAAMAAQADAQIBBAECAQQBAQACBgMCAQIEAgEDAAYEAgEBBAIBAQEBAgMEKgQBAAMCAgADAQIAAwIEAQQCAwEEAAcCAQEDAgEBAwEBAQIJBAMDAQQCAwEABCsDAQADAgAAAwIAAAkDAQMCAwEEAgAJBAEDAQQBAwEBAQEDBCwEAQEEAgIBBAICAQICAwQBAwEEAQMBBAEBAAIHAwIBAwMCAQQACwEBAgEBAQIBAQEAAwQtAwcDAQEDAwEBBAEBAQIJBAMEAQMCBAEACgICAwECAgMBAQIAAQMABAEAAwMBAAMEAQABAwMDAQIDBAEAAwEBAQQBAQEEAQEAAgYDAgEBAwIBAQEBAgMDAQQBAwMCAQMEAgEAAwEEBAQBAwMDAQQBAwYDAQEBAwEBAQEBAQMGAwEBBAMBAQQBAQECAwIEAQIDAgABAwIAAAUEAgECBAIBAwAIAQIEAgECBAMACQMBAwEDAQQBAQEBAwMDBAECAwIDAQMCBAAFAQIBAgEDAgQACAECAQIBAwIEAAsBAgECAQMCBAADBAQBAwMBAQMEAQEBAQIDAwEDBAQBAgMDAQQCAwgBAwQBAQMEAQEBAAMKAQECBAEBAgQBAQABAwUEAQEDBAEBAgMBAQEAAwEDAwQBAgMEAQADAQECBAEBAgQBAQABBgMDAQEDBAEBAQECAwMGBAEDAwQEAQECAgIDAAEDAAEGAQMBAQEDAQEBAQADCAEDAgQBAwIEAAsDAwEDAgMBBAADBwMFBAMBAgMEAQIACAECBAMBAgQDAAkEAQMCBAEDAgADCAQBAAMDAgADAgEAAQQDAwIDAgIBAQMBAgMCAQEEAgEBBAEBAQIEAQQEAwEDBAIAAwkEAQMDAwMBAQEBAQMAAwUBAwICAQQCAwAIAQMBAwEDAgQACwICAQMCAgEDAQIAAQMKBAEAAAEBAAABAgADAQMBAQEDAQEBAQADBQEDAgQBAwIEAAgDAwEDAgMBBAADCwQBAwMDBAEBAQIBAwACBgECAQEBAgEBAQEAAwgBAwIDAQMCBAALAgMBAwIDAQQAAwwEAQIDAwQBAgMEAAUCAwECAgQBAwAIAQICAwECAwQACwIDAQICBAEDAAMNBAEEAwMEAgEBAwEDAQIGAQICAQECAgECAQADAgECCAEEAgMBBAIDAAsCAwEEAgMBBAADDgQBAAEBAQABAgMAAwEDAQIBAwECAQEAAgYBAgEDAQIBAwEBAAIJAgIBAgIDAQQAAw8EAQABAQAAAQIAAAIBBAIDAQQCAwAFAgMBBAIDAQQACQIBAQICAQEDAQEBAgMQBAEAAQECAAEBAgEBAQIDAgMBAgIEAQMABgECAgMBAgMEAAkCAwECAgQBAwADEQQBAAEAAQABAAIAAQMEAwQBAwIEAAYBAgECAQMCBAAJAQIBAgEDAgQAAxIEAQABAAIAAQACAAEEBAMEAgMBBAAGAQICAgECAwQACQEDAQIBAwECAQEAAgMTBAEAAQIBAAEDAgADAQQBAgEEAQIBAQACBgECAQQBAgEEAQEAAgkDAgECBAIBAwADFAEIAwECAwMBAgQAAxUEAQABAQAAAQIAAAIBBAIDAQQCAwAFAgMBBAIDAQQACQIBAQICAQEDAQEBAgMWBAEAAQEDAAECBAADAwMBAgMEAQIAAwQDAQEEAwEBAQECAwYBAgMDAQIDBAADFwQBAAEAAwABAAMAAwMCAQIEAgEDAAMEAgEBBAIBAQEBAgMJAQQBAgEEAQIBAQACAxgEAQIBAAMCAQADAAQCAQIBAwEEAgADBAIDAQQCAwEABgEEAwIBBAMCAAMZBAEAAQACAAEAAgABBAQDBAIDAQQABgECAgIBAgMEAAkBAwECAQMBAgEBAAIDGgQBAAECAgABAgMAAwIEAQICBAEDAAYBAgIEAQIDBAAJBAMBAQQDAQEBAQIDAxsEAwEBAQMBAQEDAQEAAgUEAwIBBAMCAQAGAgIBAQIDAQEBAQIDCAEDAwMBAgMEAAMcBAIBAgIEAQIDBAAFBAMBAQQDAQEBAQIDBQMDAQIDBAECAAgBAgMDAQIDBAADHQQDAgEBAwIBAQMBAQECBQQDAwEEAgMBAAYCAgIBAgMEAQAIAQQDAwEEAgMAAx4EAQACAQEAAgEBAQECAwMBAwEDAQMCBAAGAgIBAwICAQMBAgABCgEBAQEBAQEBAQEAAwMfAggDAQMDAgEDBAALAgQDAQIEAwEAAyAEAQACAQMAAgEDAAMDAwEDAgMBBAAHAQECAgEBAgICAQABAgIDCgEDAQEBAwEBAQEAAwMhBAEDAwIDAgMBBAAFAQICAgECAwQACAEDAQIBAwECAQEAAgsBAgEDAQIBAwEBAAIDIgQBAwMCBAICAQMBAwABBgEBAQEBAQEBAQEAAwgBAwICAQMCAgECAgMLAQMBAwEDAgQAAyMEAQIDAgQBAgEDAQIAAgUCAgECAgMBBAAIAQICAgECAwQACwEDAQIBAwECAQEAAgMkBAICBAEDAgQBAwAGAQEBAwEBAQMBAQACCAQDAgEEAwIBAAkCAgEBAgIBAQIBAgMCAAEDJQQCAgQBAgIEAQMABQECAgQBAgMEAAgDAwECAwQBAgAIBAMBAQQDAQEBAQIDAyYEAgEEAQMBBAEDAQEAAgUCAgEEAgIBBAECAAEIBAICAQQCAgEBAgECCQIBAQECAQEBAQEBAwMnAwgDAQICAwECAgECAgMIBAECAQQBAgEBAQEDCwEDAwEBAwQBAQEAAwMoBAICAgEEAgIBBAECAAEFBAICAQQCAgEBAgECBgIBAQECAQEBAQEBAwgBAwMCAQMEAgADKQQCAQIBBAECAQQBAQACBQMCAQIEAgEDAAUEAgEBBAIBAQEBAgMIAQIDAgECBAMAAyoEAgIEAQQCAwEEAAYCAQEDAgEBAwEBAQIIBAMDAQQCAwEACQICAgECAwQBAAMrAwgDAQMCAwEEAgAIBAEDAQQBAwEBAQEDCwEEAwEBBAMBAQEAAwMsBAEAAwEBAAMBAQEBAgMDAQMBBAEDAQQBAQACBgMCAQMDAgEEAAoBAQIBAQECAQEBAAMDLQMGAwEBAwMBAQQBAQECCAQDBAEDAgQBAAkCAgMBAgIDAQECAAEFAAQBAgABAAIAAQAAAQIAAQMCAAEDAAUBAQEEAQEBBAEBAAIIAwIBAQMCAQEBAQIDBQEEAQEAAQMBAAIEAAMDAwIBAwQCAQAFAQQEBAECAwQACAMBAQEDAQEBAQEBAwUCBAIDBAMBAgQDAQAHBAIBAgQCAQMACgECBAIBAgQDAAsDAQMBAwEEAQEBAQMFAwQBAQIBAgEDAgQABAECAQIBAwIEAAcBAgECAQMCBAAKAQIBAgEDAgQABQQEAQAAAQMAAAEDAAMDAwEBAwQBAQEBAgMFAQMEBAECAwMBBAIDCgEDBAEBAwQBAQEAAwUFBAEDAAEBAwABAQEBAgMBAwABAwIAAQMAAwEDBAEBAgMBAQEAAwMDAwQBAgMEAQAFBgQBAwMBAwIDAQQABQEBAgIBAQICAgEAAQICAwgBAwEBAQMBAQEBAAMKAQMCBAEDAgQABQcDAgEEBAEBAwQBAQEAAwcEAwECBAMBAgAKAQIEAwECBAMABQgEAQIBAQADAQIAAAECAQEEAgEBBAEBAQICAQQEAwEDBAIABQIBAQQCAQEEAQEBAgUJBAECAgEDAgMBBAAFAQEBAQEBAQEBAQADBwEDAgIBBAIDAAoBAwEDAQMCBAAFCgQBAgIDAwEBAgICAgABAwIDBQEDAQEBAwEBAQEAAwcBAwIEAQMCBAAKAwMBAwIDAQQABQsEAQIDAQMCAwEEAAUBAQECAQEBAgEBAAIIAQIBAQECAQEBAQADCgEDAgMBAwIEAAUMBAECAwECAgQBAwAEAQICAwECAwQABwIDAQICBAEDAAoBAgIDAQIDBAAFDQQBAgMBBAIDAQQABQIBAQICAQEDAQEBAggBAgIBAQICAQIBAAMCAQIKAQQCAwEEAgMABQ4EAQIDAwMBAgMEAAUBAwECAQMBAgEBAAIIAQIBAwECAQMBAQACCwICAQICAwEEAAUPBAECAwMCAQICAQICAAMDAQIEAQQCAwEEAgMABwIDAQQCAwEEAAsCAQECAgEBAwEBAQIFEAQBAgMDBAECAgMBAwECBQIDAQICBAEDAAgBAgIDAQIDBAALAgMBAgIEAQMABREEAQIDAgMBAwIEAAUBAgECAQMCBAAIAQIBAgEDAgQACwECAQIBAwIEAAUSBAECAwIEAQIBAwECAAIFAgIBAgIDAQQACAECAgIBAgMEAAsBAwECAQMBAgEBAAIFEwQBAgMEAwECBAMABQEEAQIBBAECAQEAAggBAgEEAQIBBAEBAAILAwIBAgQCAQMABRQBAQECAgABAgMAAAUVBAECAwMCAQICAQICAAMDAQIEAQQCAwEEAgMABwIDAQQCAwEEAAsCAQECAgEBAwEBAQIFFgQCAQICBAECAwQABQMDAQIDBAECAAUEAwEBBAMBAQEBAgMIAQIDAwECAwQABRcEAgECAQQBAgEEAQEAAgUEAgEBBAIBAQEBAgMIAQIDAgECBAMACwEEAQIBBAECAQEAAgUYBAIDAgEEAwIBBAAFBAIDAQQCAwEABgIBAgEDAQQCAAgBBAMCAQQDAgAFGQQBAgMCBAECAQMBAgACBQICAQICAwEEAAgBAgICAQIDBAALAQMBAgEDAQIBAQACBRoEAQIDBAQBAgMEAAUCBAECAgQBAwAIAQICBAECAwQACwQDAQEEAwEBAQECAwUbBAECBAEDAgQBAwAFAQEBAwEBAQMBAQACBwQDAgEEAwIBAAgCAgEBAgMBAQEBAgMFHAQBAgQBAgIEAQMABAECAgQBAgMEAAcEAwEBBAMBAQEBAgMHAwMBAgMEAQIABR0EAQIEAQQCAwEEAAUCAQEDAgEBAwEBAQIHBAMDAQQCAwEACAICAgECAwQBAAUeBAEAAAAAAAAAAAABAgQDAwEDAgIBAwIDBQEDAQMBAwIEAAgCAgEDAgIBAwECAAEFHwIBAgQDAQIEAwEACgMBAwMCAQMEAAUgBAEAAgAAAAIAAAACAQMCBAEDAgQABQMDAQMCAwEEAAkBAQICAQECAgIBAAECAgMFIQQBAQIBAwECAQMBAQACBAICAQICAwEEAAcBAgICAQIDBAAKAQMBAgEDAQIBAQACBSIEAQEDAQMBAwIEAAQCAgEDAgIBAwECAAEIAQEBAQEBAQEBAQADCgEDAgIBAwICAQICAwUjBAEBAwECAQMBAgEBAAIEAQIBAwECAQMBAQACBwICAQICAwEEAAoBAgICAQIDBAAFJAQBAQMDAwECAwQABAIEAQMCBAEDAAgBAQEDAQEBAwEBAAIKBAMCAQQDAgEABSUEAQECAwMBAgMEAAQCBAECAgQBAwAHAQICBAECAwQACgMDAQIDBAECAAUmBAEBAwMCAQMEAgAEAQQBAwEEAQMBAQACBwICAQQCAgEEAQIAAQoEAgIBBAICAQECAQIFJwMBAQMDAQEDBAEBAQADCgMBAgIDAQICAQICAwoEAQIBBAECAQEBAQMFKAQBAQQBAwEEAQMBAQACBAICAQQCAgEEAQIAAQcEAgIBBAICAQECAQIIAgEBAQIBAQEBAQEDBSkEAQEEAQIBBAECAQEAAgQBAgEEAQIBBAEBAAIHAwIBAgQCAQMABwQCAQEEAgEBAQECAwUqBAEBBAMDAQQCAwAEAgQBBAIDAQQACAIBAQMCAQEDAQEBAgoEAwMBBAIDAQAFKwMBAQQDAQEEAwEBAQADCgMBAwIDAQQCAAoEAQMBBAEDAQEBAQMFLAQBAAABAAAAAQAAAgEEAgIBBAICAQICAwUBAwEEAQMBBAEBAAIIAwIBAwMCAQQABS0EAwADAgEAAwIBAAgDAQEDAwEBBAEBAQIKBAMEAQMCBAEACwICAwECAgMBAQIAAQcABAEAAgMCAAEDAgABBAIDAgMBAgEBAgEDAgMBAgQDAQIEAAcBAQEEAQEBBAEBAAIHAQQBAAIDAQACAwEAAQMCAwEDAgQBAAICAQIEAgEDBAAFAwMCAQMEAgEABwIEAQABAwEAAQMCAAEDAQMBAwEEAQEBAQMEAwQDAQIEAwEACQQCAQIEAgEDAAcDBAEAAQABAAEAAgABAwQDBAEDAgQABgECAQIBAwIEAAkBAgECAQMCBAAHBAQBAAIDAAACAwAAAgEBAgQBAQIEAQEAAQUDAwEBAwQBAQEBAgMHAQMEBAECAwMBBAIDBwUEAQACAwMAAQIDAAIEAQICBAECAgECAgMCBAECBAMBAgQABQEDBAEBAwQBAQEAAwcGBAEAAgEDAAIBAwADAwMBAwIDAQQABwEBAgIBAQICAgEAAQEAAQoBAwEBAQMBAQEBAAMHBwMBBAEDAgQBAwIABAEEBAEBAwQBAQEAAwkEAwECBAMBAgAHCAQBAAMDAgACAwEAAQQDAwIDAgIBAQMBAgMCAQEEAgEBBAEBAQIEAQQEAwEDBAIABwkEAQACAAIAAQACAAMCAgEDAgMBBAAHAQEBAQEBAQEBAQADCQEDAgIBBAIDAAcKBAECAgACAQIAAwAEAQECAgEBAgICAQABAgIDBwEDAQEBAwEBAQEAAwkBAwIEAQMCBAAHCwQBAAIBAgACAQMAAwIDAQMCAwEEAAcBAQECAQEBAgEBAAIKAQIBAQECAQEBAQADBwwEAQABAQIAAQIDAAMCAwECAgQBAwAGAQICAwECAwQACQIDAQICBAEDAAcNBAEAAwECAAMBAgADAgMBBAIDAQQABwIBAQICAQEDAQEBAgoBAgIBAQICAQIBAAMCAQIHDgQBAgIBAgIDAQQABAECAgIBAgMEAAcBAwECAQMBAgEBAAIKAQIBAwECAQMBAQACBw8EAQIBAQICAQEDAQEBAgQBAgIBAQICAQIBAAMCAQIGAQQCAwEEAgMACQIDAQQCAwEEAAcQBAECAwECAgQBAwAEAQICAwECAgMBAgECBwIDAQICBAEDAAoBAgIDAQIDBAAHEQQBAQIBAgEDAgQABAECAQIBAwIEAAcBAgECAQMCBAAKAQIBAgEDAgQABxIEAQEDAQIBAwECAQEAAgQBAgEDAQIBAwEBAAIHAgIBAgIDAQQACgECAgIBAgMEAAcTBAEDAgECBAIBAwABBAIBAQQCAQEBAQIDBAECAwIBAgQDAAcBBAECAQQBAgEBAAIHFAMBAgABAgIAAQMAAgQEBAECAwQBAAMCAwMBAgMEAQAHFQQBAgEBAgIBAQMBAQECBAECAgEBAgIBAgEAAwIBAgYBBAIDAQQCAwAJAgMBBAIDAQQABxYEAQIEAQICBAEDAAQBAgIEAQIDBAAHAwMBAgMEAQIABwQDAQEEAwEBAQECAwcXBAEBBAECAQQBAgEBAAIEAQIBBAECAQQBAQACBwQCAQEEAgEBAQECAwoBAgMCAQIEAwAHGAQBAQQBBAEDAQQBAQACBAMCAQQDAgEEAAcEAgMBBAIDAQAIAgECAQMBBAIABxkEAQEDAQIBAwECAQEAAgQBAgEDAQIBAwEBAAIHAgIBAgIDAQQACgECAgIBAgMEAAcaBAEEAwEBBAMBAQEBAgMBAwMBAgMEAQIABAECAwMBAgMEAAcCBAECAgQBAwAHGwQBAAICAgABAgMAAwIEAQMCBAEDAAcBAQEDAQEBAwEBAAIJBAMCAQQDAgEABxwEAQABAgIAAQIDAAMCBAECAgQBAwAGAQICBAECAwQACQQDAQEEAwEBAQECAwcdBAEAAwICAAIBAQECAgMDAgQBBAIDAQQABwIBAQMCAQEDAQEBAgkEAwMBBAIDAQAHHgQBAgICAgEBAQEBAgADBAEDAgIBAwICAQICAwcBAwEDAQMCBAAKAgIBAwICAQMBAgABBx8CAQIAAgIBAAIDAAMCBAMBAgQDAQAHIAQBAgQCAgEDAQEBAgADBAEDAgQBAwIEAAcDAwEDAgMBBAALAQECAgEBAgICAQABAgIDByEEAQACAAEAAgABAAMBAgEDAQIBAwEBAAIGAgIBAgIDAQQACQECAgIBAgMEAAciBAEAAgEBAAIBAQEBAgMDAQMBAwEDAgQABgICAQMCAgEDAQIAAQoBAQEBAQEBAQEBAAMHIwQBAAEBAQABAgMAAwEDAQIBAwECAQEAAgYBAgEDAQIBAwEBAAIJAgIBAgIDAQQAByQEAQMCAQADAgEAAAECAgEBAgIBAQIBAgMCAAEDAQMDAwECAwQABgIEAQMCBAEDAAclBAECAgABAgMAAQABAwIAAAMCAAAAAwECAwMBAgMEAAYCBAECAgQBAwAHJgQBAwEBAAMBAgAAAQIBAQECAQEBAQEBAwMBAwMCAQMEAgAGAQQBAwEEAQMBAQACBycEAQIAAQEDAAEBAQECAwEDAAEAAwABAAADAQMDAQEDBAEBAQADBQEBAgABAgMAAAcoBAEAAgIBAAIDAQADAQQBAwEEAQMBAQACBgICAQQCAgEEAQIAAQkEAgIBBAICAQECAQIHKQQBAAECAQABAwIAAwEEAQIBBAECAQEAAgYBAgEEAQIBBAEBAAIJAwIBAgQCAQMAByoEAQMCAgADAQIAAAECAgIBAgMEAQADAQQDAwEEAgMABgIEAQQCAwEEAAcrBAECAAIBAgADAQABAwACAAMAAgAAAwEEAwEBBAMBAQEAAwUBAgIAAQIDAAAHLAQBAgIDAgEBAgEBAgADBAEEAgIBBAICAQICAwcBAwEEAQMBBAEBAAIKAwIBAwMCAQQABy0DAQMCAwACAQMAAAECAgMBAgIDAQECAAEKAwEBAwMBAQQBAQECBgAEAQMBAgEDAQIBAQEBAwEDAQIEAwECBAAGAQEBBAEBAQQBAQACCQMCAQEDAgEBAQECAwYBBAECAQIAAgEDAAABAgECBAIBAwQABAMDAgEDBAIBAAkDAQEBAwEBAQEBAQMGAgQBAgACAAIAAwAAAwMEAwECBAMBAAgEAgECBAIBAwALAQIEAgECBAMABgMEAQIDAgMBAwIEAAUBAgECAQMCBAAIAQIBAgEDAgQACwECAQIBAwIEAAYEBAEBAQIEAQECBAEBAAEEAwMBAQMEAQEBAQIDBgEDBAQBAgMDAQQCAwsBAwQBAQMEAQEBAAMGBQQBBAECBAMBAgQABAEDBAEBAgMBAQEAAwQDAwQBAgMEAQAGAQECBAEBAgQBAQABBgYEAQQEAgQCAwEEAAYBAQICAQECAgIBAAECAgMJAQMBAQEDAQEBAQADCwEDAgQBAwIEAAYHAwEDAAIBAwACAQADAQQEAQEDBAEBAQADCAQDAQIEAwECAAYIBAEDAgIBAwICAQECAQICAgEBBAIBAQQBAQECAwEEBAMBAwQCAAYCAQEEAgEBBAEBAQIGCQQBAwMCBAIDAQQABgEBAQEBAQEBAQEAAwgBAwICAQQCAwALAQMBAwEDAgQABgoEAQMDBAQBAQICAgMAAQQCAwYBAwEBAQMBAQEBAAMIAQMCBAEDAgQACwMDAQMCAwEEAAYLBAEDBAIEAgMBBAAGAQEBAgEBAQIBAQACCQECAQEBAgEBAQEAAwsBAwIDAQMCBAAGDAQBAwQCAwIEAQMABQECAgMBAgMEAAgCAwECAgQBAwALAQICAwECAwQABg0EAgIDAQQCAwEEAAYCAQECAgEBAwEBAQIJAQICAQECAgECAQADAgECCwEEAgMBBAIDAAYOBAEBAQABAQIAAwABAwQEBAECAwQABgEDAQIBAwECAQEAAgkBAgEDAQIBAwEBAAIGDwQBAQAAAQEAAAIAAQMEBAMBAgIBAgMAAwQBAgUBBAIDAQQCAwAIAgMBBAIDAQQABhAEAQECAAEBAwACAAMBAgIDAQICAwECAQIGAgMBAgIEAQMACQECAgMBAgMEAAYRBAEAAQABAAEAAgABAwQDBAEDAgQABgECAQIBAwIEAAkBAgECAQMCBAAGEgQBAAIAAQACAAEAAwECAQMBAgEDAQEAAgYCAgECAgMBBAAJAQICAgECAwQABhMEAQIBAAEDAQACAAEDAQAAAwEAAAADAQIDAgECBAMABgEEAQIBBAECAQEAAgYUAgEDBAQCAgMEAQABBAQEAQIDBAEABhUEAQEAAAEBAAACAAEDBAQDAQICAQIDAAMEAQIFAQQCAwEEAgMACAIDAQQCAwEEAAYWBAEBAwABAQMAAgADAQICBAECAwQABgMDAQIDBAECAAYEAwEBBAMBAQEBAgMGFwQBAAMAAQADAAEAAwECAQQBAgEEAQEAAgYEAgEBBAIBAQEBAgMJAQIDAgECBAMABhgEAQADAAMAAQACAAMDAgEEAwIBBAAGBAIDAQQCAwEABwIBAgEDAQQCAAYZBAEAAgABAAIAAQADAQIBAwECAQMBAQACBgICAQICAwEEAAkBAgICAQIDBAAGGgQBAwIAAAMCAAAAAQICAAECAwABAAMBAgMDAQIDBAAGAgQBAgIEAQMABhsEAgIEAQMCBAEDAAYBAQEDAQEBAwEBAAIIBAMCAQQDAgEACQICAQECAwEBAQECAwYcBAICBAECAgQBAwAFAQICBAECAwQACAQDAQEEAwEBAQECAwgDAwECAwQBAgAGHQQCAgQBBAIDAQQABgIBAQMCAQEDAQEBAggEAwMBBAIDAQAJAgICAQIDBAEABh4EAQEBAQEBAQEBAQEAAwMBAwICAQMCAgECAgMGAQMBAwEDAgQACQICAQMCAgEDAQIAAQYfAgICBAMBAgQDAQALAwEDAwIBAwQABiAEAQEDAQEBAwEBAQEAAwMBAwIEAQMCBAAGAwMBAwIDAQQACgEBAgIBAQICAgEAAQICAwYhBAECAwIEAQIBAwECAAIFAgIBAgIDAQQACAECAgIBAgMEAAsBAwECAQMBAgEBAAIGIgQBAgQCBAEDAgQABQICAQMCAgEDAQIAAQkBAQEBAQEBAQEBAAMLAQMCAgEDAgIBAgIDBiMEAQIEAgMBAwECAQIAAgUBAgEDAQIBAwEBAAIIAgIBAgIDAQQACwECAgIBAgMEAAYkBAEBAQAAAQIAAAABAgQEBAECAwQABQIEAQMCBAEDAAkBAQEDAQEBAwEBAAIGJQQBAgMEBAECAwQABQIEAQICBAEDAAgBAgIEAQIDBAALAwMBAgMEAQIABiYEAQEAAAABAAAAAAECBAQDAQMEAgAFAQQBAwEEAQMBAQACCAICAQQCAgEEAQIAAQYnAwECBAQCAQMEAQECAAMLAwECAgMBAgIBAgIDCwQBAgEEAQIBAQEBAwYoBAIBBAEDAQQBAwEBAAIFAgIBBAICAQQBAgABCAQCAgEEAgIBAQIBAgkCAQEBAgEBAQEBAQMGKQQCAQQBAgEEAQIBAQACBQECAQQBAgEEAQEAAggDAgECBAIBAwAIBAIBAQQCAQEBAQIDBioEAQEBAQABAgMAAAIBBAMDAQQCAwAFAgQBBAIDAQQACQIBAQMCAQEDAQEBAgYrAwIBBAMBAQQDAQEBAAMLAwEDAgMBBAIACwQBAwEEAQMBAQEBAwYsBAEBAQIBAQECAQEBAAMDAQQCAgEEAgIBAgIDBgEDAQQBAwEEAQEAAgkDAgEDAwIBBAAGLQMBAQECAAECAwAACQMBAQMDAQEEAQEBAgsEAwQBAwIEAQA=",
+};
+
+
+// Piano: 528 chords, 528 voicings, 4331 bytes.
+const PCWSTR kPianoKeys[] = {
+    L"C", L"C#", L"D", L"Eb", L"E", L"F", L"F#", L"G", L"Ab", L"A", L"Bb", L"B",
+};
+
+const PCWSTR kPianoSuffixes[] = {
+    L"major", L"m", L"dim", L"dim7", L"sus2", L"sus4",
+    L"7sus4", L"aug", L"aug7", L"aug9", L"5", L"6",
+    L"69", L"7", L"7b5", L"7b9", L"7sharp9", L"7b5b9",
+    L"7sharp5b9", L"7b5sharp9", L"7sharp5sharp9", L"9", L"9b5", L"9sharp11",
+    L"11", L"13", L"add9", L"maj7", L"maj7b5", L"maj7sharp5",
+    L"maj9", L"maj11", L"maj13", L"m6", L"m69", L"m7",
+    L"m7b5", L"m9", L"m11", L"mmaj7", L"mmaj7b5", L"mmaj9",
+    L"mmaj11", L"madd9",
+};
+
+const PCWSTR kPianoSuffixNames[] = {
+    L"", L"m", L"dim", L"dim7", L"sus2", L"sus4", L"7sus4", L"aug",
+    L"aug7", L"aug9", L"5", L"6", L"69", L"7", L"7b5", L"7b9",
+    L"7#9", L"7b5b9", L"7#5b9", L"7b5#9", L"7#5#9", L"9", L"9b5", L"9#11",
+    L"11", L"13", L"add9", L"maj7", L"maj7b5", L"maj7#5", L"maj9", L"maj11",
+    L"maj13", L"m6", L"m69", L"m7", L"m7b5", L"m9", L"m11", L"mmaj7",
+    L"mmaj7b5", L"mmaj9", L"mmaj11", L"madd9",
+};
+
+const char* const kPianoChunks[] = {
+    "AAABAzxAQwABAQI8QwACAQE8AAMBAjxFAAQBAzw+QwAFAQM8QUMABgEDPEFDAAcBAjxAAAgBAjxAAAkBAzxAPgAKAQI8QwALAQQ8QENFAAwBBTxAQ0U+AA0BAzxAQwAOAQI8QAAPAQM8QEMAEAEDPEBDABEBAjxAABIBAjxAABMBAjxAABQBAjxAABUBBDxAQz4AFgEDPEA+ABcBBDxAQz4AGAEFPEBDPkEAGQEGPEBDPkFFABoBBDxAQz4AGwEEPEBDRwAcAQM8QEcAHQEDPEBHAB4BBTxAQ0c+AB8BBTxDRz5BACABBjxAQ0c+RQAhAQM8Q0UAIgEEPENFPgAjAQI8QwAkAQE8ACUBAzxDPgAmAQQ8Qz5BACcBAzxDRwAoAQI8RwApAQQ8Q0c+ACoBBTxDRz5BACsBAzxDPgEAAQM9QUQBAQEDPUBEAQIBAz1AQwEDAQQ9QENGAQQBAz0/RAEFAQM9QkQBBgEEPUJERwEHAQM9QUUBCAEEPUFFRwEJAQU9QUVHPwEKAQI9RAELAQQ9QURGAQwBBT1BREY/AQ0BBD1BREcBDgEEPUFDRwEPAQU9QURHPgEQAQU9QURHQAERAQU9QUNHPgESAQU9QUVHPgETAQU9QUNHQAEUAQU9QUVHQAEVAQU9QURHPwEWAQU9QUNHPwEXAQY9QURHP0MBGAEGPUFERz9CARkBBz1BREc/QkYBGgEEPUFEPwEbAQQ9QUQ8ARwBBD1BQzwBHQEEPUFFPAEeAQU9QUQ8PwEfAQU9RDw/QgEgAQY9QUQ8P0YBIQEEPUBERgEiAQU9QERGPwEjAQQ9QERHASQBBD1AQ0cBJQEFPUBERz8BJgEGPUBERz9CAScBBD1ARDwBKAEEPUBDPAEpAQU9QEQ8PwEqAQY9QEQ8P0IBKwEEPUBEPwIAAQM+QkUCAQEDPkFFAgIBAz5BRAIDAQQ+QURHAgQBAz5ARQIFAQM+Q0UCBgEEPkNFPAIHAQM+QkYCCAEEPkJGPAIJAQU+QkY8QAIKAQI+RQILAQQ+QkVHAgwBBT5CRUdAAg0BBD5CRTwCDgEEPkJEPAIPAQU+QkU8PwIQAQU+QkU8QQIRAQU+QkQ8PwISAQU+QkY8PwITAQU+QkQ8QQIUAQU+QkY8QQIVAQU+QkU8QAIWAQU+QkQ8QAIXAQY+QkU8QEQCGAEGPkJFPEBDAhkBBz5CRTxAQ0cCGgEEPkJFQAIbAQQ+QkU9AhwBBD5CRD0CHQEEPkJGPQIeAQU+QkU9QAIfAQU+RT1AQwIgAQY+QkU9QEcCIQEEPkFFRwIiAQU+QUVHQAIjAQQ+QUU8AiQBAz5BPAIlAQU+QUU8QAImAQY+QUU8QEMCJwEDPkFFAigBAj5BAikBBD5BRUACKgEFPkFFQEMCKwEEPkFFQAMAAQM/Q0YDAQEDP0JGAwIBAz9CRQMDAQQ/QkU8AwQBAz9BRgMFAQM/REYDBgEEP0RGPQMHAQM/Q0cDCAEEP0NHPQMJAQU/Q0c9QQMKAQI/RgMLAQQ/Q0Y8AwwBBT9DRjxBAw0BBD9DRj0DDgEEP0NFPQMPAQU/Q0Y9QAMQAQU/Q0Y9QgMRAQU/Q0U9QAMSAQU/Q0c9QAMTAQU/Q0U9QgMUAQU/Q0c9QgMVAQU/Q0Y9QQMWAQU/Q0U9QQMXAQY/Q0Y9QUUDGAEGP0NGPUFEAxkBBz9DRj1BRDwDGgEEP0NGQQMbAQQ/Q0Y+AxwBBD9DRT4DHQEEP0NHPgMeAQU/Q0Y+QQMfAQU/Rj5BRAMgAQY/Q0Y+QTwDIQEEP0JGPAMiAQU/QkY8QQMjAQQ/QkY9AyQBBD9CRT0DJQEFP0JGPUEDJgEGP0JGPUFEAycBBD9CRj4DKAEEP0JFPgMpAQU/QkY+QQMqAQY/QkY+QUQDKwEEP0JGQQQAAQNAREcEAQEDQENHBAIBA0BDRgQDAQRAQ0Y9BAQBA0BCRwQFAQNARUcEBgEEQEVHPgQHAQNARDwECAEEQEQ8PgQJAQVARDw+QgQKAQJARwQLAQRAREc9BAwBBUBERz1CBA0BBEBERz4EDgEEQERGPgQPAQVAREc+QQQQAQVAREc+QwQRAQVAREY+QQQSAQVARDw+QQQTAQVAREY+QwQUAQVARDw+QwQVAQVAREc+QgQWAQVAREY+QgQXAQZAREc+QkYEGAEGQERHPkJFBBkBB0BERz5CRT0EGgEEQERHQgQbAQRAREc/BBwBBEBERj8EHQEEQEQ8PwQeAQVAREc/QgQfAQVARz9CRQQgAQZAREc/Qj0EIQEEQENHPQQiAQVAQ0c9QgQjAQRAQ0c+BCQBBEBDRj4EJQEFQENHPkIEJgEGQENHPkJFBCcBBEBDRz8EKAEEQENGPwQpAQVAQ0c/QgQqAQZAQ0c/QkUEKwEEQENHQgUAAQNBRTwFAQECQTwFAgECQUcFAwEDQUc+BQQBA0FDPAUFAQJBPAUGAQJBPAUHAQJBRQUIAQJBRQUJAQNBRUMFCgECQTwFCwEEQUU8PgUMAQVBRTw+QwUNAQNBRTwFDgEDQUVHBQ8BA0FFPAUQAQNBRTwFEQEDQUVHBRIBAkFFBRMBA0FFRwUUAQJBRQUVAQRBRTxDBRYBBEFFR0MFFwEFQUU8Q0cFGAEEQUU8QwUZAQVBRTxDPgUaAQRBRTxDBRsBBEFFPEAFHAEEQUVHQAUdAQNBRUAFHgEFQUU8QEMFHwEEQTxAQwUgAQZBRTxAQz4FIQEDQTw+BSIBBEE8PkMFIwECQTwFJAECQUcFJQEDQTxDBSYBA0E8QwUnAQNBPEAFKAEDQUdABSkBBEE8QEMFKgEEQTxAQwUrAQNBPEMGAAEDQkY9BgEBA0JFPQYCAQNCRTwGAwEEQkU8PwYEAQNCRD0GBQEDQkc9BgYBBEJHPUAGBwEDQkY+BggBBEJGPkAGCQEFQkY+QEQGCgECQj0GCwEEQkY9PwYMAQVCRj0/RAYNAQRCRj1ABg4BBEJGPEAGDwEFQkY9QEMGEAEFQkY9QEUGEQEFQkY8QEMGEgEFQkY+QEMGEwEFQkY8QEUGFAEFQkY+QEUGFQEFQkY9QEQGFgEFQkY8QEQGFwEGQkY9QEQ8BhgBBkJGPUBERwYZAQdCRj1AREc/BhoBBEJGPUQGGwEEQkY9QQYcAQRCRjxBBh0BBEJGPkEGHgEFQkY9QUQGHwEFQj1BREcGIAEGQkY9QUQ/BiEBBEJFPT8GIgEFQkU9P0QGIwEEQkU9QAYkAQRCRTxABiUBBUJFPUBEBiYBBkJFPUBERwYnAQRCRT1BBigBBEJFPEEGKQEFQkU9QUQGKgEGQkU9QURHBisBBEJFPUQHAAEDQ0c+BwEBAkM+BwIBA0NGPQcDAQRDRj1ABwQBA0NFPgcFAQNDPD4HBgEEQzw+QQcHAQNDRz8HCAEEQ0c/QQcJAQVDRz9BRQcKAQJDPgcLAQRDRz5ABwwBBUNHPkBFBw0BBENHPkEHDgEEQ0c9QQcPAQVDRz5BRAcQAQVDRz5BRgcRAQVDRz1BRAcSAQVDRz9BRAcTAQVDRz1BRgcUAQVDRz9BRgcVAQVDRz5BRQcWAQVDRz1BRQcXAQZDRz5BRT0HGAEGQ0c+QUU8BxkBB0NHPkFFPEAHGgEEQ0c+RQcbAQRDRz5CBxwBBENHPUIHHQEEQ0c/QgceAQVDRz5CRQcfAQVDPkJFPAcgAQZDRz5CRUAHIQEDQz5AByIBBEM+QEUHIwEDQz5BByQBAkNBByUBBEM+QUUHJgEFQz5BRTwHJwECQz4HKAEBQwcpAQNDPkUHKgEEQz5FPAcrAQNDPkUIAAEDRDw/CAEBA0RHPwgCAQNERz4IAwEEREc+QQgEAQNERj8IBQEDRD0/CAYBBEQ9P0IIBwEDRDxACAgBBEQ8QEIICQEFRDxAQkYICgECRD8ICwEERDw/QQgMAQVEPD9BRggNAQREPD9CCA4BBEQ8PkIIDwEFRDw/QkUIEAEFRDw/QkcIEQEFRDw+QkUIEgEFRDxAQkUIEwEFRDw+QkcIFAEFRDxAQkcIFQEFRDw/QkYIFgEFRDw+QkYIFwEGRDw/QkY+CBgBBkQ8P0JGPQgZAQdEPD9CRj1BCBoBBEQ8P0YIGwEERDw/QwgcAQREPD5DCB0BBEQ8QEMIHgEFRDw/Q0YIHwEFRD9DRj0IIAEGRDw/Q0ZBCCEBBERHP0EIIgEFREc/QUYIIwEEREc/QggkAQRERz5CCCUBBURHP0JGCCYBBkRHP0JGPQgnAQRERz9DCCgBBERHPkMIKQEFREc/Q0YIKgEGREc/Q0Y9CCsBBERHP0YJAAEDRT1ACQEBA0U8QAkCAQNFPD8JAwEERTw/QgkEAQNFR0AJBQEDRT5ACQYBBEU+QEMJBwEDRT1BCQgBBEU9QUMJCQEFRT1BQ0cJCgECRUAJCwEERT1AQgkMAQVFPUBCRwkNAQRFPUBDCQ4BBEU9P0MJDwEFRT1AQ0YJEAEFRT1AQzwJEQEFRT0/Q0YJEgEFRT1BQ0YJEwEFRT0/QzwJFAEFRT1BQzwJFQEFRT1AQ0cJFgEFRT0/Q0cJFwEGRT1AQ0c/CRgBBkU9QENHPgkZAQdFPUBDRz5CCRoBBEU9QEcJGwEERT1ARAkcAQRFPT9ECR0BBEU9QUQJHgEFRT1AREcJHwEFRUBERz4JIAEGRT1AREdCCSEBBEU8QEIJIgEFRTxAQkcJIwEERTxAQwkkAQRFPD9DCSUBBUU8QENHCSYBBkU8QENHPgknAQRFPEBECSgBBEU8P0QJKQEFRTxAREcJKgEGRTxAREc+CSsBBEU8QEcKAAEDRj5BCgEBA0Y9QQoCAQNGPUAKAwEERj1AQwoEAQNGPEEKBQEDRj9BCgYBBEY/QUQKBwEDRj5CCggBBEY+QkQKCQEFRj5CRDwKCgECRkEKCwEERj5BQwoMAQVGPkFDPAoNAQRGPkFECg4BBEY+QEQKDwEFRj5BREcKEAEFRj5BRD0KEQEFRj5AREcKEgEFRj5CREcKEwEFRj5ARD0KFAEFRj5CRD0KFQEFRj5BRDwKFgEFRj5ARDwKFwEGRj5BRDxAChgBBkY+QUQ8PwoZAQdGPkFEPD9DChoBBEY+QTwKGwEERj5BRQocAQRGPkBFCh0BBEY+QkUKHgEFRj5BRTwKHwEFRkFFPD8KIAEGRj5BRTxDCiEBBEY9QUMKIgEFRj1BQzwKIwEERj1BRAokAQRGPUBECiUBBUY9QUQ8CiYBBkY9QUQ8PwonAQRGPUFFCigBBEY9QEUKKQEFRj1BRTwKKgEGRj1BRTw/CisBBEY9QTwLAAEDRz9CCwEBA0c+QgsCAQNHPkELAwEERz5BRAsEAQNHPUILBQEDR0BCCwYBBEdAQkULBwEDRz9DCwgBBEc/Q0ULCQEFRz9DRT0LCgECR0ILCwEERz9CRAsMAQVHP0JEPQsNAQRHP0JFCw4BBEc/QUULDwEFRz9CRTwLEAEFRz9CRT4LEQEFRz9BRTwLEgEFRz9DRTwLEwEFRz9BRT4LFAEFRz9DRT4LFQEFRz9CRT0LFgEFRz9BRT0LFwEGRz9CRT1BCxgBBkc/QkU9QAsZAQdHP0JFPUBECxoBBEc/Qj0LGwEERz9CRgscAQRHP0FGCx0BBEc/Q0YLHgEFRz9CRj0LHwEFR0JGPUALIAEGRz9CRj1ECyEBBEc+QkQLIgEFRz5CRD0LIwEERz5CRQskAQRHPkFFCyUBBUc+QkU9CyYBBkc+QkU9QAsnAQRHPkJGCygBBEc+QUYLKQEFRz5CRj0LKgEGRz5CRj1ACysBBEc+Qj0=",
+};
+
+
+const InstrumentData kInstruments[] = {
+    {L"Guitar", kFretted, 6, kGuitarTuning, kGuitarKeys, 12, kGuitarSuffixes, kGuitarSuffixNames, 86, kGuitarChunks, 2},
+    {L"Ukulele", kFretted, 4, kUkuleleTuning, kUkuleleKeys, 12, kUkuleleSuffixes, kUkuleleSuffixNames, 46, kUkuleleChunks, 1},
+    {L"Piano", kPiano, 0, nullptr, kPianoKeys, 12, kPianoSuffixes, kPianoSuffixNames, 44, kPianoChunks, 1},
+};
+
+const int kInstrumentsSize = 3;
+
+}  // namespace chorddata
+// ==WindhawkModData:end==
