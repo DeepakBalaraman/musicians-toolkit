@@ -1882,7 +1882,7 @@ bool ParseHotkeyKey(const std::wstring& raw, WORD& vk, std::wstring& label) {
     std::wstring key;
     for (wchar_t c : raw) {
         if (!iswspace(c)) {
-            key += static_cast<wchar_t>(towlupper(c));
+            key += static_cast<wchar_t>(towupper(c));
         }
     }
     if (key.empty()) {
