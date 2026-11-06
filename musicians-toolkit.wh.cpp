@@ -1,7 +1,7 @@
 // ==WindhawkMod==
 // @id              musicians-toolkit
 // @name            Musician's Toolkit
-// @description     A Win+Y flyout with a chord library, a tap tempo calculator, a metronome, an instrument tuner and a strumming pattern builder for guitar, ukulele and piano
+// @description     A Win+Y flyout with a chord library, a tap tempo calculator, a metronome, an instrument tuner, a strumming pattern builder and an interactive circle of fifths for guitar, ukulele and piano
 // @version         1.0.0
 // @author          DpakB
 // @homepage        https://dpakb.com
@@ -16,7 +16,7 @@
 /*
 # Musician's Toolkit
 
-Press **Win+Y** to open a handy utility panel in the corner of your screen. It includes a built-in chord library, a tap tempo calculator, a metronome, an instrument tuner, and a strumming pattern builder. (The shortcut can be changed in Settings.)
+Press **Win+Y** to open a handy utility panel in the corner of your screen. It includes a built-in chord library, a tap tempo calculator, a metronome, an instrument tuner, a strumming pattern builder, and an interactive circle of fifths. (The shortcut can be changed in Settings.)
 
 Click the picker at the top left to switch tools, or press **Ctrl+Tab** to cycle through them using your keyboard.
 
@@ -54,6 +54,14 @@ Build a strumming pattern on a one-measure grid and hear it played back with syn
 - **Meter and feel:** The eight time signatures, the beat steppers and the 8ths / triplet / 16ths subdivision chips cover any meter; the pattern follows the tempo shared across the toolkit.
 - **Practice:** Toggle Count-in, Clicks, Loop or Practice. Practice mode ramps the tempo a little at the start of every measure up to your target.
 
+## Circle of Fifths
+
+Explore all twelve keys arranged around a ring, each a fifth clockwise from the last. 
+- **Ring:** Click any key badge to select it and hear its major scale rise; scroll or use the arrow keys to walk around the circle.
+- **Theory panel:** The selected key spells out its scale degrees, the seven diatonic chords, its sharps-or-flats key signature, the relative and parallel minor, and the mode built on each degree.
+- **Chords:** Click one of the seven diatonic chord chips to hear that triad, or press **1**–**7**.
+- **Major / Minor:** Toggle to relabel the ring with the relative-minor keys.
+
 ## Keyboard Shortcuts
 
 - **Win+Y:** Open or close the panel (the key and modifiers are configurable under Settings > Shortcut).
@@ -69,6 +77,7 @@ Build a strumming pattern on a one-measure grid and hear it played back with syn
 - **Startup:** Choose which tool and instrument open by default when you press Win+Y.
 - **Metronome Options:** Select default time signatures, click sounds (tick-tock, woodblock, or beep), volume, and background playback behavior.
 - **Strumming Options:** Choose the default subdivision, count-in, metronome clicks, loop, and the practice ramp step and target.
+- **Circle of Fifths:** Choose whether the ring opens labeled major or minor, and whether selecting a key plays its scale.
 - **Tap Tempo & Tuner:** Customize responsiveness, tap keys, and reference pitch (A4 = 440 Hz standard).
 
 The chord data is powered by [chords-db](https://github.com/tombatossals/chords-db) by David Rubert (MIT), packed directly into the mod so it requires no external files or internet connection.
@@ -87,6 +96,7 @@ The chord data is powered by [chords-db](https://github.com/tombatossals/chords-
       - metronome: Metronome
       - tuner: Tuner
       - strum: Strumming
+      - circle: Circle of fifths
   - DefaultInstrument: guitar
     $name: Default instrument
     $description: "The starting instrument for chords and tuning."
@@ -257,6 +267,16 @@ The chord data is powered by [chords-db](https://github.com/tombatossals/chords-
     $description: "How far above the starting tempo the practice ramp aims."
     #! $min: 0
     #! $max: 80
+- Circle:
+  - Mode: major
+    $name: Default mode
+    $description: "Whether the ring opens labeled with major or relative-minor keys."
+    $options:
+      - major: Major
+      - minor: Minor
+  - PlayOnSelect: true
+    $name: Play the scale on select
+    $description: "Hear the major scale play when you pick a key."
 */
 // ==/WindhawkModSettings==
 
@@ -1888,7 +1908,8 @@ struct Settings {
     int offsetX = 0;
     int offsetY = 0;
     bool primaryMonitorOnly = false;
-    // The order matches the Tool enum: chords, tempo, metronome, tuner.
+    // The order matches the Tool enum: chords, tempo, metronome, tuner,
+    // strumming, circle of fifths.
     int defaultTool = 0;
     bool showFingerings = false;
     int defaultInstrument = 0;
@@ -1908,6 +1929,8 @@ struct Settings {
     bool strumLoop = true;
     int strumRampStep = 2;
     int strumTargetOffset = 20;
+    bool circleMinor = false;
+    bool circlePlayOnSelect = true;
     // The toggle shortcut. Win+Y is the default, but any key with any mix of
     // modifiers can be set in the options.
     WORD hotkeyVk = 'Y';
@@ -2026,6 +2049,7 @@ Settings LoadSettings() {
                     : startTool == L"metronome" ? 2
                     : startTool == L"tuner"     ? 3
                     : startTool == L"strum"     ? 4
+                    : startTool == L"circle"    ? 5
                                                 : 0;
     const std::wstring theme = GetStringSetting(L"Appearance.Theme");
     s.theme = theme == L"light" ? kThemeLight
@@ -2128,6 +2152,16 @@ Settings LoadSettings() {
     const int strumTargetOffset = Wh_GetIntSetting(L"Strumming.TargetOffset");
     s.strumTargetOffset =
         std::clamp(strumTargetOffset == 0 ? 20 : strumTargetOffset, 0, 80);
+
+    // The circle of fifths defaults. A settings file written before this tool
+    // has no Circle.Mode, so it reads back empty and stays major; PlayOnSelect
+    // uses the same empty-string guard to stay on for such a file.
+    s.circleMinor = GetStringSetting(L"Circle.Mode") == L"minor";
+    const std::wstring circlePlayOnSelect =
+        GetStringSetting(L"Circle.PlayOnSelect");
+    s.circlePlayOnSelect = circlePlayOnSelect.empty()
+                               ? true
+                               : Wh_GetIntSetting(L"Circle.PlayOnSelect") != 0;
 
     // The toggle shortcut. The key defaults to Y and Win is the default
     // modifier, so an older settings file keeps opening on Win+Y. Reading the
@@ -2355,12 +2389,150 @@ constexpr StrumPreset kStrumPresets[] = {
 constexpr int kStrumPresetCount =
     static_cast<int>(sizeof(kStrumPresets) / sizeof(kStrumPresets[0]));
 
+////////////////////////////////////////////////////////////////////////////////
+// Circle of fifths
+//
+// Twelve positions clockwise from twelve o'clock, each a major key one fifth
+// from the last. Every fact the tool shows - the scale degrees, the diatonic
+// chords, the key signature, the relative and parallel minor and the mode
+// names - is spelled from these few numbers, so nothing is hard-coded beyond
+// the table. letter is the tonic's note name (0 C, 1 D, 2 E, 3 F, 4 G, 5 A,
+// 6 B), which is what fixes whether a degree reads as a sharp or a flat.
+
+struct CircleKey {
+    int pc;
+    int letter;
+    int fifths;
+    PCWSTR name;
+};
+
+constexpr CircleKey kCircleKeys[12] = {
+    {0, 0, 0, L"C"},    {7, 4, 1, L"G"},    {2, 1, 2, L"D"},
+    {9, 5, 3, L"A"},    {4, 2, 4, L"E"},    {11, 6, 5, L"B"},
+    {6, 3, 6, L"F#"},   {1, 1, -5, L"Db"},  {8, 5, -4, L"Ab"},
+    {3, 2, -3, L"Eb"},  {10, 6, -2, L"Bb"}, {5, 3, -1, L"F"},
+};
+
+// The major scale's semitone offsets from the tonic, degree by degree.
+constexpr int kCircleMajorSteps[7] = {0, 2, 4, 5, 7, 9, 11};
+// The triad each degree builds in a major key: 0 major, 1 minor, 2 diminished.
+constexpr int kCircleChordQuality[7] = {0, 1, 1, 0, 0, 1, 2};
+
+// Base pitch class of a note letter, before any accidental.
+int CircleLetterPc(int letter) {
+    static const int kBase[7] = {0, 2, 4, 5, 7, 9, 11};  // C D E F G A B
+    return kBase[((letter % 7) + 7) % 7];
+}
+
+// A single or double sharp or flat, or natural, from a -2..+2 offset.
+PCWSTR CircleAccidental(int delta) {
+    switch (delta) {
+        case -2:
+            return L"\x266D\x266D";  // double flat
+        case -1:
+            return L"\x266D";  // flat
+        case 1:
+            return L"#";
+        case 2:
+            return L"x";  // double sharp
+        default:
+            return L"";
+    }
+}
+
+// The name of one degree of the key's major scale, spelled correctly. Walking
+// the letters a step at a time and choosing the accidental that lands on the
+// scale's pitch class is what keeps G major's seventh as F#, not Gb.
+std::wstring CircleDegreeName(int index, int degree) {
+    const CircleKey& key = kCircleKeys[index];
+    const int step = ((degree % 7) + 7) % 7;
+    const int letter = (key.letter + step) % 7;
+    const int target = (key.pc + kCircleMajorSteps[step]) % 12;
+    int delta = (target - CircleLetterPc(letter) + 12) % 12;
+    if (delta > 6) {
+        delta -= 12;
+    }
+    static const PCWSTR kLetters[7] = {L"C", L"D", L"E", L"F",
+                                       L"G", L"A", L"B"};
+    return std::wstring(kLetters[letter]) + CircleAccidental(delta);
+}
+
+// The diatonic triad sitting on a degree, as a chord name.
+std::wstring CircleChordName(int index, int degree) {
+    std::wstring name = CircleDegreeName(index, degree);
+    switch (kCircleChordQuality[degree]) {
+        case 1:
+            name += L"m";
+            break;
+        case 2:
+            name += L"\x00B0";  // degree sign marks the diminished chord
+            break;
+        default:
+            break;
+    }
+    return name;
+}
+
+// Roman numeral for a degree: upper case for the major chords, lower for the
+// minor, and a degree sign for the diminished one.
+std::wstring CircleRoman(int degree) {
+    static const PCWSTR kNumeral[7] = {L"I", L"II",  L"III", L"IV",
+                                       L"V", L"VI", L"VII"};
+    std::wstring numeral = kNumeral[degree];
+    if (kCircleChordQuality[degree] != 0) {
+        for (wchar_t& c : numeral) {
+            c = static_cast<wchar_t>(towlower(c));
+        }
+    }
+    if (kCircleChordQuality[degree] == 2) {
+        numeral += L"\x00B0";
+    }
+    return numeral;
+}
+
+// The badge label: a major key in major mode, its relative minor in minor
+// mode (the relative minor is the sixth degree, so it needs no separate
+// spelling). The suffix marks which ring the player is reading.
+std::wstring CircleKeyName(int index, bool minor) {
+    if (!minor) {
+        return std::wstring(kCircleKeys[index].name);
+    }
+    return CircleDegreeName(index, 5) + L"m";
+}
+
+// The accidentals a signature carries, in the standard order, as a spaced
+// string. A positive count is sharps, a negative one flats.
+std::wstring CircleSignatureList(int fifths) {
+    static const PCWSTR kSharps[7] = {L"F#", L"C#", L"G#", L"D#",
+                                      L"A#", L"E#", L"B#"};
+    static const PCWSTR kFlats[7] = {L"Bb", L"Eb", L"Ab", L"Db",
+                                     L"Gb", L"Cb", L"Fb"};
+    std::wstring out;
+    const int count = fifths > 0 ? fifths : -fifths;
+    const PCWSTR* names = fifths > 0 ? kSharps : kFlats;
+    for (int i = 0; i < count && i < 7; i++) {
+        if (i) {
+            out += L" ";
+        }
+        out += names[i];
+    }
+    return out;
+}
+
+PCWSTR CircleModeName(int degree) {
+    static const PCWSTR kModes[7] = {
+        L"Ionian",    L"Dorian",   L"Phrygian", L"Lydian",
+        L"Mixolydian", L"Aeolian", L"Locrian"};
+    return kModes[degree];
+}
+
 enum Tool {
     kToolChords,
     kToolTempo,
     kToolMetronome,
     kToolTuner,
     kToolStrum,
+    kToolCircle,
     kToolCount,
 };
 
@@ -2374,6 +2546,8 @@ PCWSTR ToolLabel(int tool) {
             return L"Tuner";
         case kToolStrum:
             return L"Strumming";
+        case kToolCircle:
+            return L"Circle of fifths";
         default:
             break;
     }
@@ -2419,6 +2593,9 @@ enum Hit {
     kHitStrumChip,
     kHitStrumTempoDown,
     kHitStrumTempoUp,
+    kHitCircleKey,
+    kHitCircleMode,
+    kHitCircleChord,
 };
 
 struct HitResult {
@@ -2517,6 +2694,23 @@ struct Layout {
     RECT strumTempoDown{};
     RECT strumTempoUp{};
     RECT strumHint{};
+
+    // Circle of fifths tool, in the same rectangle once more. A ring of twelve
+    // key badges around a centre readout, a Major/Minor toggle above it, then a
+    // row of the seven diatonic chords and a block of theory lines below.
+    RECT circlePad{};
+    RECT circleMode[2]{};
+    RECT circleChord[7]{};
+    RECT circleCaption{};
+    RECT circleCenter{};
+    RECT circleSignature{};
+    RECT circleMinor{};
+    RECT circleDetail{};
+    RECT circleHint{};
+    int circleCx = 0;
+    int circleCy = 0;
+    int circleRingR = 0;
+    int circleBadgeR = 0;
 };
 
 int S(float dip) {
@@ -2527,6 +2721,10 @@ Layout g_layout;
 
 // Defined with the strumming state further down, but the layout needs it.
 int StrumSlotCount();
+
+// The centre of badge i on the circle, in physical pixels. Paint and hit-test
+// both read it, so a click always lands on the badge that is drawn.
+void CircleBadgeCenter(int i, float& x, float& y);
 
 void ComputeLayout() {
     Layout& l = g_layout;
@@ -2595,7 +2793,7 @@ void ComputeLayout() {
     for (int i = 0; i < kToolCount; i++) {
         toolWidth = std::max(
             toolWidth,
-            static_cast<int>(g_text.Measure(font, ToolLabel(i)).cx));
+            static_cast<int>(g_text.Measure(font, ToolLabel(i)).cx)) + 4;
     }
     l.toolSelect = {l.header.left, l.header.top,
                     l.header.left + toolWidth + S(30), l.header.top + tabHeight};
@@ -2856,6 +3054,52 @@ void ComputeLayout() {
 
     l.strumHint = {l.strumPad.left, strumTop + S(396), l.strumPad.right,
                    strumTop + S(414)};
+
+    // Circle of fifths tool, laid out in the same rectangle once more. A
+    // Major/Minor toggle on top, a ring of twelve key badges filling the
+    // middle, then the seven diatonic chords and three lines of theory.
+    l.circlePad = l.metroPad;
+    const int circleTop = l.circlePad.top;
+    const int circleLeft = l.circlePad.left + S(16);
+    const int circleRight = l.circlePad.right - S(16);
+    const int modeWidth = S(58);
+    const int modeX1 = circleRight - modeWidth;
+    const int modeX0 = modeX1 - S(6) - modeWidth;
+    l.circleMode[0] = {modeX0, circleTop + S(4), modeX0 + modeWidth,
+                       circleTop + S(28)};
+    l.circleMode[1] = {modeX1, circleTop + S(4), modeX1 + modeWidth,
+                       circleTop + S(28)};
+    l.circleCaption = {circleLeft, circleTop + S(6), modeX0 - S(8),
+                       circleTop + S(26)};
+
+    l.circleBadgeR = S(21);
+    const int half = (circleRight - circleLeft) / 2;
+    int ringR = half - l.circleBadgeR - S(3);
+    if (ringR > S(104)) {
+        ringR = S(104);
+    }
+    l.circleRingR = ringR;
+    l.circleCx = (circleLeft + circleRight) / 2;
+    l.circleCy = circleTop + S(148);
+    l.circleCenter = {l.circleCx - S(70), l.circleCy - S(30), l.circleCx + S(70),
+                      l.circleCy + S(18)};
+
+    const int chordY = circleTop + S(300);
+    const int chordGap = S(4);
+    const int chordWidth = (circleRight - circleLeft - chordGap * 6) / 7;
+    for (int i = 0; i < 7; i++) {
+        const int x = circleLeft + i * (chordWidth + chordGap);
+        l.circleChord[i] = {x, chordY, x + chordWidth, chordY + S(26)};
+    }
+
+    l.circleSignature = {circleLeft, circleTop + S(332), circleRight,
+                         circleTop + S(350)};
+    l.circleMinor = {circleLeft, circleTop + S(352), circleRight,
+                     circleTop + S(370)};
+    l.circleDetail = {circleLeft, circleTop + S(372), circleRight,
+                      circleTop + S(390)};
+    l.circleHint = {l.circlePad.left, circleTop + S(396), l.circlePad.right,
+                    circleTop + S(414)};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2983,6 +3227,19 @@ struct StrumState {
 };
 
 StrumState g_strum;
+
+// Circle of fifths tool. The whole view is just which of the twelve positions
+// is selected and whether the ring is read as majors or their relative minors;
+// every note, chord and signature the panel shows is spelled from that.
+struct CircleState {
+    int key = 0;              // Index into kCircleKeys.
+    bool minor = false;       // Read the ring as minor keys.
+    bool playOnSelect = true;  // Sound the scale when a key is picked.
+    bool defaultsApplied = false;
+    double flashAt = -1000.0;  // When a key was last selected, for the pulse.
+};
+
+CircleState g_circle;
 
 int StrumSlotCount() {
     return std::clamp(g_strum.beats * g_strum.subdivision, 1, kStrumSlotsMax);
@@ -3740,6 +3997,7 @@ struct AudioRequest {
     int generation = 0;
     bool plucked = true;
     float damping = 0.9975f;  // How long a plucked string rings.
+    float arpeggio = 0.0f;    // Seconds between notes; 0 sounds them together.
     int noteCount = 0;
     int notes[kMaxNotes] = {};
 };
@@ -3865,17 +4123,27 @@ void RenderChord(std::vector<float>& out,
                  int channels,
                  int rate,
                  const AudioRequest& request) {
-    const double length = request.plucked ? 3.2 : 2.8;
+    const double baseLength = request.plucked ? 3.2 : 2.8;
+    // A scale asks for a real arpeggio: each note starts well after the last,
+    // so it rises where a chord's two-centimetre spread would blur together.
+    const bool spaced = request.arpeggio > 0.0f && request.noteCount > 1;
+    const double spread =
+        spaced ? (request.noteCount - 1) * static_cast<double>(request.arpeggio)
+               : 0.0;
+    const double length = baseLength + spread;
     out.assign(static_cast<size_t>(length * rate) *
                    static_cast<size_t>(channels),
                0.0f);
     for (int i = 0; i < request.noteCount; i++) {
         const float frequency = NoteFrequency(request.notes[i]);
+        const double start =
+            spaced ? i * static_cast<double>(request.arpeggio)
+                   : i * (request.plucked ? 0.022 : 0.007);
         if (request.plucked) {
-            MixPluck(out, channels, rate, frequency, i * 0.022, request.damping,
+            MixPluck(out, channels, rate, frequency, start, request.damping,
                      0.20f);
         } else {
-            MixStrike(out, channels, rate, frequency, i * 0.007, 0.09f);
+            MixStrike(out, channels, rate, frequency, start, 0.09f);
         }
     }
     // Soft clipping keeps a dense chord from crackling and leaves headroom.
@@ -6967,6 +7235,139 @@ struct FooterItem {
     std::wstring action;
 };
 
+void CircleBadgeCenter(int i, float& x, float& y) {
+    // Twelve o'clock, then clockwise a fifth at a time (30 degrees a step).
+    const float angle = -1.5707963f + static_cast<float>(i) * 0.5235988f;
+    x = L(g_layout.circleCx) + g_layout.circleRingR * cosf(angle);
+    y = L(g_layout.circleCy) + g_layout.circleRingR * sinf(angle);
+}
+
+// The circle of fifths card: a ring of twelve key badges around a centre
+// readout, a Major/Minor toggle, the seven diatonic chords and the theory
+// lines that spell the selected key out in full.
+void PaintCircle(Surface& s, const Theme& t) {
+    const RECT& card = g_layout.circlePad;
+    FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
+                  S(kCardRadius), t.card);
+    StrokeRoundRect(s, L(card.left) + 0.5f, L(card.top) + 0.5f,
+                    L(card.right) - 0.5f, L(card.bottom) - 0.5f, S(kCardRadius),
+                    S(1.0f), t.stroke);
+
+    const int key = g_circle.key;
+    const float cx = L(g_layout.circleCx);
+    const float cy = L(g_layout.circleCy);
+    const float badgeR = L(g_layout.circleBadgeR);
+
+    // A faint ring through the badge centres ties the twelve keys together.
+    StrokeCircle(s, cx, cy, L(g_layout.circleRingR), S(1.0f), t.grid);
+
+    HFONT chipFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    PaintChip(s, t, g_layout.circleMode[0], L"Major", chipFont,
+              !g_circle.minor, g_hover.id == kHitCircleMode && g_hover.index == 0);
+    PaintChip(s, t, g_layout.circleMode[1], L"Minor", chipFont,
+              g_circle.minor, g_hover.id == kHitCircleMode && g_hover.index == 1);
+
+    // The selected key's scale spelled out along the top.
+    std::wstring scale;
+    for (int d = 0; d < 7; d++) {
+        if (d) {
+            scale += L"  ";
+        }
+        scale += CircleDegreeName(key, d);
+    }
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontTone)), kWeightSemiBold),
+                scale, g_layout.circleCaption,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.accent);
+
+    // The twelve badges, the selected one in the accent colour with a ring
+    // that eases out from the last click.
+    const double since = NowMs() - g_circle.flashAt;
+    const float pulse = static_cast<float>(Clamp01(1.0 - since / 260.0));
+    HFONT badgeFont = g_fonts.Get(S(static_cast<float>(kFontFoot)),
+                                  kWeightSemiBold);
+    for (int i = 0; i < 12; i++) {
+        float bx;
+        float by;
+        CircleBadgeCenter(i, bx, by);
+        const bool selected = i == key;
+        const bool hovered = g_hover.id == kHitCircleKey && g_hover.index == i;
+        const Color fill = selected
+                               ? WithAlpha(t.accent, 0.95f)
+                               : (hovered ? t.controlHover : t.control);
+        FillCircle(s, bx, by, badgeR, fill);
+        StrokeCircle(s, bx, by, badgeR, S(1.2f),
+                     selected ? t.accent : t.stroke);
+        if (selected && pulse > 0.0f) {
+            StrokeCircle(s, bx, by, badgeR + S(2.0f) + (1.0f - pulse) * S(8.0f),
+                         S(2.0f), WithAlpha(t.accent, 0.5f * pulse));
+        }
+        const std::wstring label = CircleKeyName(i, g_circle.minor);
+        RECT text{static_cast<LONG>(bx - badgeR), static_cast<LONG>(by - badgeR),
+                  static_cast<LONG>(bx + badgeR), static_cast<LONG>(by + badgeR)};
+        g_text.Draw(s, badgeFont, label, text,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                    selected ? t.onAccent : t.text);
+    }
+
+    // The tonic readout in the middle of the ring.
+    HFONT bigFont = g_fonts.Get(S(30.0f), kWeightSemiBold);
+    HFONT smallFont = g_fonts.Get(S(static_cast<float>(kFontTone)), FW_NORMAL);
+    g_text.Draw(s, bigFont, CircleKeyName(key, g_circle.minor),
+                g_layout.circleCenter, DT_CENTER | DT_TOP | DT_SINGLELINE, t.text);
+    RECT mode{g_layout.circleCenter.left, g_layout.circleCenter.bottom - S(16),
+              g_layout.circleCenter.right, g_layout.circleCenter.bottom};
+    g_text.Draw(s, smallFont, g_circle.minor ? L"minor" : L"major", mode,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+
+    // The seven diatonic chords, each clickable to hear that triad.
+    for (int d = 0; d < 7; d++) {
+        const std::wstring label = CircleChordName(key, d);
+        PaintChip(s, t, g_layout.circleChord[d], label.c_str(), chipFont,
+                  d == 0, g_hover.id == kHitCircleChord && g_hover.index == d);
+    }
+
+    // Key signature line.
+    const int fifths = kCircleKeys[key].fifths;
+    std::wstring signature;
+    if (fifths == 0) {
+        signature = L"No sharps or flats";
+    } else {
+        signature = fifths > 0 ? L"Sharps: " : L"Flats: ";
+        signature += CircleSignatureList(fifths);
+    }
+    g_text.Draw(s, smallFont, signature, g_layout.circleSignature,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.text);
+
+    // Relative and parallel minor.
+    const std::wstring relative = CircleDegreeName(key, 5) + L"m";
+    std::wstring parallel = std::wstring(kCircleKeys[key].name);
+    parallel += L"m";
+    std::wstring minors = L"Relative ";
+    minors += relative;
+    minors += L"  \x00B7  Parallel ";
+    minors += parallel;
+    g_text.Draw(s, smallFont, minors, g_layout.circleMinor,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+
+    // The mode built on each degree.
+    std::wstring modes;
+    for (int d = 0; d < 7; d++) {
+        if (d) {
+            modes += L" ";
+        }
+        modes += CircleModeName(d);
+    }
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
+                modes, g_layout.circleDetail,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
+                L"Click a key to hear its scale \x00B7 click a chord to play it",
+                g_layout.circleHint, DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                t.textFaint);
+}
+
 void PaintFooter(Surface& s, const Theme& t) {
     RECT rcFooter = g_layout.foot;
 
@@ -7009,12 +7410,19 @@ void PaintFooter(Surface& s, const Theme& t) {
             {L"1\x2013\x38", L"one string"},
             {L"Esc", L"close"}
         };
-    } else {
+    } else if (g_app.tool == kToolStrum) {
         std::wstring spaceAction = g_strum.running ? L"stop" : L"play";
         items = {
             {L"Space", spaceAction},
             {L"\x2190\x2192", L"select cell"},
             {L"D U X M R", L"stroke"},
+            {L"Esc", L"close"}
+        };
+    } else {
+        items = {
+            {L"Space", L"play scale"},
+            {L"\x2190\x2192", L"step keys"},
+            {L"1\x2013\x37", L"chord"},
             {L"Esc", L"close"}
         };
     }
@@ -7062,8 +7470,10 @@ void PaintPanel(Surface& s) {
         PaintMetronome(s, t);
     } else if (g_app.tool == kToolTuner) {
         PaintTuner(s, t);
-    } else {
+    } else if (g_app.tool == kToolStrum) {
         PaintStrum(s, t);
+    } else {
+        PaintCircle(s, t);
     }
     PaintFooter(s, t);
     if (MenuVisual(g_toolMenu)) {
@@ -7303,6 +7713,39 @@ HitResult HitTest(POINT pt) {
         for (int i = 0; i < kStrumChipCount; i++) {
             if (PtInRect(&g_layout.strumChip[i], pt)) {
                 hit.id = kHitStrumChip;
+                hit.index = i;
+                return hit;
+            }
+        }
+        if (PtInRect(&g_layout.header, pt)) {
+            hit.id = kHitHeader;
+        }
+        return hit;
+    }
+    if (g_app.tool == kToolCircle) {
+        for (int i = 0; i < 2; i++) {
+            if (PtInRect(&g_layout.circleMode[i], pt)) {
+                hit.id = kHitCircleMode;
+                hit.index = i;
+                return hit;
+            }
+        }
+        for (int i = 0; i < 7; i++) {
+            if (PtInRect(&g_layout.circleChord[i], pt)) {
+                hit.id = kHitCircleChord;
+                hit.index = i;
+                return hit;
+            }
+        }
+        const float radius = L(g_layout.circleBadgeR);
+        for (int i = 0; i < 12; i++) {
+            float bx;
+            float by;
+            CircleBadgeCenter(i, bx, by);
+            const float dx = static_cast<float>(pt.x) - bx;
+            const float dy = static_cast<float>(pt.y) - by;
+            if (dx * dx + dy * dy <= radius * radius) {
+                hit.id = kHitCircleKey;
                 hit.index = i;
                 return hit;
             }
@@ -7780,6 +8223,204 @@ void StrumStepPreset(int delta) {
                     kStrumPresetCount);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Circle of fifths controls
+//
+// The toolkit's WASAPI chord engine is parked, so the circle synthesises its
+// own short clip here: a Karplus-Strong pluck rendered into a buffer at the
+// metronome's sample rate and handed to a brief waveOut stream on a detached
+// thread. One-shots like this stay independent of the shared click engine.
+
+struct CircleClipRequest {
+    int notes[kMaxNotes];
+    int noteCount = 0;
+    float arpeggio = 0.0f;  // Seconds between notes; 0 sounds them together.
+    float damping = 0.9975f;
+};
+
+float CircleNoteFrequency(int midi) {
+    return 440.0f * powf(2.0f, (static_cast<float>(midi) - 69.0f) / 12.0f);
+}
+
+float CircleNoise(uint32_t& state) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return static_cast<float>(state) / 2147483648.0f - 1.0f;
+}
+
+// Noise recirculated through a two tap average, which reads as a plucked
+// string in a handful of lines. Stereo, matching the metronome output.
+void CircleMixPluck(std::vector<float>& out,
+                    float frequency,
+                    double start,
+                    float damping,
+                    float gain) {
+    const int delay = std::max(2, static_cast<int>(kMetroRate / frequency));
+    std::vector<float> line(static_cast<size_t>(delay));
+    uint32_t seed = 0x9E3779B9u ^ static_cast<uint32_t>(frequency * 11.0f);
+    float previous = 0.0f;
+    for (int i = 0; i < delay; i++) {
+        previous = 0.5f * (previous + CircleNoise(seed));
+        line[static_cast<size_t>(i)] = previous;
+    }
+    const size_t total = out.size() / kMetroChannels;
+    const size_t first = static_cast<size_t>(start * kMetroRate);
+    if (first >= total) {
+        return;
+    }
+    size_t index = 0;
+    for (size_t n = first; n < total; n++) {
+        const size_t next = (index + 1) % static_cast<size_t>(delay);
+        const float value = 0.5f * (line[index] + line[next]) * damping;
+        line[index] = value;
+        index = next;
+        float* frame = &out[n * kMetroChannels];
+        frame[0] += value * gain;
+        frame[1] += value * gain * 0.94f;
+    }
+}
+
+DWORD WINAPI CircleAudioThreadProc(void* param) {
+    CircleClipRequest* request = static_cast<CircleClipRequest*>(param);
+    // A scale asks for a real arpeggio: each note starts well after the last,
+    // so it rises where a chord's near-simultaneous spread would blur together.
+    const bool spaced = request->arpeggio > 0.0f && request->noteCount > 1;
+    const double spread =
+        spaced ? (request->noteCount - 1) * static_cast<double>(request->arpeggio)
+               : 0.0;
+    const double length = 3.2 + spread;
+    std::vector<float> out(static_cast<size_t>(length * kMetroRate) *
+                               static_cast<size_t>(kMetroChannels),
+                           0.0f);
+    for (int i = 0; i < request->noteCount; i++) {
+        const double start =
+            spaced ? i * static_cast<double>(request->arpeggio) : i * 0.022;
+        CircleMixPluck(out, CircleNoteFrequency(request->notes[i]), start,
+                       request->damping, 0.20f);
+    }
+    // Soft clipping keeps a dense chord from crackling, then a short tail fade
+    // so the clip never ends on a step.
+    for (size_t i = 0; i < out.size(); i++) {
+        out[i] = tanhf(out[i] * 1.35f) * 0.82f;
+    }
+    const size_t frames = out.size() / kMetroChannels;
+    const size_t fade =
+        std::min(frames, static_cast<size_t>(0.18 * kMetroRate));
+    for (size_t i = 0; i < fade; i++) {
+        const float tail = static_cast<float>(i) / static_cast<float>(fade);
+        float* frame = &out[(frames - fade + i) * kMetroChannels];
+        for (int c = 0; c < kMetroChannels; c++) {
+            frame[c] *= tail;
+        }
+    }
+    std::vector<short> pcm(out.size());
+    for (size_t i = 0; i < out.size(); i++) {
+        const float value = std::clamp(out[i], -1.0f, 1.0f);
+        pcm[i] = static_cast<short>(lroundf(value * 32767.0f));
+    }
+
+    WAVEFORMATEX format{};
+    format.wFormatTag = WAVE_FORMAT_PCM;
+    format.nChannels = kMetroChannels;
+    format.nSamplesPerSec = kMetroRate;
+    format.wBitsPerSample = 16;
+    format.nBlockAlign = static_cast<WORD>(kMetroChannels * 2);
+    format.nAvgBytesPerSec = kMetroRate * format.nBlockAlign;
+    HWAVEOUT device = nullptr;
+    if (waveOutOpen(&device, WAVE_MAPPER, &format, 0, 0,
+                    CALLBACK_NULL) == MMSYSERR_NOERROR) {
+        WAVEHDR header{};
+        header.lpData = reinterpret_cast<LPSTR>(pcm.data());
+        header.dwBufferLength =
+            static_cast<DWORD>(pcm.size() * sizeof(short));
+        if (waveOutPrepareHeader(device, &header, sizeof(WAVEHDR)) ==
+            MMSYSERR_NOERROR) {
+            if (waveOutWrite(device, &header, sizeof(WAVEHDR)) ==
+                MMSYSERR_NOERROR) {
+                const ULONGLONG deadline = GetTickCount64() + 8000;
+                while (!(header.dwFlags & WHDR_DONE) &&
+                       GetTickCount64() < deadline) {
+                    Sleep(25);
+                }
+            }
+            waveOutUnprepareHeader(device, &header, sizeof(WAVEHDR));
+        }
+        waveOutClose(device);
+    }
+    delete request;
+    return 0;
+}
+
+// Fire a one-shot clip on its own thread. The worker takes ownership of the
+// request; if the thread cannot start the buffer is freed here and nothing
+// sounds, which is the right failure mode for a background nicety.
+void CirclePlayClip(const int* notes, int count, float arpeggio) {
+    CircleClipRequest* request = new CircleClipRequest();
+    request->noteCount = std::min(count, kMaxNotes);
+    for (int i = 0; i < request->noteCount; i++) {
+        request->notes[i] = notes[i];
+    }
+    request->arpeggio = arpeggio;
+    HANDLE thread = CreateThread(nullptr, 0, CircleAudioThreadProc, request, 0,
+                                 nullptr);
+    if (thread) {
+        CloseHandle(thread);
+    } else {
+        delete request;
+    }
+}
+
+// The selected key's major scale, up to the octave above, as a rising
+// arpeggio so it reads as a scale rather than a chord.
+void CirclePlayScale() {
+    const CircleKey& key = kCircleKeys[g_circle.key];
+    int notes[kMaxNotes];
+    int count = 0;
+    for (int d = 0; d < 7; d++) {
+        notes[count++] = 60 + key.pc + kCircleMajorSteps[d];
+    }
+    notes[count++] = 60 + key.pc + 12;
+    CirclePlayClip(notes, count, 0.16f);
+}
+
+// A single diatonic triad, stacked in root position around middle C. The
+// third and fifth lift an octave once the walk passes the tonic again.
+void CirclePlayChord(int degree) {
+    if (degree < 0 || degree > 6) {
+        return;
+    }
+    const CircleKey& key = kCircleKeys[g_circle.key];
+    const int span[3] = {0, 2, 4};
+    int notes[kMaxNotes];
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+        int d = degree + span[i];
+        const int octave = d >= 7 ? 12 : 0;
+        d %= 7;
+        notes[count++] = 60 + key.pc + kCircleMajorSteps[d] + octave;
+    }
+    CirclePlayClip(notes, count, 0.0f);
+}
+
+void CircleSelect(int key, bool play) {
+    g_circle.key = ((key % 12) + 12) % 12;
+    g_circle.flashAt = NowMs();
+    if (play) {
+        CirclePlayScale();
+    }
+    Repaint();
+}
+
+void CircleToggleMode(bool play) {
+    g_circle.minor = !g_circle.minor;
+    g_circle.flashAt = NowMs();
+    if (play) {
+        CirclePlayScale();
+    }
+    Repaint();
+}
+
 // refit is set when the whole meter changes, so a preset or a signature step
 // picks up the grouping that meter is normally felt in; the steppers leave a
 // group the player chose alone.
@@ -7896,6 +8537,14 @@ void ApplySettings() {
         g_strum.preset = 0;
         g_strum.slotCursor = 0;
         StrumSync();
+    }
+    if (!g_circle.defaultsApplied) {
+        // One-shot seeding like the other tools: the circle settings only
+        // shape the panel the first time, so a later trip through Settings
+        // never overrides the key the player is exploring.
+        g_circle.defaultsApplied = true;
+        g_circle.minor = g_settings.circleMinor;
+        g_circle.playOnSelect = g_settings.circlePlayOnSelect;
     }
     MetronomeSync();
     // The reference pitch follows the settings; the panel never edits it.
@@ -8276,6 +8925,20 @@ void OnMouseDown(HWND hwnd, POINT pt) {
         case kHitStrumTempoUp:
             StrumNudgeTempo(1.0);
             break;
+        case kHitCircleKey:
+            CircleSelect(hit.index, g_circle.playOnSelect);
+            break;
+        case kHitCircleMode: {
+            const bool minor = hit.index == 1;
+            if (minor != g_circle.minor) {
+                g_circle.minor = minor;
+                CircleSelect(g_circle.key, g_circle.playOnSelect);
+            }
+            break;
+        }
+        case kHitCircleChord:
+            CirclePlayChord(hit.index);
+            break;
         case kHitHeader:
             g_dragging = true;
             GetCursorPos(&g_dragCursor);
@@ -8357,6 +9020,12 @@ void OnWheel(HWND hwnd, WPARAM wParam, POINT pt) {
     if (g_app.tool == kToolStrum) {
         const bool shift = GetKeyState(VK_SHIFT) < 0;
         StrumNudgeTempo(-direction * (shift ? 10.0 : 1.0));
+        return;
+    }
+    if (g_app.tool == kToolCircle) {
+        // The wheel walks the ring a fifth at a time, silent until you press
+        // Space or click.
+        CircleSelect(g_circle.key + direction, false);
         return;
     }
     if (g_app.tool == kToolTuner) {
@@ -8501,6 +9170,32 @@ void OnKeyDown(WPARAM key) {
             default:
                 return;
         }
+    }
+    if (g_app.tool == kToolCircle) {
+        if (key == VK_ESCAPE) {
+            CloseFlyout();
+            return;
+        }
+        if (key == VK_SPACE || key == VK_RETURN) {
+            CirclePlayScale();
+            return;
+        }
+        if (key == VK_LEFT || key == VK_RIGHT) {
+            // Stepping around the ring stays silent so a run of arrow presses
+            // does not spam the synth; Space plays whatever lands selected.
+            CircleSelect(g_circle.key + (key == VK_RIGHT ? 1 : -1), false);
+            return;
+        }
+        if (key == VK_UP || key == VK_DOWN || key == 'M') {
+            CircleToggleMode(false);
+            return;
+        }
+        // The number keys play the diatonic chord built on that degree.
+        if (key >= '1' && key <= '7') {
+            CirclePlayChord(static_cast<int>(key - '1'));
+            return;
+        }
+        return;
     }
     if (g_app.tool == kToolTuner) {
         if (MenuHit(g_tunerMenu)) {
