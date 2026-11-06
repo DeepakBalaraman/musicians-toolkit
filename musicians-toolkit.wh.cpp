@@ -16,7 +16,7 @@
 /*
 # Musician's Toolkit
 
-Press **Win+Y** to open a handy utility panel in the corner of your screen. It includes a built-in chord library, a tap tempo calculator, a metronome, and an instrument tuner.
+Press **Win+Y** to open a handy utility panel in the corner of your screen. It includes a built-in chord library, a tap tempo calculator, a metronome, and an instrument tuner. (The shortcut can be changed in Settings.)
 
 Click the picker at the top left to switch tools, or press **Ctrl+Tab** to cycle through them using your keyboard.
 
@@ -48,7 +48,7 @@ Open the tuner and let your microphone listen. A smooth needle sweeps across an 
 
 ## Keyboard Shortcuts
 
-- **Win+Y:** Open or close the panel.
+- **Win+Y:** Open or close the panel (the key and modifiers are configurable under Settings > Shortcut).
 - **Ctrl+Tab:** Switch between tools.
 - **Tab:** Switch instruments (in the chord library or tuner).
 - **Up / Down:** Navigate search results or adjust metronome BPM.
@@ -147,6 +147,22 @@ The chord data is powered by [chords-db](https://github.com/tombatossals/chords-
     $description: "Fine-tune vertical position."
     #! $min: -2000
     #! $max: 2000
+- Shortcut:
+  - HotkeyKey: Y
+    $name: Shortcut key
+    $description: "The key that opens and closes the panel. Enter a letter (A-Z), a number (0-9), a function key (F1-F24), or a name such as Space, Tab, Enter, Esc, Home, End, PgUp, PgDn, Left, Right, Up, Down."
+  - HotkeyWin: true
+    $name: Win key
+    $description: "Include the Windows key in the shortcut."
+  - HotkeyCtrl: false
+    $name: Ctrl key
+    $description: "Include the Ctrl key in the shortcut."
+  - HotkeyAlt: false
+    $name: Alt key
+    $description: "Include the Alt key in the shortcut."
+  - HotkeyShift: false
+    $name: Shift key
+    $description: "Include the Shift key in the shortcut."
 - Metronome:
   - Volume: 70
     $name: Volume (%)
@@ -1851,7 +1867,116 @@ struct Settings {
     int metronomeVolume = 70;
     bool metronomeKeepPlaying = true;
     int tunerReference = 440;  // A4 in Hz.
+    // The toggle shortcut. Win+Y is the default, but any key with any mix of
+    // modifiers can be set in the options.
+    WORD hotkeyVk = 'Y';
+    UINT hotkeyMods = MOD_WIN | MOD_NOREPEAT;
+    std::wstring hotkeyText = L"Win+Y";
 };
+
+// Turns the key the shortcut settings name into a virtual-key code, so Win+Y
+// can become any letter, digit, function key or common navigation key. Returns
+// false for anything it cannot read, and gives back a tidy label for the
+// panel's own hint text.
+bool ParseHotkeyKey(const std::wstring& raw, WORD& vk, std::wstring& label) {
+    std::wstring key;
+    for (wchar_t c : raw) {
+        if (!iswspace(c)) {
+            key += static_cast<wchar_t>(towlupper(c));
+        }
+    }
+    if (key.empty()) {
+        return false;
+    }
+    label = key;
+    if (key == L"SPACE") {
+        vk = VK_SPACE;
+        return true;
+    }
+    if (key == L"TAB") {
+        vk = VK_TAB;
+        return true;
+    }
+    if (key == L"ENTER" || key == L"RETURN") {
+        vk = VK_RETURN;
+        label = L"Enter";
+        return true;
+    }
+    if (key == L"ESC" || key == L"ESCAPE") {
+        vk = VK_ESCAPE;
+        label = L"Esc";
+        return true;
+    }
+    if (key == L"BACKSPACE") {
+        vk = VK_BACK;
+        label = L"Backspace";
+        return true;
+    }
+    if (key == L"INSERT" || key == L"INS") {
+        vk = VK_INSERT;
+        label = L"Insert";
+        return true;
+    }
+    if (key == L"DELETE" || key == L"DEL") {
+        vk = VK_DELETE;
+        label = L"Delete";
+        return true;
+    }
+    if (key == L"HOME") {
+        vk = VK_HOME;
+        return true;
+    }
+    if (key == L"END") {
+        vk = VK_END;
+        return true;
+    }
+    if (key == L"PAGEUP" || key == L"PGUP") {
+        vk = VK_PRIOR;
+        label = L"PgUp";
+        return true;
+    }
+    if (key == L"PAGEDOWN" || key == L"PGDN") {
+        vk = VK_NEXT;
+        label = L"PgDn";
+        return true;
+    }
+    if (key == L"LEFT" || key == L"LEFTARROW") {
+        vk = VK_LEFT;
+        label = L"Left";
+        return true;
+    }
+    if (key == L"RIGHT" || key == L"RIGHTARROW") {
+        vk = VK_RIGHT;
+        label = L"Right";
+        return true;
+    }
+    if (key == L"UP" || key == L"UPARROW") {
+        vk = VK_UP;
+        label = L"Up";
+        return true;
+    }
+    if (key == L"DOWN" || key == L"DOWNARROW") {
+        vk = VK_DOWN;
+        label = L"Down";
+        return true;
+    }
+    if (key.size() > 1 && key[0] == L'F') {
+        const int number = _wtoi(key.c_str() + 1);
+        if (number >= 1 && number <= 24) {
+            vk = static_cast<WORD>(VK_F1 + number - 1);
+            return true;
+        }
+        return false;
+    }
+    if (key.size() == 1) {
+        const wchar_t c = key[0];
+        if ((c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9')) {
+            vk = static_cast<WORD>(c);
+            return true;
+        }
+    }
+    return false;
+}
 
 Settings LoadSettings() {
     Settings s;
@@ -1940,6 +2065,63 @@ Settings LoadSettings() {
     // fall back to the concert standard rather than to nonsense.
     const int reference = Wh_GetIntSetting(L"Tuner.ReferencePitch");
     s.tunerReference = reference == 0 ? 440 : std::clamp(reference, 415, 466);
+
+    // The toggle shortcut. The key defaults to Y and Win is the default
+    // modifier, so an older settings file keeps opening on Win+Y. Reading the
+    // booleans through the empty-string guard is what lets Win stay on for a
+    // file written before these options existed.
+    WORD hotkeyVk = 'Y';
+    std::wstring keyLabel = L"Y";
+    const std::wstring keyText = GetStringSetting(L"Shortcut.HotkeyKey");
+    if (!keyText.empty()) {
+        WORD parsed = 0;
+        std::wstring parsedLabel;
+        if (ParseHotkeyKey(keyText, parsed, parsedLabel)) {
+            hotkeyVk = parsed;
+            keyLabel = parsedLabel;
+        }
+    }
+    const std::wstring winText = GetStringSetting(L"Shortcut.HotkeyWin");
+    const bool useWin =
+        winText.empty() ? true : Wh_GetIntSetting(L"Shortcut.HotkeyWin") != 0;
+    const bool useCtrl = Wh_GetIntSetting(L"Shortcut.HotkeyCtrl") != 0;
+    const bool useAlt = Wh_GetIntSetting(L"Shortcut.HotkeyAlt") != 0;
+    const bool useShift = Wh_GetIntSetting(L"Shortcut.HotkeyShift") != 0;
+    UINT mods = MOD_NOREPEAT;
+    if (useWin) {
+        mods |= MOD_WIN;
+    }
+    if (useCtrl) {
+        mods |= MOD_CONTROL;
+    }
+    if (useAlt) {
+        mods |= MOD_ALT;
+    }
+    if (useShift) {
+        mods |= MOD_SHIFT;
+    }
+    if (!(mods & (MOD_WIN | MOD_CONTROL | MOD_ALT | MOD_SHIFT))) {
+        // RegisterHotKey wants a real modifier, so keep the Windows key rather
+        // than register a shortcut that could never fire.
+        mods |= MOD_WIN;
+    }
+    s.hotkeyVk = hotkeyVk;
+    s.hotkeyMods = mods;
+    std::wstring display;
+    if (mods & MOD_CONTROL) {
+        display += L"Ctrl+";
+    }
+    if (mods & MOD_ALT) {
+        display += L"Alt+";
+    }
+    if (mods & MOD_SHIFT) {
+        display += L"Shift+";
+    }
+    if (mods & MOD_WIN) {
+        display += L"Win+";
+    }
+    display += keyLabel;
+    s.hotkeyText = display;
     return s;
 }
 
@@ -6654,6 +6836,22 @@ void MetronomeNudgeTempo(double delta) {
     TapTempoSetBpm(ToolkitBpm() + delta);
 }
 
+// Registers the toggle shortcut from the settings, swapping out whatever was
+// registered before. The message window has to exist first, so this is a
+// no-op until CreateWindows has made it; from then on every settings change
+// re-hooks it.
+void ApplyToggleHotkey() {
+    if (!g_messageWindow) {
+        return;
+    }
+    UnregisterHotKey(g_messageWindow, kHotkeyToggle);
+    if (!RegisterHotKey(g_messageWindow, kHotkeyToggle, g_settings.hotkeyMods,
+                        g_settings.hotkeyVk)) {
+        Wh_Log(L"%s is taken by another app (error %u)",
+               g_settings.hotkeyText.c_str(), GetLastError());
+    }
+}
+
 void ApplySettings() {
     g_settings = LoadSettings();
     g_accent = ResolveAccent(g_settings.accentChoice, g_settings.customAccent);
@@ -6669,6 +6867,9 @@ void ApplySettings() {
     MetronomeSync();
     // The reference pitch follows the settings; the panel never edits it.
     g_tuner.reference = g_settings.tunerReference;
+    // Re-hook the shortcut, unless this is the first load before the message
+    // window exists, in which case CreateWindows registers it a moment later.
+    ApplyToggleHotkey();
 }
 
 void SearchChanged() {
@@ -7579,10 +7780,9 @@ bool CreateWindows() {
                          nullptr)) {
         Wh_Log(L"Couldn't create the shadow: %u", GetLastError());
     }
-    if (!RegisterHotKey(g_messageWindow, kHotkeyToggle, MOD_WIN | MOD_NOREPEAT,
-                        'Y')) {
-        Wh_Log(L"Win+Y is taken by another app (error %u)", GetLastError());
-    }
+    // The shortcut comes from the settings, which ApplySettings has already
+    // loaded; now that the message window exists it can actually be hooked.
+    ApplyToggleHotkey();
     return true;
 }
 
