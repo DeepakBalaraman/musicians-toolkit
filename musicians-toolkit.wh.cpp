@@ -4943,7 +4943,11 @@ void AudioShutdown() {
 constexpr int kMetroRate = 44100;
 constexpr int kMetroChannels = 2;
 constexpr int kMetroBlockFrames = 512;  // About 11.6 ms per block.
-constexpr int kMetroBlockCount = 3;     // About 35 ms of headroom.
+// Eight blocks put about 93 ms of audio in the queue. Three is enough for the
+// mixing but not for Windows: a single repaint that held this thread for more
+// than 35 ms emptied the queue, and every gap the device then played is heard
+// as a crackle that drifts against the beat.
+constexpr int kMetroBlockCount = 8;
 constexpr int kMetroTail = 66150;      // 1.5 s, long enough for a strum to ring.
 constexpr int kMetroLevels = 4;
 
@@ -5013,6 +5017,19 @@ constexpr MetroBeepSpec kMetroBeeps[kMetroLevels] = {
     {220.0f, 0.22f, 0.045f},
 };
 
+// What one buffered block has to tell the panel. The queue runs several blocks
+// ahead of the speaker, so a cue is held back until the block it belongs to is
+// the one playing; otherwise the beat dot and the strum playhead would lead the
+// click by the whole length of the queue.
+struct MetroBlockCue {
+    bool hasBeat = false;
+    int beat = 0;
+    bool hasSlot = false;
+    int slot = 0;
+    unsigned pulses = 0;
+    unsigned measures = 0;
+};
+
 struct MetroAudio {
     HWAVEOUT device = nullptr;
     HANDLE audioEvent = nullptr;
@@ -5030,6 +5047,7 @@ struct MetroAudio {
     bool prepared = false;
     long long written = 0;
     double nextEvent = 0.0;
+    MetroBlockCue cue[kMetroBlockCount];
     int beat = 0;
     int sub = 0;
     // Strum voices, rendered when a pattern starts and whenever the strings
@@ -5264,6 +5282,7 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
         a.beat = 0;  // So did the meter.
     }
     const bool strum = g_metroShared.strum.load();
+    MetroBlockCue cue;  // What this block tells the panel, published later.
     while (a.nextEvent < static_cast<double>(a.written + kMetroBlockFrames)) {
         // The stream runs for hours, so the offset is kept wide rather than
         // truncated to an int that would wrap after a while.
@@ -5287,9 +5306,10 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
                     // one pattern slot, so the strum lands with the count.
                     const int slot = std::min(
                         a.beat * cfg.subdivision + a.sub, kStrumSlotsMax - 1);
-                    g_metroShared.slot.store(slot);
                     const int packed =
                         g_metroShared.grid[static_cast<size_t>(slot)].load();
+                    cue.slot = slot;
+                    cue.hasSlot = true;
                     const int stroke = packed & 7;
                     const bool accent = (packed & 8) != 0;
                     const bool ghost = (packed & 16) != 0;
@@ -5308,11 +5328,12 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
                         MixStrumVoice(a, up, sound, accent, ghost,
                                       static_cast<int>(offset));
                     }
-                    g_metroShared.pulse.fetch_add(1);
+                    cue.pulses++;
                 }
             } else if (onBeat) {
-                g_metroShared.beat.store(a.beat);
-                g_metroShared.pulse.fetch_add(1);
+                cue.beat = a.beat;
+                cue.hasBeat = true;
+                cue.pulses++;
             }
         }
         a.sub++;
@@ -5325,11 +5346,33 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
                 if (a.countingIn) {
                     a.countingIn = false;
                 } else if (strum) {
-                    g_metroShared.measureTick.fetch_add(1);
+                    cue.measures++;
                 }
             }
         }
         a.nextEvent += stepFrames;
+    }
+    // Park this block's cue, then hand the panel the cue of the block that is
+    // about to be heard: the queue holds kMetroBlockCount blocks, so this fill
+    // pushes the oldest of them out to the speaker.
+    const long long blockIndex = a.written / kMetroBlockFrames;
+    a.cue[static_cast<size_t>(blockIndex % kMetroBlockCount)] = cue;
+    const long long due = blockIndex - (kMetroBlockCount - 1);
+    if (due >= 0) {
+        const MetroBlockCue& heard =
+            a.cue[static_cast<size_t>(due % kMetroBlockCount)];
+        if (heard.pulses > 0) {
+            g_metroShared.pulse.fetch_add(heard.pulses);
+        }
+        if (heard.measures > 0) {
+            g_metroShared.measureTick.fetch_add(heard.measures);
+        }
+        if (heard.hasBeat) {
+            g_metroShared.beat.store(heard.beat);
+        }
+        if (heard.hasSlot) {
+            g_metroShared.slot.store(heard.slot);
+        }
     }
     a.written += kMetroBlockFrames;
 
@@ -5367,6 +5410,11 @@ void StopMetroAudio();
 
 DWORD WINAPI MetroThreadProc(void*) {
     MetroAudio& a = g_metroAudio;
+    // The queue is refilled a block at a time, so this thread has to outrank
+    // the panel's painting: a refill that waits behind a frame is already too
+    // late by the time it runs. It sleeps between blocks, so raising it costs
+    // the rest of the process nothing.
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
     a.audioEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     a.stopEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     bool opened = false;
@@ -5423,7 +5471,10 @@ DWORD WINAPI MetroThreadProc(void*) {
 
         const HANDLE waits[2] = {a.audioEvent, a.stopEvent};
         for (; primed;) {
-            const DWORD result = WaitForMultipleObjects(2, waits, FALSE, 200);
+            // The device signals this event as each block finishes, so the
+            // wait normally returns at once; the short timeout only catches a
+            // lost signal before it costs more than a block of audio.
+            const DWORD result = WaitForMultipleObjects(2, waits, FALSE, 25);
             if (result == WAIT_OBJECT_0 + 1) {
                 break;
             }
