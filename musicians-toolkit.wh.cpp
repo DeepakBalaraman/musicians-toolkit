@@ -7,6 +7,7 @@
 // @homepage        https://dpakb.com
 // @github          https://github.com/DeepakBalaraman
 // @twitter         https://twitter.com/dpakb_
+// @donateUrl       https://buymeacoffee.com/dpakb
 // @license         MIT
 // @include         windhawk.exe
 // @compilerOptions -luser32 -lgdi32 -lshell32 -ladvapi32 -lole32 -lwinmm
