@@ -50,10 +50,11 @@ Open the tuner and let your microphone listen. A smooth needle sweeps across an 
 ## Strumming Pattern
 
 Build a strumming pattern on a one-measure grid and hear it played back with the same acoustic voice as the chord library, in lock step with the tempo.
+- **Pattern:** The list at the top of the card holds the patterns players actually use in that meter, drawn as the bar itself: an arrow per cell, the accent colour on the accented strokes, a faint tick where the hand rests. 4/4 alone has downstrokes, steady eighths, the D D U U D U strum, the folk D DU UDU, a boom-chick and the reggae skank; the odd and compound meters list their groupings, so 7/8 offers 2+2+3 and 3+2+2. Editing a cell by hand leaves the card reading **Custom**, and **Tab** steps through the list without opening it.
 - **Grid:** Click a cell to cycle it through rest, down, up, down-muted and up-muted strokes. Shift-click adds an accent, Ctrl-click a ghost note, and Alt-click a tie (let ring). The keyboard keys **D U X M R** lay a stroke, and **A G T** toggle accent, ghost and tie.
 - **Strings:** Pick Guitar or Ukulele, then fret a chord from the list or leave the strings open, so the pattern rings with the voicing you would really play.
 - **Sound:** Open strums ring out, Palm chokes them into a damped rhythm, and Muted turns every stroke into a percussive scratch. A stroke written as a mute stays a scratch whatever the sound is set to, and ghosts are quieter and partial.
-- **Meter and feel:** The eight time signatures, the beat steppers and the 8ths / triplet / 16ths subdivision chips cover any meter; the pattern follows the tempo shared across the toolkit.
+- **Meter:** Pick the time signature from the list - 4/4 common time, 3/4 waltz, 2/4 march, 5/4, 6/8, 7/8, 9/8 or 12/8 - and each row tells you what the meter is and how many patterns go with it. The **1/4 · 1/8 · Triplet · 1/16** chips set the note value one cell stands for.
 - **Practice:** Toggle Count-in, Loop or Practice. Practice mode ramps the tempo a little at the start of every measure up to your target.
 
 ## Circle of Fifths
@@ -1704,6 +1705,22 @@ PCWSTR SubdivisionLabel(int subdivision) {
     return L"Off";
 }
 
+// A strum grid cell always stands for a note value, so its chips name that
+// value: leaving them on the metronome's "Off" would read as a broken grid.
+PCWSTR StrumGridLabel(int subdivision) {
+    switch (subdivision) {
+        case 2:
+            return L"1/8";
+        case 3:
+            return L"Triplet";
+        case 4:
+            return L"1/16";
+        default:
+            break;
+    }
+    return L"1/4";
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Tunings
 //
@@ -2445,19 +2462,129 @@ struct StrumPreset {
 
 // One row of cells per beat * subdivision. Lowercase is a plain stroke,
 // uppercase an accent; d/u are arrows, x/c a muted scratch down or up.
+//
+// The table is grouped by meter, in the order kSignatures lists them, because
+// the pattern list only ever shows the rows that belong to the meter in the
+// card: a run of the table is a meter's vocabulary. The runs are drawn from
+// the patterns every method book opens with - D D U U D U, the steady eighth
+// notes, the folk D DU UDU and boom-chick, the reggae skank, the three-four
+// waltz, the six-eight ballad - and, for the odd and compound meters, from the
+// way those bars are actually counted, so 5/4 is 3+2 or 2+3, 7/8 is 2+2+3 or
+// 3+2+2, and 9/8 and 12/8 are three and four groups of three.
 constexpr StrumPreset kStrumPresets[] = {
-    {L"Downs", 4, 4, 1, L"dddd"},
+    // 4/4 - the four-count, where most of the vocabulary lives.
+    {L"Downstrokes", 4, 4, 1, L"dddd"},
+    {L"Eighths", 4, 4, 2, L"dudududu"},
+    {L"Pop", 4, 4, 2, L"d-duu-du"},
     {L"Folk", 4, 4, 2, L"d-du-udu"},
-    {L"Rock", 4, 4, 2, L"D-dDu-dU"},
-    {L"Island", 4, 4, 4, L"d--u-d-uD--u-d-u"},
-    {L"Skank", 4, 4, 2, L"-x-x-x-x"},
-    {L"Waltz", 3, 4, 2, L"D-du-du"},
-    {L"Six-eight", 6, 8, 1, L"d--d--"},
-    {L"Twelve", 12, 8, 1, L"D--du-d--du-"},
+    {L"Boom-chick", 4, 4, 2, L"d---dudu"},
+    {L"Skank", 4, 4, 2, L"-u-u-u-u"},
+    // 3/4 - bass on one with two lighter strokes, and the same with upstrokes.
+    {L"Waltz", 3, 4, 1, L"Ddd"},
+    {L"Waltz with ups", 3, 4, 2, L"d-dUdU"},
+    // 2/4 - march and polka.
+    {L"Downstrokes", 2, 4, 1, L"Dd"},
+    {L"Eighths", 2, 4, 2, L"dudu"},
+    {L"Off-beats", 2, 4, 2, L"-u-u"},
+    // 5/4 - counted three then two, or two then three.
+    {L"Three-two", 5, 4, 1, L"DddDd"},
+    {L"Two-three", 5, 4, 1, L"DdDdd"},
+    // 6/8 - two beats of three; the ballad leaves the middle eighth out.
+    {L"Downstrokes", 6, 8, 1, L"D--d--"},
+    {L"Ballad", 6, 8, 1, L"d-Ud-U"},
+    // 7/8 - the two groupings the bar is normally counted in.
+    {L"Two-two-three", 7, 8, 1, L"DdDdDdd"},
+    {L"Three-two-two", 7, 8, 1, L"DddDdDd"},
+    // 9/8 - three beats of three, so it rolls like a slow three-four.
+    {L"Downstrokes", 9, 8, 1, L"D--d--d--"},
+    {L"Ballad", 9, 8, 1, L"d-Ud-Ud-U"},
+    // 12/8 - four beats of three: the slow blues and the triplet shuffle.
+    {L"Downstrokes", 12, 8, 1, L"D--d--d--d--"},
+    {L"Shuffle", 12, 8, 1, L"d-ud-ud-ud-u"},
 };
 
 constexpr int kStrumPresetCount =
     static_cast<int>(sizeof(kStrumPresets) / sizeof(kStrumPresets[0]));
+
+// The run of the table that belongs to one meter. -1 when the meter has no
+// patterns, which is what leaves the list empty rather than lying about it.
+int StrumPatternBase(int beats, int unit) {
+    for (int i = 0; i < kStrumPresetCount; i++) {
+        if (kStrumPresets[i].beats == beats && kStrumPresets[i].unit == unit) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int StrumPatternCount(int beats, int unit) {
+    const int base = StrumPatternBase(beats, unit);
+    if (base < 0) {
+        return 0;
+    }
+    int count = 0;
+    while (base + count < kStrumPresetCount &&
+           kStrumPresets[base + count].beats == beats &&
+           kStrumPresets[base + count].unit == unit) {
+        count++;
+    }
+    return count;
+}
+
+// The longest run in the table. The card is laid out before the strum state is
+// read, so the list is given the room its busiest meter needs and each meter's
+// list is cut down to its own rows when it is painted.
+constexpr int StrumPatternRowsMax() {
+    int best = 1;
+    int run = 1;
+    for (int i = 1; i < kStrumPresetCount; i++) {
+        if (kStrumPresets[i].beats == kStrumPresets[i - 1].beats &&
+            kStrumPresets[i].unit == kStrumPresets[i - 1].unit) {
+            run++;
+            if (run > best) {
+                best = run;
+            }
+        } else {
+            run = 1;
+        }
+    }
+    return best;
+}
+
+constexpr int kStrumPatternRowsMax = StrumPatternRowsMax();
+
+// How a meter reads in the meter list: the name players know it by, or the
+// grouping an odd bar is counted in.
+PCWSTR MeterNote(int beats, int unit) {
+    if (unit >= 8) {
+        switch (beats) {
+            case 6:
+                return L"compound, two beats";
+            case 7:
+                return L"odd, 2+2+3";
+            case 9:
+                return L"compound, three beats";
+            case 12:
+                return L"compound, four beats";
+            default:
+                break;
+        }
+        return L"compound";
+    }
+    switch (beats) {
+        case 2:
+            return L"march";
+        case 3:
+            return L"waltz";
+        case 4:
+            return L"common time";
+        case 5:
+            return L"odd, 3+2";
+        default:
+            break;
+    }
+    return L"";
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Circle of fifths
@@ -2731,10 +2858,10 @@ enum Hit {
     kHitTunerMenuRow,
     kHitTunerString,
     kHitStrumSlot,
-    kHitStrumPreset,
-    kHitStrumSig,
-    kHitStrumBeatsDown,
-    kHitStrumBeatsUp,
+    kHitStrumPattern,
+    kHitStrumPatternRow,
+    kHitStrumMeter,
+    kHitStrumMeterRow,
     kHitStrumSub,
     kHitStrumPlay,
     kHitStrumChip,
@@ -2833,18 +2960,20 @@ struct Layout {
     RECT tunerTuneMenuRow[kTunerMenuMax]{};
     RECT tunerHint{};
 
-    // Strumming tool, in the same rectangle once more. A row of preset chips
-    // on top, then the pattern grid, then a meter and subdivision row, then a
-    // transport row (play plus a tempo stepper), a row picking the strings (the
-    // instrument and the chord), a row picking what they ring like, the
-    // practice switches and a hint line.
+    // Strumming tool, in the same rectangle once more. A pattern select on top
+    // that unrolls the list of common patterns, the pattern grid, a meter and
+    // subdivision row, a transport row (play plus a tempo stepper), a row
+    // picking the strings (the instrument and the chord), a row picking what
+    // they ring like, the practice switches and a hint line.
     RECT strumPad{};
-    RECT strumPreset[kStrumPresetCount]{};
+    RECT strumPattern{};
+    RECT strumPatternMenu{};
+    RECT strumPatternRow[kStrumPatternRowsMax]{};
     RECT strumGrid{};
     RECT strumSlot[kStrumSlotsMax]{};
-    RECT strumSig[kSignatureCount]{};
-    RECT strumBeatsDown{};
-    RECT strumBeatsUp{};
+    RECT strumMeterSelect{};
+    RECT strumMeterMenu{};
+    RECT strumMeterRow[kSignatureCount]{};
     RECT strumSub[4]{};
     RECT strumPlay{};
     RECT strumInst[2]{};
@@ -3160,28 +3289,35 @@ void ComputeLayout() {
     l.tunerHint = {l.tunerPad.left, tunerTop + S(396), l.tunerPad.right,
                    tunerTop + S(414)};
 
-    // Strumming tool, laid out in the same rectangle once more. Two rows of
-    // preset chips, the pattern grid, a meter row, a beat/subdivision row, a
-    // transport row (play plus a tempo stepper), then the three rows that pick
+    // Strumming tool, laid out in the same rectangle once more. A pattern
+    // select that unrolls the list of common patterns, the grid it writes, a
+    // meter and grid-density row, the transport, then the three rows that pick
     // the voice: the strings, the sound and the practice switches.
     l.strumPad = l.metroPad;
     const int strumTop = l.strumPad.top;
     const int strumLeft = l.strumPad.left + S(16);
     const int strumRight = l.strumPad.right - S(16);
 
-    const int spGap = S(6);
-    const int spWidth = (strumRight - strumLeft - spGap * 3) / 4;
-    for (int i = 0; i < kStrumPresetCount; i++) {
-        const int column = i % 4;
-        const int row = i / 4;
-        const int x = strumLeft + column * (spWidth + spGap);
-        const int y = strumTop + S(6) + row * S(28);
-        l.strumPreset[i] = {x, y, x + spWidth, y + S(24)};
+    l.strumPattern = {strumLeft, strumTop + S(6), strumRight, strumTop + S(34)};
+    // The pattern list unrolls downward and is given the room the busiest meter
+    // needs; each meter's list is cut to its own rows when it is painted. The
+    // grid under it is the one thing it writes over, and it comes back the
+    // moment the list closes.
+    const int patternRowHeight = S(26);
+    const int patternTop = l.strumPattern.bottom + S(4);
+    const int patternRows = kStrumPatternRowsMax;
+    l.strumPatternMenu = {strumLeft, patternTop, strumRight,
+                          patternTop + S(8) + patternRows * patternRowHeight};
+    for (int i = 0; i < patternRows; i++) {
+        const int rowTop = patternTop + S(4) + i * patternRowHeight;
+        l.strumPatternRow[i] = {l.strumPatternMenu.left + S(4), rowTop,
+                                l.strumPatternMenu.right - S(4),
+                                rowTop + patternRowHeight};
     }
 
     // The pattern grid: one cell per subdivision slot with a small gap at each
     // beat, so the bar still reads in beats at sixteenth-note density.
-    l.strumGrid = {strumLeft, strumTop + S(70), strumRight, strumTop + S(166)};
+    l.strumGrid = {strumLeft, strumTop + S(42), strumRight, strumTop + S(170)};
     const int cells = std::clamp(StrumSlotCount(), 1, kStrumSlotsMax);
     const int beatGap = S(4);
     const int breaks = cells > 1 ? cells - 1 : 0;
@@ -3195,30 +3331,31 @@ void ComputeLayout() {
         slotX += slotW + beatGap;
     }
 
-    const int sigRow = strumTop + S(176);
-    const int sigGap = S(4);
-    const int sigWidth =
-        (strumRight - strumLeft - sigGap * (kSignatureCount - 1)) /
-        kSignatureCount;
-    for (int i = 0; i < kSignatureCount; i++) {
-        const int x = strumLeft + i * (sigWidth + sigGap);
-        l.strumSig[i] = {x, sigRow, x + sigWidth, sigRow + S(24)};
-    }
-
-    const int strumSubRow = strumTop + S(206);
-    int bx = strumLeft;
-    l.strumBeatsDown = {bx, strumSubRow, bx + S(28), strumSubRow + S(24)};
-    bx += S(28) + S(4) + S(56) + S(4);
-    l.strumBeatsUp = {bx, strumSubRow, bx + S(28), strumSubRow + S(24)};
-    bx += S(28) + S(10);
-    const int strumSubWidth = (strumRight - bx - S(6) * 3) / 4;
+    // Meter and grid density share one row: the meter select on the left, the
+    // four note-value chips filling the rest of it.
+    const int strumRowY = strumTop + S(178);
+    l.strumMeterSelect = {strumLeft, strumRowY, strumLeft + S(128),
+                          strumRowY + S(28)};
+    const int strumSubLeft = l.strumMeterSelect.right + S(8);
+    const int strumSubWidth = (strumRight - strumSubLeft - S(6) * 3) / 4;
     for (int i = 0; i < 4; i++) {
-        const int x = bx + i * (strumSubWidth + S(6));
-        l.strumSub[i] = {x, strumSubRow, x + strumSubWidth,
-                         strumSubRow + S(24)};
+        const int x = strumSubLeft + i * (strumSubWidth + S(6));
+        l.strumSub[i] = {x, strumRowY, x + strumSubWidth, strumRowY + S(28)};
+    }
+    // The meter list unrolls downward from its select; eight meters of 26 is
+    // the tallest list in the card, and it is gone again as soon as one lands.
+    const int meterRowHeight = S(26);
+    const int meterTop = l.strumMeterSelect.bottom + S(4);
+    l.strumMeterMenu = {strumLeft, meterTop, strumRight,
+                        meterTop + S(8) + kSignatureCount * meterRowHeight};
+    for (int i = 0; i < kSignatureCount; i++) {
+        const int rowTop = meterTop + S(4) + i * meterRowHeight;
+        l.strumMeterRow[i] = {l.strumMeterMenu.left + S(4), rowTop,
+                              l.strumMeterMenu.right - S(4),
+                              rowTop + meterRowHeight};
     }
 
-    const int strumTransportY = strumTop + S(250);
+    const int strumTransportY = strumTop + S(212);
     l.strumPlay = {strumLeft, strumTransportY, strumLeft + S(120),
                    strumTransportY + S(38)};
     l.strumTempoDown = {strumRight - S(120), strumTransportY,
@@ -3233,25 +3370,25 @@ void ComputeLayout() {
     // The instrument chips take the left of the first row and the chord select
     // the rest of it; the sound and the practice switches each own a row, so
     // every group reads as one idea.
-    const int strumRowOne = strumTop + S(300);
-    const int strumRowTwo = strumTop + S(328);
-    const int strumRowThree = strumTop + S(356);
+    const int strumRowOne = strumTop + S(262);
+    const int strumRowTwo = strumTop + S(300);
+    const int strumRowThree = strumTop + S(338);
     const int chipGap = S(6);
     const int strumInstWidth = S(92);
     l.strumInst[0] = {strumLeft, strumRowOne, strumLeft + strumInstWidth,
-                      strumRowOne + S(24)};
+                      strumRowOne + S(28)};
     l.strumInst[1] = {l.strumInst[0].right + chipGap, strumRowOne,
                       l.strumInst[0].right + chipGap + strumInstWidth,
-                      strumRowOne + S(24)};
+                      strumRowOne + S(28)};
     l.strumChord = {l.strumInst[1].right + chipGap, strumRowOne, strumRight,
-                    strumRowOne + S(24)};
+                    strumRowOne + S(28)};
 
     const int soundWidth = (strumRight - strumLeft -
                             chipGap * (kStrumSoundCount - 1)) /
                            kStrumSoundCount;
     for (int i = 0; i < kStrumSoundCount; i++) {
         const int x = strumLeft + i * (soundWidth + chipGap);
-        l.strumSound[i] = {x, strumRowTwo, x + soundWidth, strumRowTwo + S(24)};
+        l.strumSound[i] = {x, strumRowTwo, x + soundWidth, strumRowTwo + S(28)};
     }
 
     const int chipWidth = (strumRight - strumLeft -
@@ -3260,7 +3397,7 @@ void ComputeLayout() {
     for (int i = 0; i < kStrumChipCount; i++) {
         const int x = strumLeft + i * (chipWidth + chipGap);
         l.strumChip[i] = {x, strumRowThree, x + chipWidth,
-                          strumRowThree + S(24)};
+                          strumRowThree + S(28)};
     }
 
     // The chord list unrolls upward from the select, since there is no room
@@ -3277,8 +3414,8 @@ void ComputeLayout() {
         l.strumChordRow[i] = {x, top, x + chordColumn, top + chordRowHeight};
     }
 
-    l.strumHint = {l.strumPad.left, strumTop + S(396), l.strumPad.right,
-                   strumTop + S(414)};
+    l.strumHint = {l.strumPad.left, strumTop + S(408), l.strumPad.right,
+                   strumTop + S(426)};
 
     // Circle of fifths tool, laid out in the same rectangle once more. The
     // instrument chips and a Major/Minor toggle on top, a ring of twelve key
@@ -3525,6 +3662,29 @@ int StrumSlotCount() {
     return std::clamp(g_strum.beats * g_strum.subdivision, 1, kStrumSlotsMax);
 }
 
+// One character of a preset's cell string, in the values the grid draws from.
+// The pattern list paints straight from these, so a row previews exactly the
+// bar the preset will write.
+struct StrumCellLook {
+    int stroke;
+    bool accent;
+};
+
+StrumCellLook StrumDecodeCell(wchar_t c) {
+    switch (c) {
+        case L'd': return {kStrokeDown, false};
+        case L'D': return {kStrokeDown, true};
+        case L'u': return {kStrokeUp, false};
+        case L'U': return {kStrokeUp, true};
+        case L'x': return {kStrokeDownMute, false};
+        case L'X': return {kStrokeDownMute, true};
+        case L'c': return {kStrokeUpMute, false};
+        case L'C': return {kStrokeUpMute, true};
+        default: break;
+    }
+    return {kStrokeRest, false};
+}
+
 void StrumLoadPresetInto(StrumState& s, int preset) {
     if (preset < 0 || preset >= kStrumPresetCount) {
         return;
@@ -3543,18 +3703,9 @@ void StrumLoadPresetInto(StrumState& s, int preset) {
         s.tie[i] = false;
     }
     for (int i = 0; i < cells; i++) {
-        const wchar_t c = p.cells[i];
-        switch (c) {
-            case L'd': s.stroke[i] = kStrokeDown; break;
-            case L'D': s.stroke[i] = kStrokeDown; s.accent[i] = true; break;
-            case L'u': s.stroke[i] = kStrokeUp; break;
-            case L'U': s.stroke[i] = kStrokeUp; s.accent[i] = true; break;
-            case L'x': s.stroke[i] = kStrokeDownMute; break;
-            case L'X': s.stroke[i] = kStrokeDownMute; s.accent[i] = true; break;
-            case L'c': s.stroke[i] = kStrokeUpMute; break;
-            case L'C': s.stroke[i] = kStrokeUpMute; s.accent[i] = true; break;
-            default: s.stroke[i] = kStrokeRest; break;
-        }
+        const StrumCellLook look = StrumDecodeCell(p.cells[i]);
+        s.stroke[i] = look.stroke;
+        s.accent[i] = look.accent;
     }
 }
 
@@ -3675,7 +3826,9 @@ struct MenuState {
 
 MenuState g_toolMenu;
 MenuState g_tunerMenu;
-MenuState g_strumMenu;
+MenuState g_strumMenu;     // The chord the strings are fretted to.
+MenuState g_patternMenu;   // The pattern the grid is set to.
+MenuState g_meterMenu;     // The meter the pattern list is filtered by.
 
 enum MenuKind {
     kMenuNone = 0,
@@ -3683,6 +3836,8 @@ enum MenuKind {
     kMenuTuning = 2,
     kMenuTools = 3,
     kMenuStrumChord = 4,
+    kMenuStrumPattern = 5,
+    kMenuStrumMeter = 6,
 };
 
 bool MenuHit(const MenuState& m) {
@@ -3699,7 +3854,8 @@ bool MenuAnimating(const MenuState& m) {
 
 bool AnyMenuAnimating() {
     return MenuAnimating(g_toolMenu) || MenuAnimating(g_tunerMenu) ||
-           MenuAnimating(g_strumMenu);
+           MenuAnimating(g_strumMenu) || MenuAnimating(g_patternMenu) ||
+           MenuAnimating(g_meterMenu);
 }
 
 void StartMenuAnimTimer() {
@@ -3765,6 +3921,10 @@ int MenuRowCount(const MenuState& m) {
             return kToolCount;
         case kMenuStrumChord:
             return kStrumChordCount;
+        case kMenuStrumPattern:
+            return StrumPatternCount(g_strum.beats, g_strum.unit);
+        case kMenuStrumMeter:
+            return kSignatureCount;
         default:
             break;
     }
@@ -3806,6 +3966,12 @@ void UpdateMenuAnimations() {
     }
     if (MenuAnimating(g_strumMenu)) {
         moved = MenuStep(g_strumMenu, g_strumMenu.target != 0) || moved;
+    }
+    if (MenuAnimating(g_patternMenu)) {
+        moved = MenuStep(g_patternMenu, g_patternMenu.target != 0) || moved;
+    }
+    if (MenuAnimating(g_meterMenu)) {
+        moved = MenuStep(g_meterMenu, g_meterMenu.target != 0) || moved;
     }
     if (moved) {
         Repaint();
@@ -4112,6 +4278,8 @@ void FinishClose() {
     MenuReset(g_toolMenu);
     MenuReset(g_tunerMenu);
     MenuReset(g_strumMenu);
+    MenuReset(g_patternMenu);
+    MenuReset(g_meterMenu);
 }
 
 void UpdateAnimation() {
@@ -6144,6 +6312,7 @@ RECT PaintListShell(Surface& s,
 // under the pointer and the current choice all look and move the same way.
 struct ListItem {
     PCWSTR label = L"";
+    PCWSTR detail = L"";  // Right-aligned second column, muted.
     bool active = false;
     bool hovered = false;
 };
@@ -6188,6 +6357,21 @@ void PaintListRows(Surface& s,
                       row.right - S(26), static_cast<long>(bottom)};
         Color ink = t.text;
         ink.a *= alpha;
+        if (items[i].detail && *items[i].detail) {
+            // A row can carry a second, quieter column on the right; the label
+            // keeps the rest of the width. The smaller font keeps two lines of
+            // information inside one row without the row growing.
+            HFONT detailFont =
+                g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+            const int width = g_text.Measure(detailFont, items[i].detail).cx;
+            RECT detail = label;
+            detail.left = detail.right - width;
+            Color faint = t.textMuted;
+            faint.a *= alpha;
+            g_text.Draw(s, detailFont, items[i].detail, detail,
+                        DT_RIGHT | DT_VCENTER | DT_SINGLELINE, faint);
+            label.right = detail.left - S(12);
+        }
         g_text.Draw(s, font, items[i].label, label,
                     DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS, ink);
         if (active) {
@@ -7038,9 +7222,50 @@ void PaintMetronome(Surface& s, const Theme& t) {
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
 }
 
-// The strumming card: preset patterns, the pattern grid with a moving
-// playhead, a meter row, a beat/subdivision row, the transport with a tempo
-// stepper and the practice switches, then a hint line.
+// The three selects in the strumming card - the pattern, the meter and the
+// chord - share this chrome, so a list that is up reads the same whichever one
+// opened it. The caption names what the value is, which is what keeps a bare
+// "Folk" from looking like a label rather than a menu.
+void PaintStrumSelect(Surface& s,
+                      const Theme& t,
+                      const RECT& box,
+                      PCWSTR caption,
+                      PCWSTR label,
+                      HFONT font,
+                      bool open,
+                      bool hot) {
+    FillRoundRect(s, L(box.left), L(box.top), L(box.right), L(box.bottom),
+                  S(9.0f), open || hot ? t.controlHover : t.control);
+    StrokeRoundRect(s, L(box.left) + 0.5f, L(box.top) + 0.5f,
+                    L(box.right) - 0.5f, L(box.bottom) - 0.5f, S(9.0f),
+                    S(1.0f), open ? WithAlpha(t.accent, 0.55f) : t.stroke);
+    RECT text = box;
+    text.left += S(12);
+    text.right -= S(28);
+    if (caption && *caption) {
+        const std::wstring prefix = std::wstring(caption) + L"   ";
+        const long width = std::min(g_text.Measure(font, prefix).cx,
+                                    text.right - text.left - S(24));
+        RECT cap = text;
+        cap.right = cap.left + width;
+        g_text.Draw(s, font, prefix.c_str(), cap,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                    t.textMuted);
+        text.left = cap.right;
+    }
+    g_text.Draw(s, font, label, text,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                t.text);
+    // The chevron flips while its list is up, the way a Fluent combo does.
+    PaintGlyph(s, L(box.right) - S(14),
+               (L(box.top) + L(box.bottom)) * 0.5f,
+               open ? L'\xE70E' : L'\xE70D', S(10.0f),
+               open ? t.accent : t.textMuted);
+}
+
+// The strumming card: the pattern select, the pattern grid with a moving
+// playhead, a meter and density row, the transport with a tempo stepper, the
+// rows that pick the voice and the practice switches, then a hint line.
 void PaintStrum(Surface& s, const Theme& t) {
     const RECT& card = g_layout.strumPad;
     FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
@@ -7052,11 +7277,17 @@ void PaintStrum(Surface& s, const Theme& t) {
     HFONT chipFont =
         g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
 
-    for (int i = 0; i < kStrumPresetCount; i++) {
-        PaintChip(s, t, g_layout.strumPreset[i], kStrumPresets[i].name,
-                  chipFont, g_strum.preset == i,
-                  g_hover.id == kHitStrumPreset && g_hover.index == i);
-    }
+    // The grid answers to a pattern the moment one is picked, and to nothing
+    // once a cell is edited by hand, which is what "Custom" says.
+    const int preset = g_strum.preset;
+    PaintStrumSelect(s, t, g_layout.strumPattern, L"Pattern",
+                     preset >= 0 && preset < kStrumPresetCount
+                         ? kStrumPresets[preset].name
+                         : L"Custom",
+                     chipFont,
+                     MenuHit(g_patternMenu) &&
+                         g_patternMenu.shown == kMenuStrumPattern,
+                     g_hover.id == kHitStrumPattern);
 
     // The pattern grid.
     const int cells = std::clamp(StrumSlotCount(), 1, kStrumSlotsMax);
@@ -7170,28 +7401,16 @@ void PaintStrum(Surface& s, const Theme& t) {
         }
     }
 
-    // Meter presets: the eight signatures in one row.
-    for (int i = 0; i < kSignatureCount; i++) {
-        const std::wstring label =
-            MeterLabel(kSignatures[i].beats, kSignatures[i].unit);
-        PaintChip(s, t, g_layout.strumSig[i], label.c_str(), chipFont,
-                  g_strum.beats == kSignatures[i].beats &&
-                      g_strum.unit == kSignatures[i].unit,
-                  g_hover.id == kHitStrumSig && g_hover.index == i);
-    }
-
-    // Beat stepper and subdivision chips.
-    PaintChip(s, t, g_layout.strumBeatsDown, L"\x2212", chipFont, false,
-              g_hover.id == kHitStrumBeatsDown);
-    PaintChip(s, t, g_layout.strumBeatsUp, L"+", chipFont, false,
-              g_hover.id == kHitStrumBeatsUp);
-    RECT beatsLabel{g_layout.strumBeatsDown.right, g_layout.strumBeatsDown.top,
-                    g_layout.strumBeatsUp.left, g_layout.strumBeatsDown.bottom};
-    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontTab)), FW_NORMAL),
-                std::to_wstring(g_strum.beats) + L" beats", beatsLabel,
-                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+    // Meter and grid density: the meter is a list of the meters the programme
+    // knows, and the chips name the note value one cell stands for. Changing
+    // either one leaves the bar as it is and calls it custom.
+    PaintStrumSelect(s, t, g_layout.strumMeterSelect, L"Meter",
+                     MeterLabel(g_strum.beats, g_strum.unit).c_str(), chipFont,
+                     MenuHit(g_meterMenu) &&
+                         g_meterMenu.shown == kMenuStrumMeter,
+                     g_hover.id == kHitStrumMeter);
     for (int i = 0; i < 4; i++) {
-        PaintChip(s, t, g_layout.strumSub[i], SubdivisionLabel(i + 1), chipFont,
+        PaintChip(s, t, g_layout.strumSub[i], StrumGridLabel(i + 1), chipFont,
                   g_strum.subdivision == i + 1,
                   g_hover.id == kHitStrumSub && g_hover.index == i);
     }
@@ -7232,28 +7451,10 @@ void PaintStrum(Surface& s, const Theme& t) {
                   g_strum.instrument == instrument,
                   g_hover.id == kHitStrumInst && g_hover.index == i);
     }
-    const bool chordOpen =
-        MenuHit(g_strumMenu) && g_strumMenu.shown == kMenuStrumChord;
-    const RECT& chordRow = g_layout.strumChord;
-    const bool chordHot = g_hover.id == kHitStrumChord;
-    FillRoundRect(s, L(chordRow.left), L(chordRow.top), L(chordRow.right),
-                  L(chordRow.bottom), S(9.0f),
-                  chordOpen || chordHot ? t.controlHover : t.control);
-    StrokeRoundRect(s, L(chordRow.left) + 0.5f, L(chordRow.top) + 0.5f,
-                    L(chordRow.right) - 0.5f, L(chordRow.bottom) - 0.5f,
-                    S(9.0f), S(1.0f),
-                    chordOpen ? WithAlpha(t.accent, 0.55f) : t.stroke);
-    RECT chordLabel = chordRow;
-    chordLabel.left += S(10);
-    chordLabel.right -= S(26);
-    g_text.Draw(s, chipFont, kStrumChords[g_strum.chord].name, chordLabel,
-                DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
-                t.text);
-    // The chevron points up while the list is up, because it unrolls upward.
-    PaintGlyph(s, L(chordRow.right) - S(13),
-               (L(chordRow.top) + L(chordRow.bottom)) * 0.5f,
-               chordOpen ? L'\xE70E' : L'\xE70D', S(10.0f),
-               chordOpen ? t.accent : t.textMuted);
+    PaintStrumSelect(s, t, g_layout.strumChord, L"Chord",
+                     kStrumChords[g_strum.chord].name, chipFont,
+                     MenuHit(g_strumMenu) && g_strumMenu.shown == kMenuStrumChord,
+                     g_hover.id == kHitStrumChord);
 
     // What the strings ring like.
     static const PCWSTR kSoundLabels[kStrumSoundCount] = {L"Open", L"Palm",
@@ -7265,7 +7466,7 @@ void PaintStrum(Surface& s, const Theme& t) {
     }
 
     // Practice switches.
-    static const PCWSTR kChipLabels[kStrumChipCount] = {L"Loop", L"Count",
+    static const PCWSTR kChipLabels[kStrumChipCount] = {L"Loop", L"Count-in",
                                                         L"Practice"};
     const bool chipActive[kStrumChipCount] = {g_strum.loop, g_strum.countIn,
                                               g_strum.practice};
@@ -7311,6 +7512,140 @@ void PaintStrumMenu(Surface& s, const Theme& t) {
     }
     PaintListRows(s, t, items, kStrumChordCount, g_layout.strumChordRow,
                   reveal, true);
+}
+
+// One bar of a preset, drawn in the row's own terms: an arrow per grid cell, a
+// bar through the scratched ones, the accent colour on the accented ones and a
+// faint tick where the hand rests. Beat boundaries get the same faint rule the
+// grid uses, so a grouping like 2+2+3 reads at a glance.
+void PaintStrumStrip(Surface& s,
+                     const Theme& t,
+                     const StrumPreset& p,
+                     const RECT& row,
+                     float alpha) {
+    const int cells = std::clamp(p.beats * p.subdivision, 1, kStrumSlotsMax);
+    const float area = L(row.right - row.left);
+    const float advance = std::min(area / cells, static_cast<float>(S(30.0f)));
+    const float origin = L(row.left) + (area - advance * cells) * 0.5f;
+    const float cy = (L(row.top) + L(row.bottom)) * 0.5f;
+    const int glyphPx = std::clamp(static_cast<int>(advance) - S(8), 10, 16);
+    HFONT font = g_fonts.Get(S(static_cast<float>(glyphPx)), kWeightSemiBold);
+    Color rule = t.grid;
+    rule.a *= alpha;
+    for (int i = 1; i < cells; i++) {
+        if (p.subdivision < 2 || i % p.subdivision != 0) {
+            continue;
+        }
+        const float x = origin + advance * static_cast<float>(i);
+        StrokeLine(s, {x, L(row.top) + S(4.0f)}, {x, L(row.bottom) - S(4.0f)},
+                   S(1.0f), rule);
+    }
+    for (int i = 0; i < cells; i++) {
+        const float cx = origin + advance * (static_cast<float>(i) + 0.5f);
+        const StrumCellLook look = StrumDecodeCell(p.cells[i]);
+        if (look.stroke == kStrokeRest) {
+            Color tick = t.textFaint;
+            tick.a *= alpha;
+            FillCircle(s, cx, cy, S(1.2f), tick);
+            continue;
+        }
+        const bool up = look.stroke == kStrokeUp || look.stroke == kStrokeUpMute;
+        const bool mute =
+            look.stroke == kStrokeDownMute || look.stroke == kStrokeUpMute;
+        Color ink = look.accent ? t.accent : (mute ? t.textMuted : t.text);
+        ink.a *= alpha;
+        RECT box{static_cast<long>(cx - advance * 0.5f), row.top,
+                 static_cast<long>(cx + advance * 0.5f), row.bottom};
+        g_text.Draw(s, font, up ? L"\x2191" : L"\x2193", box,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE, ink);
+        if (mute) {
+            StrokeLine(s, {cx - S(5.0f), cy + S(3.0f)},
+                       {cx + S(5.0f), cy + S(3.0f)}, S(1.3f), ink);
+        }
+    }
+}
+
+// The pattern list: only the patterns that belong to the meter in the card,
+// each row drawn as the bar it writes rather than as a name, with the name
+// kept down the left so a row can be matched to the select above it.
+void PaintStrumPatternMenu(Surface& s, const Theme& t) {
+    const int base = StrumPatternBase(g_strum.beats, g_strum.unit);
+    const int count = StrumPatternCount(g_strum.beats, g_strum.unit);
+    if (base < 0 || count == 0) {
+        return;
+    }
+    // The card gives the list room for the busiest meter; a meter with fewer
+    // patterns folds the extra rows away instead of leaving an empty plate.
+    const int rowHeight =
+        g_layout.strumPatternRow[0].bottom - g_layout.strumPatternRow[0].top;
+    RECT full = g_layout.strumPatternMenu;
+    full.bottom = full.top + S(8) + count * rowHeight;
+    const RECT reveal = PaintListShell(s, t, full, g_patternMenu.progress);
+    HFONT nameFont = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    const float front = L(reveal.top);
+    const float travel = std::max(1.0f, static_cast<float>(S(20.0f)));
+    for (int i = 0; i < count; i++) {
+        const RECT& row = g_layout.strumPatternRow[i];
+        // A row is drawn as the front edge of the unroll reaches it, exactly
+        // like the lists that go through PaintListRows.
+        const float appear = Clamp01((front - L(row.top)) / travel);
+        if (appear <= 0.0f) {
+            continue;
+        }
+        const float alpha = MenuAlpha(appear);
+        const float top = L(row.top) + (1.0f - appear) * S(6.0f);
+        const float bottom = L(row.bottom) + (1.0f - appear) * S(6.0f);
+        const bool active = g_strum.preset == base + i;
+        const bool hovered =
+            (MenuHit(g_patternMenu) && g_hover.id == kHitStrumPatternRow &&
+             g_hover.index == i) ||
+            g_patternMenu.cursor == i;  // The keyboard cursor rides with it.
+        if (active || hovered) {
+            Color wash = active ? t.selection : t.controlHover;
+            wash.a *= alpha;
+            FillRoundRect(s, L(row.left), top, L(row.right), bottom, S(6.0f),
+                          wash);
+        }
+        const StrumPreset& p = kStrumPresets[base + i];
+        RECT strip = {row.left + S(104), static_cast<long>(top),
+                      row.right - S(12), static_cast<long>(bottom)};
+        PaintStrumStrip(s, t, p, strip, alpha);
+        RECT name = {row.left + S(12), static_cast<long>(top),
+                     row.left + S(100), static_cast<long>(bottom)};
+        Color ink = active ? t.text : t.textMuted;
+        ink.a *= alpha;
+        g_text.Draw(s, nameFont, p.name, name,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                    ink);
+    }
+}
+
+// The meter list: every meter the toolkit counts, what players call it, and how
+// many patterns it will offer once it is picked.
+void PaintStrumMeterMenu(Surface& s, const Theme& t) {
+    const RECT reveal = PaintListShell(s, t, g_layout.strumMeterMenu,
+                                       g_meterMenu.progress);
+    std::wstring label[kSignatureCount];
+    std::wstring detail[kSignatureCount];
+    ListItem items[kSignatureCount];
+    for (int i = 0; i < kSignatureCount; i++) {
+        const int beats = kSignatures[i].beats;
+        const int unit = kSignatures[i].unit;
+        const int patterns = StrumPatternCount(beats, unit);
+        label[i] = MeterLabel(beats, unit);
+        detail[i] = MeterNote(beats, unit);
+        detail[i] += L" \x00B7 ";
+        detail[i] += std::to_wstring(patterns);
+        detail[i] += patterns == 1 ? L" pattern" : L" patterns";
+        items[i].label = label[i].c_str();
+        items[i].detail = detail[i].c_str();
+        items[i].active = g_strum.beats == beats && g_strum.unit == unit;
+        items[i].hovered =
+            (MenuHit(g_meterMenu) && g_hover.id == kHitStrumMeterRow &&
+             g_hover.index == i) ||
+            g_meterMenu.cursor == i;
+    }
+    PaintListRows(s, t, items, kSignatureCount, g_layout.strumMeterRow, reveal);
 }
 
 // The tuner card: a wide needle sweep with the note inside it, the strings of
@@ -7951,7 +8286,21 @@ void PaintFooter(Surface& s, const Theme& t) {
             {L"Esc", L"close"}
         };
     } else if (g_app.tool == kToolStrum) {
-        if (MenuHit(g_strumMenu)) {
+        if (MenuHit(g_meterMenu)) {
+            // The arrows browse the meter list while it is up.
+            items = {
+                {L"\x2191\x2193", L"meter"},
+                {L"Enter", L"pick"},
+                {L"Esc", L"close"}
+            };
+        } else if (MenuHit(g_patternMenu)) {
+            // The arrows browse the pattern list while it is up.
+            items = {
+                {L"\x2191\x2193", L"pattern"},
+                {L"Enter", L"pick"},
+                {L"Esc", L"close"}
+            };
+        } else if (MenuHit(g_strumMenu)) {
             // The arrows browse the chord list while it is up.
             items = {
                 {L"\x2191\x2193", L"chord"},
@@ -8073,6 +8422,12 @@ void PaintPanel(Surface& s) {
     }
     if (g_app.tool == kToolStrum && MenuVisual(g_strumMenu)) {
         PaintStrumMenu(s, t);
+    }
+    if (g_app.tool == kToolStrum && MenuVisual(g_patternMenu)) {
+        PaintStrumPatternMenu(s, t);
+    }
+    if (g_app.tool == kToolStrum && MenuVisual(g_meterMenu)) {
+        PaintStrumMeterMenu(s, t);  // Last, so it sits over the meter select.
     }
 }
 
@@ -8253,7 +8608,22 @@ HitResult HitTest(POINT pt) {
         return hit;
     }
     if (g_app.tool == kToolStrum) {
-        // An open list owns the pointer until it closes.
+        // An open list owns the pointer until it closes, and the pattern list
+        // is the one drawn on top, so it answers first.
+        if (MenuVisual(g_patternMenu)) {
+            const int rows = StrumPatternCount(g_strum.beats, g_strum.unit);
+            for (int i = 0; i < rows; i++) {
+                if (PtInRect(&g_layout.strumPatternRow[i], pt)) {
+                    hit.id = kHitStrumPatternRow;
+                    hit.index = i;
+                    return hit;
+                }
+            }
+            if (PtInRect(&g_layout.strumPattern, pt)) {
+                hit.id = kHitStrumPattern;
+            }
+            return hit;
+        }
         if (MenuVisual(g_strumMenu)) {
             for (int i = 0; i < kStrumChordCount; i++) {
                 if (PtInRect(&g_layout.strumChordRow[i], pt)) {
@@ -8267,12 +8637,22 @@ HitResult HitTest(POINT pt) {
             }
             return hit;
         }
-        for (int i = 0; i < kStrumPresetCount; i++) {
-            if (PtInRect(&g_layout.strumPreset[i], pt)) {
-                hit.id = kHitStrumPreset;
-                hit.index = i;
-                return hit;
+        if (MenuVisual(g_meterMenu)) {
+            for (int i = 0; i < kSignatureCount; i++) {
+                if (PtInRect(&g_layout.strumMeterRow[i], pt)) {
+                    hit.id = kHitStrumMeterRow;
+                    hit.index = i;
+                    return hit;
+                }
             }
+            if (PtInRect(&g_layout.strumMeterSelect, pt)) {
+                hit.id = kHitStrumMeter;
+            }
+            return hit;
+        }
+        if (PtInRect(&g_layout.strumPattern, pt)) {
+            hit.id = kHitStrumPattern;
+            return hit;
         }
         const int cells = std::clamp(StrumSlotCount(), 1, kStrumSlotsMax);
         for (int i = 0; i < cells; i++) {
@@ -8282,12 +8662,9 @@ HitResult HitTest(POINT pt) {
                 return hit;
             }
         }
-        for (int i = 0; i < kSignatureCount; i++) {
-            if (PtInRect(&g_layout.strumSig[i], pt)) {
-                hit.id = kHitStrumSig;
-                hit.index = i;
-                return hit;
-            }
+        if (PtInRect(&g_layout.strumMeterSelect, pt)) {
+            hit.id = kHitStrumMeter;
+            return hit;
         }
         for (int i = 0; i < 4; i++) {
             if (PtInRect(&g_layout.strumSub[i], pt)) {
@@ -8295,14 +8672,6 @@ HitResult HitTest(POINT pt) {
                 hit.index = i;
                 return hit;
             }
-        }
-        if (PtInRect(&g_layout.strumBeatsDown, pt)) {
-            hit.id = kHitStrumBeatsDown;
-            return hit;
-        }
-        if (PtInRect(&g_layout.strumBeatsUp, pt)) {
-            hit.id = kHitStrumBeatsUp;
-            return hit;
         }
         if (PtInRect(&g_layout.strumTempoDown, pt)) {
             hit.id = kHitStrumTempoDown;
@@ -8531,6 +8900,8 @@ void SetTool(int tool) {
     MenuReset(g_toolMenu);
     MenuReset(g_tunerMenu);
     MenuReset(g_strumMenu);
+    MenuReset(g_patternMenu);
+    MenuReset(g_meterMenu);
     // The microphone only lives while the tuner is on screen.
     if (g_app.tool == kToolTuner) {
         TunerHalt();
@@ -8776,6 +9147,26 @@ void StrumLoadPreset(int index) {
     Repaint();
 }
 
+// The pattern list is the meter's run of the table, so its rows and the table
+// indices are two different numbers and every click or key has to cross over.
+int StrumPatternRowIndex() {  // row of the loaded pattern, or -1
+    const int base = StrumPatternBase(g_strum.beats, g_strum.unit);
+    const int count = StrumPatternCount(g_strum.beats, g_strum.unit);
+    if (base < 0 || g_strum.preset < base || g_strum.preset >= base + count) {
+        return -1;
+    }
+    return g_strum.preset - base;
+}
+
+void StrumLoadPatternRow(int row) {
+    const int base = StrumPatternBase(g_strum.beats, g_strum.unit);
+    if (base < 0 || row < 0 ||
+        row >= StrumPatternCount(g_strum.beats, g_strum.unit)) {
+        return;
+    }
+    StrumLoadPreset(base + row);
+}
+
 void StrumSetMeter(int beats, int unit) {
     g_strum.beats = std::clamp(beats, 1, 16);
     g_strum.unit = unit;
@@ -8785,8 +9176,16 @@ void StrumSetMeter(int beats, int unit) {
     Repaint();
 }
 
-void StrumStepBeats(int delta) {
-    StrumSetMeter(g_strum.beats + delta, g_strum.unit);
+// The bar's meter in the table the meter list is built from, or -1 when it is
+// holding one the list does not offer.
+int StrumMeterIndex() {
+    for (int i = 0; i < kSignatureCount; i++) {
+        if (kSignatures[i].beats == g_strum.beats &&
+            kSignatures[i].unit == g_strum.unit) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 void StrumSetSubdivision(int subdivision) {
@@ -8927,14 +9326,17 @@ void StrumMoveCursor(int delta) {
     Repaint();
 }
 
-// Tab walks the presets; a custom edit falls back onto the first one.
+// Tab walks the list the card is showing, so it never leaves the meter: the
+// run is the meter's own vocabulary and the cursor wraps inside it.
 void StrumStepPreset(int delta) {
-    if (g_strum.preset < 0) {
-        StrumLoadPreset(0);
+    const int base = StrumPatternBase(g_strum.beats, g_strum.unit);
+    const int count = StrumPatternCount(g_strum.beats, g_strum.unit);
+    if (base < 0 || count == 0) {
         return;
     }
-    StrumLoadPreset((g_strum.preset + delta + kStrumPresetCount) %
-                    kStrumPresetCount);
+    const int row = StrumPatternRowIndex();
+    const int next = row < 0 ? 0 : (row + delta + count) % count;
+    StrumLoadPreset(base + next);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -9897,6 +10299,34 @@ void OnMouseDown(HWND hwnd, POINT pt) {
         }
         return;
     }
+    if (g_app.tool == kToolStrum && MenuVisual(g_meterMenu) &&
+        (hit.id == kHitNone || hit.id == kHitToolSelect)) {
+        // The meter list hangs over the lower half of the card, so a click
+        // outside it only puts it away; it yields to the tool picker too.
+        MenuHide(g_meterMenu);
+        Repaint();
+        if (hit.id == kHitToolSelect) {
+            g_pressed = hit;
+            MenuShow(g_toolMenu, kMenuTools, g_app.tool);
+            g_hover = HitResult();
+            Repaint();
+        }
+        return;
+    }
+    if (g_app.tool == kToolStrum && MenuVisual(g_patternMenu) &&
+        (hit.id == kHitNone || hit.id == kHitToolSelect)) {
+        // The pattern list sits over the card, so it is the one a stray click
+        // dismisses; like the chord list, it yields to the tool picker.
+        MenuHide(g_patternMenu);
+        Repaint();
+        if (hit.id == kHitToolSelect) {
+            g_pressed = hit;
+            MenuShow(g_toolMenu, kMenuTools, g_app.tool);
+            g_hover = HitResult();
+            Repaint();
+        }
+        return;
+    }
     if (g_app.tool == kToolStrum && MenuVisual(g_strumMenu) &&
         (hit.id == kHitNone || hit.id == kHitToolSelect)) {
         // Same for the chord list, which also yields to the tool picker. A
@@ -10020,10 +10450,20 @@ void OnMouseDown(HWND hwnd, POINT pt) {
             // go and reads every string again.
             TunerToggleString(hit.index);
             break;
-        case kHitStrumPreset:
-            if (hit.index >= 0 && hit.index < kStrumPresetCount) {
-                StrumLoadPreset(hit.index);
+        case kHitStrumPattern:
+            if (MenuHit(g_patternMenu)) {
+                MenuHide(g_patternMenu);
+            } else {
+                MenuShow(g_patternMenu, kMenuStrumPattern,
+                         std::max(0, StrumPatternRowIndex()));
+                g_hover = HitResult();
             }
+            Repaint();
+            break;
+        case kHitStrumPatternRow:
+            StrumLoadPatternRow(hit.index);
+            MenuHide(g_patternMenu);
+            Repaint();
             break;
         case kHitStrumSlot: {
             // A plain click cycles the cell through the five strokes; the
@@ -10051,17 +10491,23 @@ void OnMouseDown(HWND hwnd, POINT pt) {
             }
             break;
         }
-        case kHitStrumSig:
+        case kHitStrumMeter:
+            if (MenuHit(g_meterMenu)) {
+                MenuHide(g_meterMenu);
+            } else {
+                MenuShow(g_meterMenu, kMenuStrumMeter,
+                         std::max(0, StrumMeterIndex()));
+                g_hover = HitResult();
+            }
+            Repaint();
+            break;
+        case kHitStrumMeterRow:
             if (hit.index >= 0 && hit.index < kSignatureCount) {
                 StrumSetMeter(kSignatures[hit.index].beats,
                               kSignatures[hit.index].unit);
             }
-            break;
-        case kHitStrumBeatsDown:
-            StrumStepBeats(-1);
-            break;
-        case kHitStrumBeatsUp:
-            StrumStepBeats(1);
+            MenuHide(g_meterMenu);
+            Repaint();
             break;
         case kHitStrumSub:
             if (hit.index >= 0 && hit.index < 4) {
@@ -10323,6 +10769,54 @@ void OnKeyDown(WPARAM key) {
         return;
     }
     if (g_app.tool == kToolStrum) {
+        if (MenuHit(g_meterMenu)) {
+            if (key == VK_ESCAPE) {
+                MenuHide(g_meterMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_RETURN) {
+                // Enter picks the meter the cursor rests on; with no row
+                // picked yet it just folds the list away.
+                if (g_meterMenu.cursor >= 0 &&
+                    g_meterMenu.cursor < kSignatureCount) {
+                    StrumSetMeter(kSignatures[g_meterMenu.cursor].beats,
+                                  kSignatures[g_meterMenu.cursor].unit);
+                }
+                MenuHide(g_meterMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_UP || key == VK_DOWN) {
+                MenuMoveCursor(g_meterMenu, key == VK_DOWN ? 1 : -1);
+                Repaint();
+                return;
+            }
+            return;
+        }
+        if (MenuHit(g_patternMenu)) {
+            if (key == VK_ESCAPE) {
+                MenuHide(g_patternMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_RETURN) {
+                // Enter loads the row the cursor rests on; with no row picked
+                // yet it just folds the list away.
+                if (g_patternMenu.cursor >= 0) {
+                    StrumLoadPatternRow(g_patternMenu.cursor);
+                }
+                MenuHide(g_patternMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_UP || key == VK_DOWN) {
+                MenuMoveCursor(g_patternMenu, key == VK_DOWN ? 1 : -1);
+                Repaint();
+                return;
+            }
+            return;
+        }
         if (MenuHit(g_strumMenu)) {
             if (key == VK_ESCAPE) {
                 MenuHide(g_strumMenu);
