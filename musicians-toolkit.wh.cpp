@@ -26,7 +26,7 @@ Type to instantly search for chords. As you type, the list narrows down, and the
 - **Guitar and Ukulele:** Displays a visual fretboard showing barre positions, open strings, and muted strings.
 - **Piano:** Highlights the exact keys to hold down.
 - **Fingerings:** Use the arrow keys or the slider underneath the diagram to cycle through different finger variations.
-- **Hear it:** Click the speaker in the corner of the card to hear the chord played back.
+- **Hear it:** Click the speaker in the corner of the card to hear the chord - strummed on an acoustic guitar, or played on a piano.
 
 ## Tap Tempo
 
@@ -49,7 +49,7 @@ Open the tuner and let your microphone listen. A smooth needle sweeps across an 
 
 ## Strumming Pattern
 
-Build a strumming pattern on a one-measure grid and hear it played back with synthesized guitar strums, in lock step with the metronome.
+Build a strumming pattern on a one-measure grid and hear it played back with the same acoustic guitar voice as the chord library, in lock step with the metronome.
 - **Grid:** Click a cell to cycle it through rest, down, up, down-muted and up-muted strokes. Shift-click adds an accent, Ctrl-click a ghost note, and Alt-click a tie (let ring). The keyboard keys **D U X M R** lay a stroke, and **A G T** toggle accent, ghost and tie.
 - **Techniques:** Muted strokes sound as percussive scratches, ghost notes are quieter and partial, and a Palm toggle dampens the whole pattern. Accents and ties carry through to the audio.
 - **Meter and feel:** The eight time signatures, the beat steppers and the 8ths / triplet / 16ths subdivision chips cover any meter; the pattern follows the tempo shared across the toolkit.
@@ -59,6 +59,7 @@ Build a strumming pattern on a one-measure grid and hear it played back with syn
 
 Explore all twelve keys arranged around a ring, each a fifth clockwise from the last. 
 - **Ring:** Click any key badge to select it and hear its major scale rise; scroll or use the arrow keys to walk around the circle.
+- **Instrument:** Pick Guitar, Piano or Ukulele at the top (or press **Tab**) to hear the scales and chords in that voice, exactly as the chord library does.
 - **Theory panel:** The selected key spells out its scale degrees, the seven diatonic chords, its sharps-or-flats key signature, the relative and parallel minor, and the mode built on each degree.
 - **Chords:** Click one of the seven diatonic chord chips to hear that triad, or press **1**–**7**.
 - **Major / Minor:** Toggle to relabel the ring with the relative-minor keys.
@@ -76,7 +77,7 @@ Drill instrument geography against a live countdown. A note name appears and the
 
 - **Win+Y:** Open or close the panel (the key and modifiers are configurable under Settings > Shortcut).
 - **Ctrl+Tab:** Switch between tools.
-- **Tab:** Switch instruments (in the chord library, tuner or note trainer).
+- **Tab:** Switch instruments (in the chord library, tuner, circle of fifths or note trainer).
 - **Up / Down:** Navigate search results or adjust metronome BPM.
 - **Left / Right:** Step through chord fingerings, halve/double tap tempo, or change metronome signatures.
 - **Esc:** Clear search, or close the panel if the search is empty.
@@ -2583,12 +2584,13 @@ constexpr TrainerRange kTrainerRanges[kInstrumentCount] = {
     {60, 18},  // Ukulele: middle C over the fingerboard.
     {48, 25},  // Piano:   C3 up to C5.
 };
-constexpr PCWSTR kTrainerInstrumentLabels[kInstrumentCount] = {
+constexpr PCWSTR kInstrumentChipLabels[kInstrumentCount] = {
     L"Guitar", L"Ukulele", L"Piano"};
-// The order the three chips are drawn in: guitar, piano, ukulele.
-constexpr int kTrainerChipOrder[3] = {kInstrumentGuitar, kInstrumentPiano,
-                                      kInstrumentUkulele};
-constexpr int kTrainerChipCount = 3;
+// The three instruments as chips, in the order the note trainer and the circle
+// of fifths draw them: guitar, piano, ukulele.
+constexpr int kInstrumentChipOrder[3] = {kInstrumentGuitar, kInstrumentPiano,
+                                         kInstrumentUkulele};
+constexpr int kInstrumentChipCount = 3;
 
 // A reading within this many cents of the target counts as the right note.
 constexpr int kTrainerCents = 40;
@@ -2706,6 +2708,7 @@ enum Hit {
     kHitStrumTempoUp,
     kHitCircleKey,
     kHitCircleMode,
+    kHitCircleInst,
     kHitCircleChord,
     kHitTrainerStart,
     kHitTrainerInst,
@@ -2811,9 +2814,11 @@ struct Layout {
     RECT strumHint{};
 
     // Circle of fifths tool, in the same rectangle once more. A ring of twelve
-    // key badges around a centre readout, a Major/Minor toggle above it, then a
-    // row of the seven diatonic chords and a block of theory lines below.
+    // key badges around a centre readout, the instrument chips and the
+    // Major/Minor toggle above it, then a row of the seven diatonic chords and
+    // a block of theory lines below.
     RECT circlePad{};
+    RECT circleInst[3]{};
     RECT circleMode[2]{};
     RECT circleChord[7]{};
     RECT circleCaption{};
@@ -3192,9 +3197,10 @@ void ComputeLayout() {
     l.strumHint = {l.strumPad.left, strumTop + S(396), l.strumPad.right,
                    strumTop + S(414)};
 
-    // Circle of fifths tool, laid out in the same rectangle once more. A
-    // Major/Minor toggle on top, a ring of twelve key badges filling the
-    // middle, then the seven diatonic chords and three lines of theory.
+    // Circle of fifths tool, laid out in the same rectangle once more. The
+    // instrument chips and a Major/Minor toggle on top, a ring of twelve key
+    // badges filling the middle, then the seven diatonic chords and three lines
+    // of theory.
     l.circlePad = l.metroPad;
     const int circleTop = l.circlePad.top;
     const int circleLeft = l.circlePad.left + S(16);
@@ -3206,8 +3212,15 @@ void ComputeLayout() {
                        circleTop + S(28)};
     l.circleMode[1] = {modeX1, circleTop + S(4), modeX1 + modeWidth,
                        circleTop + S(28)};
-    l.circleCaption = {circleLeft, circleTop + S(6), modeX0 - S(8),
-                       circleTop + S(26)};
+    // The instrument chips only change the sound, so they share that row on
+    // the left; the scale they let you hear moved into the middle of the ring.
+    const int circleChipW = S(56);
+    const int circleChipGap = S(4);
+    for (int i = 0; i < kInstrumentChipCount; i++) {
+        const int x = circleLeft + i * (circleChipW + circleChipGap);
+        l.circleInst[i] = {x, circleTop + S(4), x + circleChipW,
+                           circleTop + S(28)};
+    }
 
     l.circleBadgeR = S(21);
     const int half = (circleRight - circleLeft) / 2;
@@ -3218,8 +3231,10 @@ void ComputeLayout() {
     l.circleRingR = ringR;
     l.circleCx = (circleLeft + circleRight) / 2;
     l.circleCy = circleTop + S(148);
-    l.circleCenter = {l.circleCx - S(70), l.circleCy - S(30), l.circleCx + S(70),
-                      l.circleCy + S(18)};
+    l.circleCenter = {l.circleCx - S(78), l.circleCy - S(36),
+                      l.circleCx + S(78), l.circleCy + S(6)};
+    l.circleCaption = {l.circleCx - S(88), l.circleCy + S(8),
+                       l.circleCx + S(88), l.circleCy + S(26)};
 
     const int chordY = circleTop + S(300);
     const int chordGap = S(4);
@@ -3409,6 +3424,9 @@ StrumState g_strum;
 struct CircleState {
     int key = 0;              // Index into kCircleKeys.
     bool minor = false;       // Read the ring as minor keys.
+    // Which instrument the scales and chords are played on. It only colours
+    // the sound, the way the chord library's tabs do.
+    int instrument = kInstrumentGuitar;
     bool playOnSelect = true;  // Sound the scale when a key is picked.
     bool defaultsApplied = false;
     double flashAt = -1000.0;  // When a key was last selected, for the pulse.
@@ -3541,6 +3559,7 @@ void TunerSetString(int string);
 void TunerToggleString(int string);
 void TunerStepInstrument(int delta);
 void TunerStepTuning(int delta);
+void CircleSetInstrument(int instrument);
 void TrainerEnter();
 void TrainerHalt();
 void TrainerToggle();
@@ -4661,7 +4680,7 @@ constexpr int kMetroRate = 44100;
 constexpr int kMetroChannels = 2;
 constexpr int kMetroBlockFrames = 512;  // About 11.6 ms per block.
 constexpr int kMetroBlockCount = 3;     // About 35 ms of headroom.
-constexpr int kMetroTail = 16000;       // Long enough for a strum to ring out.
+constexpr int kMetroTail = 66150;      // 1.5 s, long enough for a strum to ring.
 constexpr int kMetroLevels = 4;
 
 struct MetroConfig {
@@ -4840,59 +4859,61 @@ void MixMetroClick(MetroAudio& a, int level, int alt, int offset) {
     }
 }
 
-// One strum is six strings struck a few milliseconds apart, each a plucked
-// tone: a handful of slightly stretched harmonics that decay exponentially.
-// A down stroke rolls bass to treble, an up stroke treble to bass and reads a
-// touch brighter; palm mute keeps only the low harmonics and dies far faster;
-// a muted scratch drops the tones for a short high-passed noise burst.
+// Defined by the acoustic sampler further down. The pattern builder does not
+// carry its own tone bank: a strum is six of the very strings the chord card
+// and the circle of fifths play, so the whole toolkit speaks with one voice.
+void ClipRenderPluck(std::vector<float>& out, int midi, uint32_t salt);
+
+// One strum is the six open strings of a guitar struck a few milliseconds
+// apart. A down stroke rolls bass to treble, an up stroke comes back; palm mute
+// leans on a fast choking envelope; a muted scratch is the same pluck choked
+// almost instantly, which is what a hand laid across the strings does.
 void RenderStrumVoice(std::vector<float>& out, bool up, bool muted, bool palm,
                       uint32_t seedSalt) {
-    const float strings[6] = {98.0f, 146.83f, 196.0f, 246.94f, 293.66f,
-                              392.0f};
+    // Standard tuning, low E2 to high E4.
+    static const int kStrings[6] = {40, 45, 50, 55, 59, 64};
     const float spread = up ? 0.0045f : 0.0065f;  // Seconds between strings.
-    const float seconds = muted ? 0.06f : (palm ? 0.16f : 0.30f);
-    const float decay = muted ? 70.0f : (palm ? 26.0f : 8.0f);
-    const int frames = static_cast<int>(seconds * kMetroRate);
+    const int frames = static_cast<int>(
+        (muted ? 0.12f : (palm ? 0.55f : 1.5f)) * kMetroRate);
     out.assign(static_cast<size_t>(frames), 0.0f);
-    const int attack = static_cast<int>(kMetroRate * 0.0015f) + 1;
-    uint32_t seed = 0x9E3779B9u ^ seedSalt;
-    float previousNoise = 0.0f;
+
+    std::vector<float> pluck;
+    for (int s = 0; s < 6; s++) {
+        // A down stroke starts on the low string, an up stroke on the high one.
+        const int note = up ? kStrings[5 - s] : kStrings[s];
+        const int offset = static_cast<int>(spread * kMetroRate) * s;
+        if (offset >= frames) {
+            continue;
+        }
+        ClipRenderPluck(pluck, note, seedSalt + static_cast<uint32_t>(s));
+        // Each string leans in at its own weight, so the stroke is not a wall.
+        const float weight = 0.86f + 0.04f * static_cast<float>(s % 3);
+        const int count =
+            std::min(static_cast<int>(pluck.size()), frames - offset);
+        for (int i = 0; i < count; i++) {
+            out[static_cast<size_t>(offset + i)] +=
+                pluck[static_cast<size_t>(i)] * weight;
+        }
+    }
+
+    // The choke rides on the strings rather than replacing them: a plain strum
+    // is damped by the hand a beat later, which is also what keeps a fast
+    // pattern from piling ringing chords on top of each other.
+    const float choke = muted ? 70.0f : (palm ? 26.0f : 2.0f);
+    float peak = 0.0f;
     for (int i = 0; i < frames; i++) {
-        const float time = static_cast<float>(i) / kMetroRate;
-        float sum = 0.0f;
-        if (muted) {
-            seed ^= seed << 13;
-            seed ^= seed >> 17;
-            seed ^= seed << 5;
-            const float raw =
-                static_cast<float>(seed) / 2147483648.0f - 1.0f;
-            const float scratch = raw - previousNoise;  // High pass the burst.
-            previousNoise = raw;
-            const float body = sinf(6.2831853f * 130.0f * time);
-            sum = (scratch * 0.9f + body * 0.35f) * expf(-time * decay);
-        } else {
-            for (int s = 0; s < 6; s++) {
-                const int order = up ? 5 - s : s;
-                const float start = spread * static_cast<float>(order);
-                const float ts = time - start;
-                if (ts < 0.0f) {
-                    continue;
-                }
-                const float base = 6.2831853f * strings[s] * ts;
-                float v = sinf(base) + 0.55f * sinf(base * 2.01f) +
-                          0.28f * sinf(base * 3.02f) + 0.14f * sinf(base * 4.9f);
-                if (palm) {
-                    v = sinf(base) + 0.35f * sinf(base * 2.01f);
-                }
-                sum += v * expf(-ts * decay);
-            }
-            sum /= 6.0f;
+        float value = out[static_cast<size_t>(i)];
+        if (choke > 0.0f) {
+            value *= expf(-choke * static_cast<float>(i) / kMetroRate);
         }
-        float gain = 1.0f;
-        if (i < attack) {
-            gain = static_cast<float>(i) / attack;
-        }
-        out[static_cast<size_t>(i)] = sum * gain * 0.42f;
+        out[static_cast<size_t>(i)] = value;
+        peak = std::max(peak, fabsf(value));
+    }
+    // Every voice is levelled alike, so accent and ghost stay the only
+    // dynamics the pattern needs.
+    const float norm = peak > 1e-6f ? 0.55f / peak : 0.0f;
+    for (int i = 0; i < frames; i++) {
+        out[static_cast<size_t>(i)] *= norm;
     }
 }
 
@@ -5866,54 +5887,6 @@ void PaintCloseButton(Surface& s, const Theme& t) {
     StrokeLine(s, Vec2{cx - arm, cy + arm}, Vec2{cx + arm, cy - arm}, width,
                color);
 }
-
-#if 0  // Chord playback, parked with the engine above.
-void PaintSpeakerLegacy(Surface& s, const Theme& t) {
-    const RECT& box = g_layout.speaker;
-    const bool available = SelectedChord() != nullptr;
-    const bool hovered = g_hover.id == kHitSpeaker;
-    const bool playing = NowMs() < g_audioBusyUntil;
-    const float cx = L(box.left + box.right) * 0.5f;
-    const float cy = L(box.top + box.bottom) * 0.5f;
-
-    if (hovered && available) {
-        FillCircle(s, cx, cy, S(12.0f), t.controlHover);
-    }
-    Color color = available ? (hovered ? t.text : t.textMuted)
-                            : WithAlpha(t.textMuted, 0.35f);
-    if (playing) {
-        color = t.accent;
-    }
-
-    // Driver, then a cone that widens to the right.
-    FillRoundRect(s, cx - S(8.0f), cy - S(2.4f), cx - S(5.2f), cy + S(2.4f),
-                  S(0.8f), color);
-    for (int i = 0; i < 5; i++) {
-        const float x = cx - S(5.2f) + S(1.1f) * i;
-        const float half = S(2.4f) + S(1.15f) * i;
-        FillRoundRect(s, x, cy - half, x + S(1.1f), cy + half, S(0.5f), color);
-    }
-
-    // Two sound waves, as short arcs about the cone.
-    auto wave = [&](float radius) {
-        const float origin = cx + S(1.2f);
-        float lastX = 0.0f;
-        float lastY = 0.0f;
-        for (int step = 0; step <= 3; step++) {
-            const float angle = -0.85f + 1.7f * static_cast<float>(step) / 3.0f;
-            const float x = origin + radius * cosf(angle);
-            const float y = cy + radius * sinf(angle);
-            if (step > 0) {
-                StrokeLine(s, Vec2{lastX, lastY}, Vec2{x, y}, S(1.3f), color);
-            }
-            lastX = x;
-            lastY = y;
-        }
-    };
-    wave(S(5.6f));
-    wave(S(9.0f));
-}
-#endif  // PaintSpeaker
 
 // The speaker on the chord card. The audio is the same one-shot clip the
 // circle of fifths plays, so the icon only has to say whether there is a chord
@@ -7483,8 +7456,9 @@ void CircleBadgeCenter(int i, float& x, float& y) {
 }
 
 // The circle of fifths card: a ring of twelve key badges around a centre
-// readout, a Major/Minor toggle, the seven diatonic chords and the theory
-// lines that spell the selected key out in full.
+// readout, the instrument chips and a Major/Minor toggle above it, the seven
+// diatonic chords and the theory lines that spell the selected key out. The
+// instrument only picks the voice its scales and chords are played in.
 void PaintCircle(Surface& s, const Theme& t) {
     const RECT& card = g_layout.circlePad;
     FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
@@ -7503,22 +7477,16 @@ void PaintCircle(Surface& s, const Theme& t) {
 
     HFONT chipFont =
         g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    for (int i = 0; i < kInstrumentChipCount; i++) {
+        const int inst = kInstrumentChipOrder[i];
+        PaintChip(s, t, g_layout.circleInst[i], kInstrumentChipLabels[inst],
+                  chipFont, g_circle.instrument == inst,
+                  g_hover.id == kHitCircleInst && g_hover.index == i);
+    }
     PaintChip(s, t, g_layout.circleMode[0], L"Major", chipFont,
               !g_circle.minor, g_hover.id == kHitCircleMode && g_hover.index == 0);
     PaintChip(s, t, g_layout.circleMode[1], L"Minor", chipFont,
               g_circle.minor, g_hover.id == kHitCircleMode && g_hover.index == 1);
-
-    // The selected key's scale spelled out along the top.
-    std::wstring scale;
-    for (int d = 0; d < 7; d++) {
-        if (d) {
-            scale += L"  ";
-        }
-        scale += CircleDegreeName(key, d);
-    }
-    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontTone)), kWeightSemiBold),
-                scale, g_layout.circleCaption,
-                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.accent);
 
     // The twelve badges, the selected one in the accent colour with a ring
     // that eases out from the last click.
@@ -7550,15 +7518,22 @@ void PaintCircle(Surface& s, const Theme& t) {
                     selected ? t.onAccent : t.text);
     }
 
-    // The tonic readout in the middle of the ring.
+    // The tonic readout in the middle of the ring, with the scale it stands on
+    // spelled out beneath it.
     HFONT bigFont = g_fonts.Get(S(30.0f), kWeightSemiBold);
     HFONT smallFont = g_fonts.Get(S(static_cast<float>(kFontTone)), FW_NORMAL);
     g_text.Draw(s, bigFont, CircleKeyName(key, g_circle.minor),
                 g_layout.circleCenter, DT_CENTER | DT_TOP | DT_SINGLELINE, t.text);
-    RECT mode{g_layout.circleCenter.left, g_layout.circleCenter.bottom - S(16),
-              g_layout.circleCenter.right, g_layout.circleCenter.bottom};
-    g_text.Draw(s, smallFont, g_circle.minor ? L"minor" : L"major", mode,
-                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+    std::wstring scale;
+    for (int d = 0; d < 7; d++) {
+        if (d) {
+            scale += L"  ";
+        }
+        scale += CircleDegreeName(key, d);
+    }
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), kWeightSemiBold),
+                scale, g_layout.circleCaption,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.accent);
 
     // The seven diatonic chords, each clickable to hear that triad.
     for (int d = 0; d < 7; d++) {
@@ -7621,9 +7596,9 @@ void PaintTrainer(Surface& s, const Theme& t) {
 
     HFONT chipFont =
         g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
-    for (int i = 0; i < kTrainerChipCount; i++) {
-        const int inst = kTrainerChipOrder[i];
-        PaintChip(s, t, g_layout.trainerInst[i], kTrainerInstrumentLabels[inst],
+    for (int i = 0; i < kInstrumentChipCount; i++) {
+        const int inst = kInstrumentChipOrder[i];
+        PaintChip(s, t, g_layout.trainerInst[i], kInstrumentChipLabels[inst],
                   chipFont, g_trainer.instrument == inst,
                   g_hover.id == kHitTrainerInst && g_hover.index == i);
     }
@@ -8099,6 +8074,13 @@ HitResult HitTest(POINT pt) {
         return hit;
     }
     if (g_app.tool == kToolCircle) {
+        for (int i = 0; i < kInstrumentChipCount; i++) {
+            if (PtInRect(&g_layout.circleInst[i], pt)) {
+                hit.id = kHitCircleInst;
+                hit.index = i;
+                return hit;
+            }
+        }
         for (int i = 0; i < 2; i++) {
             if (PtInRect(&g_layout.circleMode[i], pt)) {
                 hit.id = kHitCircleMode;
@@ -8132,7 +8114,7 @@ HitResult HitTest(POINT pt) {
         return hit;
     }
     if (g_app.tool == kToolTrainer) {
-        for (int i = 0; i < kTrainerChipCount; i++) {
+        for (int i = 0; i < kInstrumentChipCount; i++) {
             if (PtInRect(&g_layout.trainerInst[i], pt)) {
                 hit.id = kHitTrainerInst;
                 hit.index = i;
@@ -8428,6 +8410,13 @@ void StrumStart() {
         static_cast<int>(lround(ToolkitBpm() + g_strum.targetOffsetBpm)), 20,
         400);
     StrumSync();
+    // Render the voices before the pattern is handed over. Building them on
+    // the audio thread would hold up the first stroke while six Karplus-Strong
+    // strings are synthesised for every stroke and technique, and doing it
+    // ahead of the flag keeps the audio thread off a half-built voice set.
+    if (!g_metroAudio.strumBuilt) {
+        BuildStrumVoices(g_metroAudio);
+    }
     g_metroShared.strum.store(true);
     g_metroShared.measureTick.store(0);
     g_metroShared.slot.store(0);
@@ -8632,89 +8621,305 @@ void StrumStepPreset(int delta) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Circle of fifths controls
+// Acoustic clip engine
 //
-// The toolkit's WASAPI chord engine is parked, so the circle synthesises its
-// own short clip here: a Karplus-Strong pluck rendered into a buffer at the
-// metronome's sample rate and handed to a brief waveOut stream on a detached
-// thread. One-shots like this stay independent of the shared click engine.
+// The toolkit's WASAPI chord engine is parked, so anything that needs a short
+// sound renders its own take here and hands it to a brief waveOut stream on a
+// detached thread: the circle's scales and chords and the chord card's speaker
+// all play through this one sampler. The string model is the plain
+// Karplus-Strong pluck - a period of noise recirculated through a two tap
+// average, damped per pass, then narrowed by a band pass at the note - rendered
+// at the metronome's sample rate and strummed a string at a time.
 
-struct CircleClipRequest {
+constexpr float kClipRate = static_cast<float>(kMetroRate);
+constexpr float kClipPi = 3.14159265f;
+
+struct ClipRequest {
     int notes[kMaxNotes];
     int noteCount = 0;
-    float arpeggio = 0.0f;  // Seconds between notes; 0 sounds them together.
-    float damping = 0.9975f;
+    float arpeggio = 0.0f;  // Seconds between notes; 0 strums them together.
+    bool piano = false;     // Keys instead of plucked strings.
 };
 
-float CircleNoteFrequency(int midi) {
+float ClipNoteFrequency(int midi) {
     return 440.0f * powf(2.0f, (static_cast<float>(midi) - 69.0f) / 12.0f);
 }
 
-float CircleNoise(uint32_t& state) {
+float ClipNoise(uint32_t& state) {
     state ^= state << 13;
     state ^= state >> 17;
     state ^= state << 5;
     return static_cast<float>(state) / 2147483648.0f - 1.0f;
 }
 
-// Noise recirculated through a two tap average, which reads as a plucked
-// string in a handful of lines. Stereo, matching the metronome output.
-void CircleMixPluck(std::vector<float>& out,
-                    float frequency,
-                    double start,
-                    float damping,
-                    float gain) {
-    const int delay = std::max(2, static_cast<int>(kMetroRate / frequency));
-    std::vector<float> line(static_cast<size_t>(delay));
-    uint32_t seed = 0x9E3779B9u ^ static_cast<uint32_t>(frequency * 11.0f);
-    float previous = 0.0f;
-    for (int i = 0; i < delay; i++) {
-        previous = 0.5f * (previous + CircleNoise(seed));
-        line[static_cast<size_t>(i)] = previous;
+// One second order section, in the cookbook's normalised form, with its own
+// state so a stereo pair can hold two of them.
+struct ClipBiquad {
+    float b0 = 1.0f;
+    float b1 = 0.0f;
+    float b2 = 0.0f;
+    float a1 = 0.0f;
+    float a2 = 0.0f;
+    float x1 = 0.0f;
+    float x2 = 0.0f;
+    float y1 = 0.0f;
+    float y2 = 0.0f;
+
+    float Process(float x) {
+        const float y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1;
+        x1 = x;
+        y2 = y1;
+        y1 = y;
+        return y;
     }
+};
+
+// Band pass with a flat peak: the filter the web-audio pluck put after its
+// string to take the aliasing out of the low notes.
+ClipBiquad ClipBandpass(float frequency, float q) {
+    const float w = 2.0f * kClipPi * frequency / kClipRate;
+    const float alpha = sinf(w) / (2.0f * q);
+    const float a0 = 1.0f + alpha;
+    ClipBiquad filter;
+    filter.b0 = alpha / a0;
+    filter.b1 = 0.0f;
+    filter.b2 = -alpha / a0;
+    filter.a1 = -2.0f * cosf(w) / a0;
+    filter.a2 = (1.0f - alpha) / a0;
+    return filter;
+}
+
+ClipBiquad ClipLowPass(float frequency, float q) {
+    const float w = 2.0f * kClipPi * frequency / kClipRate;
+    const float alpha = sinf(w) / (2.0f * q);
+    const float a0 = 1.0f + alpha;
+    ClipBiquad filter;
+    filter.b0 = (1.0f - cosf(w)) * 0.5f / a0;
+    filter.b1 = (1.0f - cosf(w)) / a0;
+    filter.b2 = (1.0f - cosf(w)) * 0.5f / a0;
+    filter.a1 = -2.0f * cosf(w) / a0;
+    filter.a2 = (1.0f - alpha) / a0;
+    return filter;
+}
+
+// One string, rendered on its own into a mono buffer that starts at sample
+// zero. This is the plain Karplus-Strong the toolkit grew out of, kept because
+// it is what the plucked chords are meant to sound like: noise across one
+// period, averaged with its neighbour so the top of the spectrum goes first,
+// damped a hair on every pass, then narrowed by a band pass at the note so the
+// aliasing of the low strings reads as a pluck. The sampler and the strumming
+// tool both come through here, so they cannot drift apart.
+void ClipRenderPluck(std::vector<float>& out, int midi, uint32_t salt) {
+    const float frequency = ClipNoteFrequency(midi);
+    const int length =
+        std::max(2, static_cast<int>(lround(kMetroRate /
+                                            static_cast<double>(frequency))));
+
+    std::vector<float> line(static_cast<size_t>(length), 0.0f);
+    uint32_t seed =
+        (0x9E3779B9u ^ salt) + static_cast<uint32_t>(midi) * 2654435761u;
+    for (int i = 0; i < length; i++) {
+        line[static_cast<size_t>(i)] = ClipNoise(seed);
+    }
+
+    ClipBiquad band = ClipBandpass(frequency, 1.0f);
+    const float damping = 0.99f;
+    out.assign(static_cast<size_t>(1.5 * kMetroRate), 0.0f);
+    size_t index = 0;
+    for (size_t n = 0; n < out.size(); n++) {
+        const size_t next = (index + 1) % static_cast<size_t>(length);
+        const float tap = 0.5f * (line[index] + line[next]);
+        out[n] = band.Process(tap);
+        line[index] = tap * damping;
+        index = next;
+    }
+}
+
+// One string, added into the stereo mix. The caller keeps the voice's level
+// and its place across the stereo field.
+void ClipPluckString(std::vector<float>& out,
+                     double start,
+                     int midi,
+                     float velocity,
+                     float pan) {
     const size_t total = out.size() / kMetroChannels;
     const size_t first = static_cast<size_t>(start * kMetroRate);
     if (first >= total) {
         return;
     }
-    size_t index = 0;
-    for (size_t n = first; n < total; n++) {
-        const size_t next = (index + 1) % static_cast<size_t>(delay);
-        const float value = 0.5f * (line[index] + line[next]) * damping;
-        line[index] = value;
-        index = next;
-        float* frame = &out[n * kMetroChannels];
-        frame[0] += value * gain;
-        frame[1] += value * gain * 0.94f;
+
+    std::vector<float> mono;
+    ClipRenderPluck(mono, midi, 0u);
+    const float gainLeft = sqrtf(0.5f * (1.0f - pan)) * velocity;
+    const float gainRight = sqrtf(0.5f * (1.0f + pan)) * velocity;
+
+    const size_t count = std::min(mono.size(), total - first);
+    for (size_t i = 0; i < count; i++) {
+        float* frame = &out[(first + i) * kMetroChannels];
+        frame[0] += mono[i] * gainLeft;
+        frame[1] += mono[i] * gainRight;
     }
 }
 
-DWORD WINAPI CircleAudioThreadProc(void* param) {
-    CircleClipRequest* request = static_cast<CircleClipRequest*>(param);
+// One piano key: two strings a couple of hertz apart, one on each channel, so
+// the note beats and sits wide, each string carrying the quicker loss and the
+// tighter band pass of the reference piano, then the key's own low pass.
+void ClipPianoKey(std::vector<float>& out,
+                  double start,
+                  int midi,
+                  float velocity) {
+    const float frequency = ClipNoteFrequency(midi);
+    const float cutoff = std::min(frequency * 3.2f, 5500.0f);
+    const size_t total = out.size() / kMetroChannels;
+    const size_t first = static_cast<size_t>(start * kMetroRate);
+    if (first >= total) {
+        return;
+    }
+    for (int side = 0; side < kMetroChannels; side++) {
+        const float stringFrequency = frequency + (side == 0 ? -1.2f : 1.2f);
+        const int length = std::max(
+            2, static_cast<int>(lround(kMetroRate /
+                                       static_cast<double>(stringFrequency))));
+        // The hammer: noise that fades across the string, so the strike starts
+        // bright and rolls off.
+        std::vector<float> line(static_cast<size_t>(length), 0.0f);
+        uint32_t seed = 0x9E3779B9u +
+                        static_cast<uint32_t>(midi * 2 + side) * 2654435761u;
+        for (int i = 0; i < length; i++) {
+            line[static_cast<size_t>(i)] =
+                ClipNoise(seed) *
+                expf(-static_cast<float>(i) /
+                     (static_cast<float>(length) * 0.45f));
+        }
+        ClipBiquad band = ClipBandpass(stringFrequency, 1.2f);
+        ClipBiquad tone = ClipLowPass(cutoff, 0.4f);
+        // The top strings give their energy up a shade faster.
+        const float damping = 0.989f + 0.007f * Clamp01(stringFrequency / 2000.0f);
+        size_t index = 0;
+        for (size_t n = first; n < total; n++) {
+            const size_t next = (index + 1) % static_cast<size_t>(length);
+            const float tap = 0.498f * (line[index] + line[next]);
+            const float shaped = tone.Process(band.Process(tap));
+            line[index] = tap * damping;
+            index = next;
+            out[n * kMetroChannels + side] += shaped * velocity;
+        }
+    }
+}
+
+// A comb and an allpass, enough of a room for a note that rings a few seconds.
+struct ClipComb {
+    std::vector<float> line;
+    size_t index = 0;
+    float store = 0.0f;
+
+    float Process(float x, float feedback, float damping) {
+        const float y = line[index];
+        store = y * (1.0f - damping) + store * damping;
+        line[index] = x + store * feedback;
+        index = (index + 1) % line.size();
+        return y;
+    }
+};
+
+struct ClipAllpass {
+    std::vector<float> line;
+    size_t index = 0;
+
+    float Process(float x) {
+        const float stored = line[index];
+        line[index] = x + stored * 0.5f;
+        index = (index + 1) % line.size();
+        return stored - x;
+    }
+};
+
+// The piano sits in a room: four combs into two allpasses, mixed back under the
+// dry notes at the weights the reference player used.
+void ClipPianoRoom(std::vector<float>& out) {
+    const size_t frames = out.size() / kMetroChannels;
+    std::vector<float> wet(out.size(), 0.0f);
+    static const int kCombs[4] = {1557, 1617, 1491, 1422};
+    for (int c = 0; c < kMetroChannels; c++) {
+        ClipComb combs[4];
+        for (int i = 0; i < 4; i++) {
+            combs[i].line.assign(static_cast<size_t>(kCombs[i] + c * 23), 0.0f);
+        }
+        ClipAllpass passes[2];
+        passes[0].line.assign(static_cast<size_t>(225 + c * 23), 0.0f);
+        passes[1].line.assign(static_cast<size_t>(556 + c * 23), 0.0f);
+        for (size_t n = 0; n < frames; n++) {
+            const float dry = out[n * kMetroChannels + c];
+            float sum = 0.0f;
+            for (int i = 0; i < 4; i++) {
+                sum += combs[i].Process(dry, 0.87f, 0.25f);
+            }
+            sum *= 0.25f;
+            sum = passes[0].Process(sum);
+            sum = passes[1].Process(sum);
+            wet[n * kMetroChannels + c] = sum;
+        }
+    }
+    for (size_t i = 0; i < out.size(); i++) {
+        out[i] = out[i] * 0.8f + wet[i] * 0.3f;
+    }
+}
+
+DWORD WINAPI ClipAudioThreadProc(void* param) {
+    ClipRequest* request = static_cast<ClipRequest*>(param);
     // A scale asks for a real arpeggio: each note starts well after the last,
     // so it rises where a chord's near-simultaneous spread would blur together.
     const bool spaced = request->arpeggio > 0.0f && request->noteCount > 1;
+    const bool piano = request->piano;
     const double spread =
         spaced ? (request->noteCount - 1) * static_cast<double>(request->arpeggio)
                : 0.0;
-    const double length = 3.2 + spread;
+    // A plucked chord is spent by two seconds; a key keeps ringing for three
+    // or more, and its room rings on after that.
+    const double length = (piano ? 4.2 : 2.6) + spread;
     std::vector<float> out(static_cast<size_t>(length * kMetroRate) *
                                static_cast<size_t>(kMetroChannels),
                            0.0f);
     for (int i = 0; i < request->noteCount; i++) {
+        const int midi = request->notes[i];
+        // A strum rolls through the strings a beat apart in the old player's
+        // terms - 25 ms, or 30 for keys - and an arpeggio spaces its notes out
+        // much further.
         const double start =
-            spaced ? i * static_cast<double>(request->arpeggio) : i * 0.022;
-        CircleMixPluck(out, CircleNoteFrequency(request->notes[i]), start,
-                       request->damping, 0.20f);
+            i * (spaced ? static_cast<double>(request->arpeggio)
+                        : (piano ? 0.030 : 0.025));
+        const float velocity =
+            spaced ? 0.58f : 0.50f + 0.04f * static_cast<float>(i % 3);
+        const float pan =
+            piano || request->noteCount <= 1
+                ? 0.0f
+                : -0.22f + 0.44f * static_cast<float>(i) /
+                                static_cast<float>(request->noteCount - 1);
+        if (piano) {
+            ClipPianoKey(out, start, midi, velocity);
+        } else {
+            ClipPluckString(out, start, midi, velocity, pan);
+        }
     }
-    // Soft clipping keeps a dense chord from crackling, then a short tail fade
-    // so the clip never ends on a step.
-    for (size_t i = 0; i < out.size(); i++) {
-        out[i] = tanhf(out[i] * 1.35f) * 0.82f;
+    if (piano) {
+        ClipPianoRoom(out);
     }
+
     const size_t frames = out.size() / kMetroChannels;
+    float loudest = 0.0f;
+    for (size_t i = 0; i < out.size(); i++) {
+        loudest = std::max(loudest, fabsf(out[i]));
+    }
+    // One scale for the whole clip, so a dense chord is no louder than a single
+    // note and nothing has to be clipped, then a tail fade so it never ends on
+    // a step.
+    const float scale = loudest > 0.0001f ? 0.86f / loudest : 0.0f;
+    for (size_t i = 0; i < out.size(); i++) {
+        out[i] *= scale;
+    }
     const size_t fade =
-        std::min(frames, static_cast<size_t>(0.18 * kMetroRate));
+        std::min(frames, static_cast<size_t>(0.25 * kMetroRate));
     for (size_t i = 0; i < fade; i++) {
         const float tail = static_cast<float>(i) / static_cast<float>(fade);
         float* frame = &out[(frames - fade + i) * kMetroChannels];
@@ -8763,14 +8968,15 @@ DWORD WINAPI CircleAudioThreadProc(void* param) {
 // Fire a one-shot clip on its own thread. The worker takes ownership of the
 // request; if the thread cannot start the buffer is freed here and nothing
 // sounds, which is the right failure mode for a background nicety.
-void CirclePlayClip(const int* notes, int count, float arpeggio) {
-    CircleClipRequest* request = new CircleClipRequest();
+void PlayAcousticClip(const int* notes, int count, float arpeggio, bool piano) {
+    ClipRequest* request = new ClipRequest();
     request->noteCount = std::min(count, kMaxNotes);
     for (int i = 0; i < request->noteCount; i++) {
         request->notes[i] = notes[i];
     }
     request->arpeggio = arpeggio;
-    HANDLE thread = CreateThread(nullptr, 0, CircleAudioThreadProc, request, 0,
+    request->piano = piano;
+    HANDLE thread = CreateThread(nullptr, 0, ClipAudioThreadProc, request, 0,
                                  nullptr);
     if (thread) {
         CloseHandle(thread);
@@ -8789,7 +8995,8 @@ void CirclePlayScale() {
         notes[count++] = 60 + key.pc + kCircleMajorSteps[d];
     }
     notes[count++] = 60 + key.pc + 12;
-    CirclePlayClip(notes, count, 0.16f);
+    PlayAcousticClip(notes, count, 0.16f,
+                     g_circle.instrument == kInstrumentPiano);
 }
 
 // A single diatonic triad, stacked in root position around middle C. The
@@ -8808,7 +9015,8 @@ void CirclePlayChord(int degree) {
         d %= 7;
         notes[count++] = 60 + key.pc + kCircleMajorSteps[d] + octave;
     }
-    CirclePlayClip(notes, count, 0.0f);
+    PlayAcousticClip(notes, count, 0.0f,
+                     g_circle.instrument == kInstrumentPiano);
 }
 
 // The chord card's speaker. The voicing already carries its notes as MIDI, for
@@ -8821,7 +9029,8 @@ void ChordPlaySelected() {
     if (!voicing || voicing->noteCount <= 0) {
         return;
     }
-    CirclePlayClip(voicing->notes, voicing->noteCount, 0.0f);
+    PlayAcousticClip(voicing->notes, voicing->noteCount, 0.0f,
+                     g_app.instrument == kInstrumentPiano);
 }
 
 void CircleSelect(int key, bool play) {
@@ -8837,6 +9046,21 @@ void CircleToggleMode(bool play) {
     g_circle.minor = !g_circle.minor;
     g_circle.flashAt = NowMs();
     if (play) {
+        CirclePlayScale();
+    }
+    Repaint();
+}
+
+// The instrument chips only recolour the sound, so picking one auditions the
+// new voice with the selected key's scale when the panel is set to play on
+// select.
+void CircleSetInstrument(int instrument) {
+    if (instrument < 0 || instrument >= kInstrumentCount ||
+        g_circle.instrument == instrument) {
+        return;
+    }
+    g_circle.instrument = instrument;
+    if (g_circle.playOnSelect) {
         CirclePlayScale();
     }
     Repaint();
@@ -9529,6 +9753,9 @@ void OnMouseDown(HWND hwnd, POINT pt) {
         case kHitCircleKey:
             CircleSelect(hit.index, g_circle.playOnSelect);
             break;
+        case kHitCircleInst:
+            CircleSetInstrument(kInstrumentChipOrder[hit.index]);
+            break;
         case kHitCircleMode: {
             const bool minor = hit.index == 1;
             if (minor != g_circle.minor) {
@@ -9541,7 +9768,7 @@ void OnMouseDown(HWND hwnd, POINT pt) {
             CirclePlayChord(hit.index);
             break;
         case kHitTrainerInst:
-            TrainerSetInstrument(kTrainerChipOrder[hit.index]);
+            TrainerSetInstrument(kInstrumentChipOrder[hit.index]);
             break;
         case kHitTrainerNaturals:
             g_trainer.naturals = !g_trainer.naturals;
@@ -9648,14 +9875,14 @@ void OnWheel(HWND hwnd, WPARAM wParam, POINT pt) {
     if (g_app.tool == kToolTrainer) {
         // The wheel steps the instrument chips, matching the click order.
         int step = 0;
-        for (int i = 0; i < kTrainerChipCount; i++) {
-            if (kTrainerChipOrder[i] == g_trainer.instrument) {
+        for (int i = 0; i < kInstrumentChipCount; i++) {
+            if (kInstrumentChipOrder[i] == g_trainer.instrument) {
                 step = i;
                 break;
             }
         }
-        step = (step + direction + kTrainerChipCount) % kTrainerChipCount;
-        TrainerSetInstrument(kTrainerChipOrder[step]);
+        step = (step + direction + kInstrumentChipCount) % kInstrumentChipCount;
+        TrainerSetInstrument(kInstrumentChipOrder[step]);
         return;
     }
     if (g_app.tool == kToolTuner) {
@@ -9820,6 +10047,19 @@ void OnKeyDown(WPARAM key) {
             CircleToggleMode(false);
             return;
         }
+        if (key == VK_TAB) {
+            // Tab walks the instrument chips in the order they are drawn.
+            int step = 0;
+            for (int i = 0; i < kInstrumentChipCount; i++) {
+                if (kInstrumentChipOrder[i] == g_circle.instrument) {
+                    step = i;
+                    break;
+                }
+            }
+            CircleSetInstrument(
+                kInstrumentChipOrder[(step + 1) % kInstrumentChipCount]);
+            return;
+        }
         // The number keys play the diatonic chord built on that degree.
         if (key >= '1' && key <= '7') {
             CirclePlayChord(static_cast<int>(key - '1'));
@@ -9843,14 +10083,14 @@ void OnKeyDown(WPARAM key) {
         if (key == VK_TAB) {
             // Tab walks the instrument chips in the order they are drawn.
             int step = 0;
-            for (int i = 0; i < kTrainerChipCount; i++) {
-                if (kTrainerChipOrder[i] == g_trainer.instrument) {
+            for (int i = 0; i < kInstrumentChipCount; i++) {
+                if (kInstrumentChipOrder[i] == g_trainer.instrument) {
                     step = i;
                     break;
                 }
             }
             TrainerSetInstrument(
-                kTrainerChipOrder[(step + 1) % kTrainerChipCount]);
+                kInstrumentChipOrder[(step + 1) % kInstrumentChipCount]);
             return;
         }
         if (key == 'N') {
