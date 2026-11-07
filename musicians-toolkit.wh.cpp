@@ -2377,8 +2377,8 @@ constexpr int kCardTop = 242;
 constexpr int kCardHeight = 240;
 constexpr float kCardRadius = 10.0f;
 constexpr int kVoicingStripHeight = 26;
-constexpr int kFootTop = 490;
-constexpr int kFootHeight = 16;
+constexpr int kFootTop = 486;
+constexpr int kFootHeight = 20;
 
 constexpr int kFontTab = 11;
 constexpr int kFontSearch = 13;
@@ -5904,7 +5904,7 @@ void PaintCloseButton(Surface& s, const Theme& t) {
     PaintGlyph(s, cx, cy, L'\xE8BB', S(10.0f), hovered ? t.text : t.textMuted);
 }
 
-void PaintSpeaker(Surface& s, const Theme& t) {
+void PaintPlayButton(Surface& s, const Theme& t) {
     const RECT& box = g_layout.speaker;
     const Voicing* voicing = SelectedVoicing();
     const bool available = voicing && voicing->noteCount > 0;
@@ -5920,9 +5920,7 @@ void PaintSpeaker(Surface& s, const Theme& t) {
     const Color color = available ? (hovered ? t.text : t.textMuted)
                                   : WithAlpha(t.textMuted, 0.35f);
 
-    // The speaker is the Fluent "volume" glyph, so the card carries the same
-    // icon the shell uses for its own volume control.
-    PaintGlyph(s, cx, cy, L'\xE994', S(15.0f), color);
+    PaintGlyph(s, cx, cy, L'\xE768', S(15.0f), color);
 }
 
 // One pill in the header: accent when it is the current choice, a soft hover
@@ -6003,8 +6001,12 @@ RECT PaintListShell(Surface& s, const Theme& t, const RECT& full,
                S(5.0f), WithAlpha(kBlack, (t.dark ? 0.45f : 0.18f) * alpha));
     FillRoundRect(s, left, top, right, bottom, radius,
                   WithAlpha(t.menu, alpha));
+    // The edge keeps its own weight and only fades with the plate, so its alpha
+    // is scaled rather than replaced.
+    Color edge = t.stroke;
+    edge.a *= alpha;
     StrokeRoundRect(s, left + 0.5f, top + 0.5f, right - 0.5f, bottom - 0.5f,
-                    radius, S(1.0f), WithAlpha(t.stroke, alpha));
+                    radius, S(1.0f), edge);
     return {full.left, static_cast<long>(bottom), full.right, full.bottom};
 }
 
@@ -6038,24 +6040,30 @@ void PaintListRows(Surface& s,
         const float dy = (1.0f - appear) * S(6.0f);
         const float top = L(row.top) + dy;
         const float bottom = L(row.bottom) + dy;
-        if (items[i].active || items[i].hovered) {
-            FillRoundRect(
-                s, L(row.left), top, L(row.right), bottom, S(6.0f),
-                WithAlpha(items[i].active ? WithAlpha(t.accent, 0.16f)
-                                              : t.controlHover,
-                          alpha));
+        const bool active = items[i].active;
+        const bool hovered = items[i].hovered;
+        // The unroll fades the wash and the ink, so their alphas are scaled.
+        // WithAlpha sets the alpha outright, and replacing a 16% accent or an
+        // 11% hover wash with 1.0 painted a solid block over its own label.
+        if (active || hovered) {
+            Color wash = active ? t.selection : t.controlHover;
+            wash.a *= alpha;
+            FillRoundRect(s, L(row.left), top, L(row.right), bottom, S(6.0f),
+                          wash);
         }
         RECT label = {row.left + S(12), static_cast<long>(top),
                       row.right - S(26), static_cast<long>(bottom)};
+        Color ink = t.text;
+        ink.a *= alpha;
         g_text.Draw(s, font, items[i].label, label,
-                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
-                    WithAlpha(items[i].active ? t.accent : t.text, alpha));
-        if (items[i].active) {
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS, ink);
+        if (active) {
             // A tick on the right, so the current choice still reads plainly.
             const float cx = L(row.right) - S(14);
             const float cy = (top + bottom) * 0.5f;
-            PaintGlyph(s, cx, cy, L'\xE73E', S(11.0f),
-                       WithAlpha(t.accent, alpha));
+            Color mark = t.accent;
+            mark.a *= alpha;
+            PaintGlyph(s, cx, cy, L'\xE73E', S(11.0f), mark);
         }
     }
 }
@@ -6644,7 +6652,7 @@ void PaintCard(Surface& s, const Theme& t) {
                 ChordTones(g_app.instrument, *entry, *voicing), g_layout.tones,
                 DT_LEFT | DT_TOP | DT_SINGLELINE, t.textMuted);
 
-    PaintSpeaker(s, t);
+    PaintPlayButton(s, t);
 
     if (chorddata::kInstruments[g_app.instrument].kind == chorddata::kFretted) {
         PaintFrettedChord(s, t, *voicing, g_layout.diagram);
@@ -7692,6 +7700,22 @@ void PaintTrainer(Surface& s, const Theme& t) {
                 t.textFaint);
 }
 
+// One Fluent keycap: the shortcut key in a small rounded box, the way the shell
+// draws shortcut hints in its own tips.
+void PaintKeycap(Surface& s,
+                 const Theme& t,
+                 HFONT font,
+                 const std::wstring& key,
+                 const RECT& box) {
+    FillRoundRect(s, L(box.left), L(box.top), L(box.right), L(box.bottom),
+                  S(4.0f), t.control);
+    StrokeRoundRect(s, L(box.left) + 0.5f, L(box.top) + 0.5f,
+                    L(box.right) - 0.5f, L(box.bottom) - 0.5f, S(4.0f),
+                    S(1.0f), t.stroke);
+    g_text.Draw(s, font, key, box, DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                t.textMuted);
+}
+
 void PaintFooter(Surface& s, const Theme& t) {
     RECT rcFooter = g_layout.foot;
 
@@ -7759,17 +7783,47 @@ void PaintFooter(Surface& s, const Theme& t) {
         };
     }
 
-    auto font = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
-    
-    std::wstring combinedText;
-    for (size_t i = 0; i < items.size(); ++i) {
-        combinedText += L"[" + items[i].key + L"] " + items[i].action;
-        if (i + 1 < items.size()) {
-            combinedText += L"    ";
-        }
+    HFONT keyFont =
+        g_fonts.Get(S(static_cast<float>(kFontFoot)), kWeightSemiBold);
+    HFONT actionFont =
+        g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    const int capPadX = S(5);
+    const int capGap = S(5);
+
+    // The keys are measured first, so the caps can be spread across the footer
+    // with equal air between the pairs instead of running off the edge.
+    const int count = static_cast<int>(items.size());
+    std::vector<int> caps(static_cast<size_t>(count));
+    std::vector<int> actions(static_cast<size_t>(count));
+    int total = 0;
+    for (int i = 0; i < count; i++) {
+        caps[i] = g_text.Measure(keyFont, items[i].key).cx + capPadX * 2;
+        actions[i] = g_text.Measure(actionFont, items[i].action).cx;
+        total += caps[i] + capGap + actions[i];
+    }
+    const int available = static_cast<int>(rcFooter.right - rcFooter.left);
+    int space = S(12);
+    if (count > 1) {
+        space = std::clamp((available - total) / (count - 1), S(6), S(14));
+        total += space * (count - 1);
     }
 
-    g_text.Draw(s, font, combinedText, rcFooter, DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+    const int rowHeight = static_cast<int>(rcFooter.bottom - rcFooter.top);
+    const int capHeight = std::min(S(15.0f), rowHeight);
+    const int capTop = rcFooter.top + (rowHeight - capHeight) / 2;
+    int x = rcFooter.left + std::max(0, (available - total) / 2);
+    for (int i = 0; i < count; i++) {
+        const RECT cap{x, capTop, x + caps[i], capTop + capHeight};
+        PaintKeycap(s, t, keyFont, items[i].key, cap);
+        // The label gets a couple of pixels of slack so hinting never clips the
+        // last column of the word.
+        const RECT label{x + caps[i] + capGap, rcFooter.top,
+                         x + caps[i] + capGap + actions[i] + S(4),
+                         rcFooter.bottom};
+        g_text.Draw(s, actionFont, items[i].action, label,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+        x += caps[i] + capGap + actions[i] + space;
+    }
 }
 
 void PaintPanel(Surface& s) {
