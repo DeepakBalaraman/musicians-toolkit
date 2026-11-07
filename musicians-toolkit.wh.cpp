@@ -26,6 +26,7 @@ Type to instantly search for chords. As you type, the list narrows down, and the
 - **Guitar and Ukulele:** Displays a visual fretboard showing barre positions, open strings, and muted strings.
 - **Piano:** Highlights the exact keys to hold down.
 - **Fingerings:** Use the arrow keys or the slider underneath the diagram to cycle through different finger variations.
+- **Hear it:** Click the speaker in the corner of the card to hear the chord played back.
 
 ## Tap Tempo
 
@@ -2676,6 +2677,7 @@ enum Hit {
     kHitNext,
     kHitDot,
     kHitDiagram,
+    kHitSpeaker,
     kHitTapPad,
     kHitTapReset,
     kHitTapHalf,
@@ -2727,6 +2729,7 @@ struct Layout {
     RECT rows{};
     RECT card{};
     RECT chordName{};
+    RECT speaker{};
     RECT tones{};
     RECT diagram{};
     RECT previous{};
@@ -2875,6 +2878,13 @@ void ComputeLayout() {
               S(static_cast<float>(kCardTop + kCardHeight))};
     l.chordName = {l.card.left + S(16), l.card.top + S(6),
                    l.card.right - S(16), l.card.top + S(34)};
+    // The speaker sits at the end of the name row, so the name is shortened to
+    // leave it room on a long chord.
+    const int speakerSize = S(22);
+    l.speaker = {l.card.right - S(14) - speakerSize,
+                 l.chordName.top + S(2), l.card.right - S(14),
+                 l.chordName.top + S(2) + speakerSize};
+    l.chordName.right = l.speaker.left - S(8);
     l.tones = {l.card.left + S(16), l.card.top + S(34), l.card.right - S(16),
                l.card.top + S(52)};
 
@@ -5858,7 +5868,7 @@ void PaintCloseButton(Surface& s, const Theme& t) {
 }
 
 #if 0  // Chord playback, parked with the engine above.
-void PaintSpeaker(Surface& s, const Theme& t) {
+void PaintSpeakerLegacy(Surface& s, const Theme& t) {
     const RECT& box = g_layout.speaker;
     const bool available = SelectedChord() != nullptr;
     const bool hovered = g_hover.id == kHitSpeaker;
@@ -5904,6 +5914,55 @@ void PaintSpeaker(Surface& s, const Theme& t) {
     wave(S(9.0f));
 }
 #endif  // PaintSpeaker
+
+// The speaker on the chord card. The audio is the same one-shot clip the
+// circle of fifths plays, so the icon only has to say whether there is a chord
+// to hear and that the pointer is over it. A muted cone marks a chord with no
+// notes to sound, such as an empty voicing.
+void PaintSpeaker(Surface& s, const Theme& t) {
+    const RECT& box = g_layout.speaker;
+    const Voicing* voicing = SelectedVoicing();
+    const bool available = voicing && voicing->noteCount > 0;
+    const bool hovered = available && g_hover.id == kHitSpeaker;
+    const bool pressed = hovered && g_pressed.id == kHitSpeaker;
+    const float cx = L(box.left + box.right) * 0.5f;
+    const float cy = L(box.top + box.bottom) * 0.5f;
+
+    if (hovered) {
+        FillCircle(s, cx, cy, S(11.0f),
+                   pressed ? WithAlpha(t.text, 0.22f) : t.controlHover);
+    }
+    const Color color = available ? (hovered ? t.text : t.textMuted)
+                                  : WithAlpha(t.textMuted, 0.35f);
+
+    // Driver, then a cone that widens to the right.
+    FillRoundRect(s, cx - S(8.0f), cy - S(2.4f), cx - S(5.2f), cy + S(2.4f),
+                  S(0.8f), color);
+    for (int i = 0; i < 5; i++) {
+        const float x = cx - S(5.2f) + S(1.1f) * i;
+        const float half = S(2.4f) + S(1.15f) * i;
+        FillRoundRect(s, x, cy - half, x + S(1.1f), cy + half, S(0.5f), color);
+    }
+
+    // Two sound waves, as short arcs about the cone.
+    auto wave = [&](float radius) {
+        const float origin = cx + S(1.2f);
+        float lastX = 0.0f;
+        float lastY = 0.0f;
+        for (int step = 0; step <= 3; step++) {
+            const float angle = -0.85f + 1.7f * static_cast<float>(step) / 3.0f;
+            const float x = origin + radius * cosf(angle);
+            const float y = cy + radius * sinf(angle);
+            if (step > 0) {
+                StrokeLine(s, Vec2{lastX, lastY}, Vec2{x, y}, S(1.3f), color);
+            }
+            lastX = x;
+            lastY = y;
+        }
+    };
+    wave(S(5.6f));
+    wave(S(9.0f));
+}
 
 // One pill in the header: accent when it is the current choice, a soft hover
 // wash otherwise.
@@ -6628,6 +6687,8 @@ void PaintCard(Surface& s, const Theme& t) {
     g_text.Draw(s, toneFont,
                 ChordTones(g_app.instrument, *entry, *voicing), g_layout.tones,
                 DT_LEFT | DT_TOP | DT_SINGLELINE, t.textMuted);
+
+    PaintSpeaker(s, t);
 
     if (chorddata::kInstruments[g_app.instrument].kind == chorddata::kFretted) {
         PaintFrettedChord(s, t, *voicing, g_layout.diagram);
@@ -8128,6 +8189,10 @@ HitResult HitTest(POINT pt) {
             return hit;
         }
     }
+    if (PtInRect(&g_layout.speaker, pt)) {
+        hit.id = kHitSpeaker;
+        return hit;
+    }
     if (PtInRect(&g_layout.diagram, pt)) {
         hit.id = kHitDiagram;
         return hit;
@@ -8744,6 +8809,19 @@ void CirclePlayChord(int degree) {
         notes[count++] = 60 + key.pc + kCircleMajorSteps[d] + octave;
     }
     CirclePlayClip(notes, count, 0.0f);
+}
+
+// The chord card's speaker. The voicing already carries its notes as MIDI, for
+// the piano's held keys as much as for the fretboard, so a preview is the same
+// one-shot clip the circle plays: an arpeggio of zero lets the clip stagger the
+// notes itself, which reads as a strum on a fretted chord and a roll on a piano
+// one.
+void ChordPlaySelected() {
+    const Voicing* voicing = SelectedVoicing();
+    if (!voicing || voicing->noteCount <= 0) {
+        return;
+    }
+    CirclePlayClip(voicing->notes, voicing->noteCount, 0.0f);
 }
 
 void CircleSelect(int key, bool play) {
@@ -9517,6 +9595,9 @@ void OnMouseDown(HWND hwnd, POINT pt) {
             g_sliding = true;
             g_slideAnchor = pt.x;
             SetCapture(hwnd);
+            break;
+        case kHitSpeaker:
+            ChordPlaySelected();
             break;
         default:
             break;
