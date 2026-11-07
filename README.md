@@ -11,6 +11,8 @@ keeps running when you click away from it. Everything is drawn and synthesised
 by the mod itself - no images, no audio files, no network requests - so it
 behaves the same offline on any machine.
 
+![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot.png)
+
 ## What's in it
 
 | Tool | What it does |
