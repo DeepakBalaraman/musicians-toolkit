@@ -49,11 +49,12 @@ Open the tuner and let your microphone listen. A smooth needle sweeps across an 
 
 ## Strumming Pattern
 
-Build a strumming pattern on a one-measure grid and hear it played back with the same acoustic guitar voice as the chord library, in lock step with the metronome.
+Build a strumming pattern on a one-measure grid and hear it played back with the same acoustic voice as the chord library, in lock step with the tempo.
 - **Grid:** Click a cell to cycle it through rest, down, up, down-muted and up-muted strokes. Shift-click adds an accent, Ctrl-click a ghost note, and Alt-click a tie (let ring). The keyboard keys **D U X M R** lay a stroke, and **A G T** toggle accent, ghost and tie.
-- **Techniques:** Muted strokes sound as percussive scratches, ghost notes are quieter and partial, and a Palm toggle dampens the whole pattern. Accents and ties carry through to the audio.
+- **Strings:** Pick Guitar or Ukulele, then fret a chord from the list or leave the strings open, so the pattern rings with the voicing you would really play.
+- **Sound:** Open strums ring out, Palm chokes them into a damped rhythm, and Muted turns every stroke into a percussive scratch. A stroke written as a mute stays a scratch whatever the sound is set to, and ghosts are quieter and partial.
 - **Meter and feel:** The eight time signatures, the beat steppers and the 8ths / triplet / 16ths subdivision chips cover any meter; the pattern follows the tempo shared across the toolkit.
-- **Practice:** Toggle Count-in, Clicks, Loop or Practice. Practice mode ramps the tempo a little at the start of every measure up to your target.
+- **Practice:** Toggle Count-in, Loop or Practice. Practice mode ramps the tempo a little at the start of every measure up to your target.
 
 ## Circle of Fifths
 
@@ -87,7 +88,7 @@ Drill instrument geography against a live countdown. A note name appears and the
 - **Appearance & Behavior:** Match Windows dark/light themes, pick custom accent colors, adjust panel opacity, and choose screen placement.
 - **Startup:** Choose which tool and instrument open by default when you press Win+Y.
 - **Metronome Options:** Select default time signatures, click sounds (tick-tock, woodblock, or beep), volume, and background playback behavior.
-- **Strumming Options:** Choose the default subdivision, count-in, metronome clicks, loop, and the practice ramp step and target.
+- **Strumming Options:** Choose the default subdivision, count-in, loop, and the practice ramp step and target.
 - **Circle of Fifths:** Choose whether the ring opens labeled major or minor, and whether selecting a key plays its scale.
 - **Note Trainer:** Set the seconds allowed per note and whether the drill includes sharps and flats or only the naturals.
 - **Tap Tempo & Tuner:** Customize responsiveness, tap keys, and reference pitch (A4 = 440 Hz standard).
@@ -264,9 +265,6 @@ The chord data is powered by [chords-db](https://github.com/tombatossals/chords-
   - CountIn: true
     $name: Count-in
     $description: "Play one bar of clicks before the pattern starts."
-  - Clicks: true
-    $name: Metronome clicks
-    $description: "Layer the metronome click underneath the strums."
   - Loop: true
     $name: Loop
     $description: "Repeat the measure until you press stop."
@@ -1970,7 +1968,6 @@ struct Settings {
     int tunerReference = 440;  // A4 in Hz.
     int strumSubdivision = 2;
     bool strumCountIn = true;
-    bool strumClicks = true;
     bool strumLoop = true;
     int strumRampStep = 2;
     int strumTargetOffset = 20;
@@ -2189,9 +2186,6 @@ Settings LoadSettings() {
     const std::wstring strumCountIn = GetStringSetting(L"Strumming.CountIn");
     s.strumCountIn =
         strumCountIn.empty() ? true : Wh_GetIntSetting(L"Strumming.CountIn") != 0;
-    const std::wstring strumClicks = GetStringSetting(L"Strumming.Clicks");
-    s.strumClicks =
-        strumClicks.empty() ? true : Wh_GetIntSetting(L"Strumming.Clicks") != 0;
     const std::wstring strumLoop = GetStringSetting(L"Strumming.Loop");
     s.strumLoop =
         strumLoop.empty() ? true : Wh_GetIntSetting(L"Strumming.Loop") != 0;
@@ -2394,13 +2388,13 @@ constexpr int kWeightSemiBold = 600;
 float g_scale = 1.0f;
 
 // Strumming vocabulary, kept here because the layout reserves compile-time
-// sized arrays for the grid, the presets and the practice switches. A pattern
-// is one measure laid over the beat grid the metronome already walks: beats *
-// subdivision cells, each holding a stroke. A stroke has a direction and a
-// state (open or muted scratch); the per-cell modifiers carry the rest of the
-// vocabulary of real strum notation: an accent (>), a ghost or partial strum,
-// and a tie that lets the previous stroke ring instead of striking again.
-// Palm mute and the metronome click are whole-pattern switches.
+// sized arrays for the grid, the presets, the strings and the switches. A
+// pattern is one measure laid over the beat grid the metronome already walks:
+// beats * subdivision cells, each holding a stroke. A stroke has a direction
+// and a state (open or muted scratch); the per-cell modifiers carry the rest
+// of the vocabulary of real strum notation: an accent (>), a ghost or partial
+// strum, and a tie that lets the previous stroke ring instead of striking
+// again. The instrument, the chord and the sound are whole-pattern switches.
 constexpr int kStrumSlotsMax = 32;
 
 enum StrumStroke {
@@ -2415,11 +2409,41 @@ enum StrumStroke {
 enum StrumChip {
     kChipLoop,
     kChipCountIn,
-    kChipClicks,
-    kChipPalm,
     kChipPractice,
     kStrumChipCount,
 };
+
+// What a stroke rings like. The three sit in the order of damping, so a stroke
+// written as a mute can simply take the heavier of the two without a second
+// table: max(sound, stroke).
+enum StrumSound {
+    kStrumOpen,
+    kStrumPalm,
+    kStrumMuted,
+    kStrumSoundCount,
+};
+
+// The chords the strum picker offers: the instrument's own open strings first,
+// then the open position chords most practice runs lean on. A chord is matched
+// to the library by pitch class and mode rather than by name, so the spelling
+// an instrument uses (F# on a guitar, Gb on a ukulele) never has to be written
+// down twice.
+struct StrumChord {
+    PCWSTR name;
+    int pitch;  // Pitch class, or -1 for the open strings.
+    bool minor;
+};
+
+constexpr StrumChord kStrumChords[] = {
+    {L"Open strings", -1, false},
+    {L"C", 0, false},  {L"Am", 9, true},
+    {L"G", 7, false},  {L"Em", 4, true},
+    {L"D", 2, false},  {L"Dm", 2, true},
+    {L"A", 9, false},  {L"E", 4, false},
+    {L"F", 5, false},
+};
+constexpr int kStrumChordCount =
+    static_cast<int>(sizeof(kStrumChords) / sizeof(kStrumChords[0]));
 
 struct StrumPreset {
     PCWSTR name;
@@ -2724,6 +2748,10 @@ enum Hit {
     kHitStrumSub,
     kHitStrumPlay,
     kHitStrumChip,
+    kHitStrumInst,
+    kHitStrumSound,
+    kHitStrumChord,
+    kHitStrumChordRow,
     kHitStrumTempoDown,
     kHitStrumTempoUp,
     kHitCircleKey,
@@ -2817,7 +2845,9 @@ struct Layout {
 
     // Strumming tool, in the same rectangle once more. A row of preset chips
     // on top, then the pattern grid, then a meter and subdivision row, then a
-    // transport row (play plus the practice switches) and a tempo readout.
+    // transport row (play plus a tempo stepper), a row picking the strings (the
+    // instrument and the chord), a row picking what they ring like, the
+    // practice switches and a hint line.
     RECT strumPad{};
     RECT strumPreset[kStrumPresetCount]{};
     RECT strumGrid{};
@@ -2827,6 +2857,11 @@ struct Layout {
     RECT strumBeatsUp{};
     RECT strumSub[4]{};
     RECT strumPlay{};
+    RECT strumInst[2]{};
+    RECT strumChord{};
+    RECT strumChordMenu{};
+    RECT strumChordRow[kStrumChordCount]{};
+    RECT strumSound[kStrumSoundCount]{};
     RECT strumChip[kStrumChipCount]{};
     RECT strumTempo{};
     RECT strumTempoDown{};
@@ -3137,8 +3172,8 @@ void ComputeLayout() {
 
     // Strumming tool, laid out in the same rectangle once more. Two rows of
     // preset chips, the pattern grid, a meter row, a beat/subdivision row, a
-    // transport row (play plus a tempo stepper), the practice switches and a
-    // hint line.
+    // transport row (play plus a tempo stepper), then the three rows that pick
+    // the voice: the strings, the sound and the practice switches.
     l.strumPad = l.metroPad;
     const int strumTop = l.strumPad.top;
     const int strumLeft = l.strumPad.left + S(16);
@@ -3204,14 +3239,52 @@ void ComputeLayout() {
         strumRight - S(32), strumTransportY, strumRight,
         strumTransportY + S(38)};
 
-    const int chipRow = strumTop + S(300);
+    // The voice: which instrument's strings, which chord, what they ring like.
+    // The instrument chips take the left of the first row and the chord select
+    // the rest of it; the sound and the practice switches each own a row, so
+    // every group reads as one idea.
+    const int strumRowOne = strumTop + S(300);
+    const int strumRowTwo = strumTop + S(328);
+    const int strumRowThree = strumTop + S(356);
     const int chipGap = S(6);
+    const int strumInstWidth = S(92);
+    l.strumInst[0] = {strumLeft, strumRowOne, strumLeft + strumInstWidth,
+                      strumRowOne + S(24)};
+    l.strumInst[1] = {l.strumInst[0].right + chipGap, strumRowOne,
+                      l.strumInst[0].right + chipGap + strumInstWidth,
+                      strumRowOne + S(24)};
+    l.strumChord = {l.strumInst[1].right + chipGap, strumRowOne, strumRight,
+                    strumRowOne + S(24)};
+
+    const int soundWidth = (strumRight - strumLeft -
+                            chipGap * (kStrumSoundCount - 1)) /
+                           kStrumSoundCount;
+    for (int i = 0; i < kStrumSoundCount; i++) {
+        const int x = strumLeft + i * (soundWidth + chipGap);
+        l.strumSound[i] = {x, strumRowTwo, x + soundWidth, strumRowTwo + S(24)};
+    }
+
     const int chipWidth = (strumRight - strumLeft -
                            chipGap * (kStrumChipCount - 1)) /
                           kStrumChipCount;
     for (int i = 0; i < kStrumChipCount; i++) {
         const int x = strumLeft + i * (chipWidth + chipGap);
-        l.strumChip[i] = {x, chipRow, x + chipWidth, chipRow + S(24)};
+        l.strumChip[i] = {x, strumRowThree, x + chipWidth,
+                          strumRowThree + S(24)};
+    }
+
+    // The chord list unrolls upward from the select, since there is no room
+    // below it: two columns of five rows over the pattern.
+    const int chordRowHeight = S(26);
+    const int chordRows = (kStrumChordCount + 1) / 2;
+    const int chordBottom = strumRowOne - S(4);
+    const int chordTop = chordBottom - chordRows * chordRowHeight - S(8);
+    l.strumChordMenu = {strumLeft, chordTop, strumRight, chordBottom};
+    const int chordColumn = (strumRight - strumLeft - S(8)) / 2;
+    for (int i = 0; i < kStrumChordCount; i++) {
+        const int x = strumLeft + S(4) + (i % 2) * chordColumn;
+        const int top = chordTop + S(4) + (i / 2) * chordRowHeight;
+        l.strumChordRow[i] = {x, top, x + chordColumn, top + chordRowHeight};
     }
 
     l.strumHint = {l.strumPad.left, strumTop + S(396), l.strumPad.right,
@@ -3417,8 +3490,12 @@ struct StrumState {
     int unit = 4;
     int subdivision = 2;  // Cells per beat: 1 quarters, 2 eighths, 3 triplet, 4.
     int preset = 0;       // -1 once the grid is hand edited.
-    bool palmMute = false;
-    bool clicks = true;
+    // The voice of every stroke: which instrument's strings ring, which chord
+    // they are fretted to, and how hard the hand chokes them. The chord is an
+    // index into kStrumChords, where 0 is the open strings.
+    int instrument = kInstrumentGuitar;
+    int sound = kStrumOpen;
+    int chord = 0;
     bool countIn = true;
     bool loop = true;
     bool practice = false;
@@ -3592,12 +3669,12 @@ void Repaint();
 ////////////////////////////////////////////////////////////////////////////////
 // Popup lists
 //
-// The tool picker in the header and the tuner's instrument and tuning selects
-// are the same control. The target is the list asked for (0 closed, 1
-// instrument, 2 tuning, 3 tools), shown is the list actually drawn so it
-// survives the fade out, progress runs from 0 to 1, and cursor is the row the
-// arrows rest on. Open, switch and close all roll and fade rather than blink,
-// and a list is only committed when a row is picked.
+// The tool picker in the header, the tuner's instrument and tuning selects and
+// the strumming tool's chord list are the same control. The target is the list
+// asked for (0 closed, 1 instrument, 2 tuning, 3 tools, 4 strum chord), shown is
+// the list actually drawn so it survives the fade out, progress runs from 0 to
+// 1, and cursor is the row the arrows rest on. Open, switch and close all roll
+// and fade rather than blink, and a list is only committed when a row is picked.
 
 struct MenuState {
     int target = 0;
@@ -3608,12 +3685,14 @@ struct MenuState {
 
 MenuState g_toolMenu;
 MenuState g_tunerMenu;
+MenuState g_strumMenu;
 
 enum MenuKind {
     kMenuNone = 0,
     kMenuInstrument = 1,
     kMenuTuning = 2,
     kMenuTools = 3,
+    kMenuStrumChord = 4,
 };
 
 bool MenuHit(const MenuState& m) {
@@ -3629,7 +3708,8 @@ bool MenuAnimating(const MenuState& m) {
 }
 
 bool AnyMenuAnimating() {
-    return MenuAnimating(g_toolMenu) || MenuAnimating(g_tunerMenu);
+    return MenuAnimating(g_toolMenu) || MenuAnimating(g_tunerMenu) ||
+           MenuAnimating(g_strumMenu);
 }
 
 void StartMenuAnimTimer() {
@@ -3693,6 +3773,8 @@ int MenuRowCount(const MenuState& m) {
             return TunerTuningCount(g_tuner.instrument);
         case kMenuTools:
             return kToolCount;
+        case kMenuStrumChord:
+            return kStrumChordCount;
         default:
             break;
     }
@@ -3731,6 +3813,9 @@ void UpdateMenuAnimations() {
     }
     if (MenuAnimating(g_tunerMenu)) {
         moved = MenuStep(g_tunerMenu, g_tunerMenu.target != 0) || moved;
+    }
+    if (MenuAnimating(g_strumMenu)) {
+        moved = MenuStep(g_strumMenu, g_strumMenu.target != 0) || moved;
     }
     if (moved) {
         Repaint();
@@ -4036,6 +4121,7 @@ void FinishClose() {
     g_pressed = HitResult();
     MenuReset(g_toolMenu);
     MenuReset(g_tunerMenu);
+    MenuReset(g_strumMenu);
 }
 
 void UpdateAnimation() {
@@ -4726,12 +4812,15 @@ struct MetroShared {
     // Strum layer. The panel publishes the grid once per edit as packed
     // cells (stroke in the low 3 bits, then accent / ghost / tie flags); the
     // engine reads them on the same subdivision steps it already walks, so
-    // clicks and strums land on exactly the same sample grid. slot and
-    // measureTick feed the playhead and the practice ramp back to the panel.
+    // count-ins and strums land on exactly the same sample grid. strumSound is
+    // the picked sound, which a cell's own mute can only deepen. slot and
+    // measureTick feed the playhead and the practice ramp back to the panel,
+    // and strumRestart is bumped when a new pattern starts, so the engine can
+    // put its first stroke at the top of a bar itself.
     std::atomic<bool> strum{false};
-    std::atomic<bool> clicksOn{true};
-    std::atomic<bool> palm{false};
+    std::atomic<int> strumSound{0};
     std::atomic<bool> countIn{false};
+    std::atomic<unsigned> strumRestart{0};
     std::atomic<int> slot{0};
     std::atomic<unsigned> measureTick{0};
     std::atomic<int> grid[kStrumSlotsMax]{};
@@ -4790,11 +4879,14 @@ struct MetroAudio {
     double nextEvent = 0.0;
     int beat = 0;
     int sub = 0;
-    // Strum voices, rendered lazily the first time a pattern plays: one per
-    // stroke, each in a normal and a palm-muted form.
-    std::vector<float> strumVoice[kStrokeCount][2];
+    // Strum voices, rendered when a pattern starts and whenever the strings
+    // change: one per stroke direction and sound, so a stroke picks its voice
+    // by index and nothing is ever synthesised on the audio thread.
+    std::vector<float> strumVoice[2][kStrumSoundCount];
+    int strumSignature = -1;  // The instrument and chord the voices hold.
     bool strumBuilt = false;
     bool countingIn = false;
+    unsigned seenRestart = 0;  // The strumRestart this grid last started from.
 };
 
 MetroAudio g_metroAudio;
@@ -4880,27 +4972,78 @@ void MixMetroClick(MetroAudio& a, int level, int alt, int offset) {
 }
 
 // Defined by the acoustic sampler further down. The pattern builder does not
-// carry its own tone bank: a strum is six of the very strings the chord card
-// and the circle of fifths play, so the whole toolkit speaks with one voice.
+// carry its own tone bank: a strum is the very strings the chord card and the
+// circle of fifths play, so the whole toolkit speaks with one voice.
 void ClipRenderPluck(std::vector<float>& out, int midi, uint32_t salt);
 
-// One strum is the six open strings of a guitar struck a few milliseconds
-// apart. A down stroke rolls bass to treble, an up stroke comes back; palm mute
-// leans on a fast choking envelope; a muted scratch is the same pluck choked
-// almost instantly, which is what a hand laid across the strings does.
-void RenderStrumVoice(std::vector<float>& out, bool up, bool muted, bool palm,
-                      uint32_t seedSalt) {
-    // Standard tuning, low E2 to high E4.
-    static const int kStrings[6] = {40, 45, 50, 55, 59, 64};
+// The three sounds, in order of damping: an open stroke rings the whole tail, a
+// palm mute chokes in half a second, and a mute is a scratch that stops almost
+// at once. The rate is the exponent of the choke laid over the plucks, so a
+// heavier sound simply decays faster.
+constexpr float kStrumRing[kStrumSoundCount] = {1.5f, 0.55f, 0.12f};
+constexpr float kStrumChoke[kStrumSoundCount] = {2.0f, 26.0f, 70.0f};
+
+// The strings a stroke strikes: the instrument's open tuning, or the notes of
+// the picked chord's first voicing, which is the same voicing the chord card
+// shows. A chord the library cannot spell falls back to the open strings, so a
+// stroke always sounds.
+int StrumStrings(int* notes, int maxNotes) {
+    const int instrument =
+        std::clamp(g_strum.instrument, 0, kInstrumentCount - 1);
+    const chorddata::InstrumentData& info =
+        chorddata::kInstruments[instrument];
+    const int choice = std::clamp(g_strum.chord, 0, kStrumChordCount - 1);
+    const StrumChord& picked = kStrumChords[choice];
+    if (picked.pitch < 0 || !EnsureLibrary(instrument)) {
+        int count = 0;
+        for (int i = 0; i < info.strings && count < maxNotes; i++) {
+            notes[count++] = info.tuning[i];
+        }
+        return count;
+    }
+    // Open position chords only need the first voicing, which is where the
+    // library keeps the one a player would grab.
+    const Library& library = g_libraries[instrument];
+    for (const ChordEntry& entry : library.chords) {
+        if (entry.suffix != (picked.minor ? 1 : 0) ||
+            entry.key >= info.keyCount ||
+            KeyPitchClass(info.keys[entry.key]) != picked.pitch) {
+            continue;
+        }
+        Voicing voicing;
+        if (!ReadVoicing(instrument, entry, 0, voicing) ||
+            voicing.noteCount <= 0) {
+            continue;
+        }
+        int count = 0;
+        for (int i = 0; i < voicing.noteCount && count < maxNotes; i++) {
+            notes[count++] = voicing.notes[i];
+        }
+        return count;
+    }
+    int count = 0;
+    for (int i = 0; i < info.strings && count < maxNotes; i++) {
+        notes[count++] = info.tuning[i];
+    }
+    return count;
+}
+
+// One strum is the instrument's strings struck a few milliseconds apart. A down
+// stroke rolls bass to treble, an up stroke comes back the way a hand does; the
+// sound decides how hard the hand chokes the ring, from a full tail down to the
+// scratch of a palm laid across the strings.
+void RenderStrumVoice(std::vector<float>& out, const int* notes, int count,
+                      bool up, int sound, uint32_t seedSalt) {
+    sound = std::clamp(sound, 0, kStrumSoundCount - 1);
     const float spread = up ? 0.0045f : 0.0065f;  // Seconds between strings.
-    const int frames = static_cast<int>(
-        (muted ? 0.12f : (palm ? 0.55f : 1.5f)) * kMetroRate);
+    const int frames = static_cast<int>(kStrumRing[sound] * kMetroRate);
     out.assign(static_cast<size_t>(frames), 0.0f);
 
     std::vector<float> pluck;
-    for (int s = 0; s < 6; s++) {
-        // A down stroke starts on the low string, an up stroke on the high one.
-        const int note = up ? kStrings[5 - s] : kStrings[s];
+    for (int s = 0; s < count; s++) {
+        // A down stroke starts on the lowest string, an up stroke on the
+        // highest, which is the order the strings sit in on the instrument.
+        const int note = up ? notes[count - 1 - s] : notes[s];
         const int offset = static_cast<int>(spread * kMetroRate) * s;
         if (offset >= frames) {
             continue;
@@ -4908,9 +5051,9 @@ void RenderStrumVoice(std::vector<float>& out, bool up, bool muted, bool palm,
         ClipRenderPluck(pluck, note, seedSalt + static_cast<uint32_t>(s));
         // Each string leans in at its own weight, so the stroke is not a wall.
         const float weight = 0.86f + 0.04f * static_cast<float>(s % 3);
-        const int count =
+        const int span =
             std::min(static_cast<int>(pluck.size()), frames - offset);
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < span; i++) {
             out[static_cast<size_t>(offset + i)] +=
                 pluck[static_cast<size_t>(i)] * weight;
         }
@@ -4919,12 +5062,12 @@ void RenderStrumVoice(std::vector<float>& out, bool up, bool muted, bool palm,
     // The choke rides on the strings rather than replacing them: a plain strum
     // is damped by the hand a beat later, which is also what keeps a fast
     // pattern from piling ringing chords on top of each other.
-    const float choke = muted ? 70.0f : (palm ? 26.0f : 2.0f);
     float peak = 0.0f;
     for (int i = 0; i < frames; i++) {
         float value = out[static_cast<size_t>(i)];
-        if (choke > 0.0f) {
-            value *= expf(-choke * static_cast<float>(i) / kMetroRate);
+        if (kStrumChoke[sound] > 0.0f) {
+            value *= expf(-kStrumChoke[sound] * static_cast<float>(i) /
+                          kMetroRate);
         }
         out[static_cast<size_t>(i)] = value;
         peak = std::max(peak, fabsf(value));
@@ -4937,29 +5080,36 @@ void RenderStrumVoice(std::vector<float>& out, bool up, bool muted, bool palm,
     }
 }
 
-void BuildStrumVoices(MetroAudio& a) {
+// Renders the whole voice set for the strings currently picked. The signature
+// is what lets the panel skip the work while the instrument and the chord stay
+// put; it is not read by the audio thread.
+void BuildStrumVoices(MetroAudio& a, int signature) {
+    int notes[kMaxNotes];
+    const int count = StrumStrings(notes, kMaxNotes);
     uint32_t salt = 0x1234567u;
-    for (int stroke = kStrokeDown; stroke <= kStrokeUpMute; stroke++) {
-        const bool up = stroke == kStrokeUp || stroke == kStrokeUpMute;
-        const bool muted = stroke == kStrokeDownMute || stroke == kStrokeUpMute;
-        for (int palm = 0; palm < 2; palm++) {
-            RenderStrumVoice(a.strumVoice[stroke][palm], up, muted, palm != 0,
-                             salt++);
+    for (int sound = 0; sound < kStrumSoundCount; sound++) {
+        for (int dir = 0; dir < 2; dir++) {
+            RenderStrumVoice(a.strumVoice[dir][sound], notes, count, dir != 0,
+                             sound, salt++);
         }
     }
+    a.strumSignature = signature;
     a.strumBuilt = true;
 }
 
 // Adds one strum voice at a sample offset, with the accent and ghost gains
 // folded in so a single render serves every dynamic.
-void MixStrumVoice(MetroAudio& a, int stroke, int palm, bool accent, bool ghost,
+void MixStrumVoice(MetroAudio& a, bool up, int sound, bool accent, bool ghost,
                    int offset) {
     const std::vector<float>& voice =
-        a.strumVoice[std::clamp(stroke, 0, kStrokeCount - 1)][palm ? 1 : 0];
+        a.strumVoice[up ? 1 : 0][std::clamp(sound, 0, kStrumSoundCount - 1)];
     const float gain = (accent ? 1.35f : 1.0f) * (ghost ? 0.5f : 1.0f);
     const int room = static_cast<int>(a.canvas.size()) - offset;
     const int count =
         std::min(static_cast<int>(voice.size()), std::min(room, kMetroTail));
+    if (count <= 0) {
+        return;
+    }
     float* target = a.canvas.data() + offset;
     for (int i = 0; i < count; i++) {
         target[i] += voice[static_cast<size_t>(i)] * gain;
@@ -4970,9 +5120,21 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
     if (a.builtSound != cfg.sound) {
         BuildMetroClicks(a, cfg.sound);
     }
-    if (g_metroShared.strum.load() && !a.strumBuilt) {
-        BuildStrumVoices(a);
+    // A new pattern asks for the bar to start at the top: the panel bumps
+    // strumRestart, and the next block arms the count-in and puts the first
+    // stroke on its own first sample. The beat counter belongs to this thread,
+    // so the panel never has to write it.
+    const unsigned restart = g_metroShared.strumRestart.load();
+    if (restart != a.seenRestart) {
+        a.seenRestart = restart;
+        a.beat = 0;
+        a.sub = 0;
+        a.countingIn = g_metroShared.strum.load() && g_metroShared.countIn.load();
+        a.nextEvent = static_cast<double>(a.written);
     }
+    // The strum voices are rendered by the panel before it publishes a pattern,
+    // so there is nothing to synthesise here; a stroke that arrives before its
+    // voice exists is simply silent rather than late.
     std::fill(a.canvas.begin() + kMetroTail, a.canvas.end(), 0.0f);
 
     const double stepFrames =
@@ -5000,13 +5162,15 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
             // beats reads as a clock; the accents and the subdivisions keep
             // their own voice instead of joining the alternation.
             const int alt = (level == 2 && (a.beat & 1) != 0) ? 1 : 0;
-            if (!strum || g_metroShared.clicksOn.load()) {
+            // The strumming tool keeps no click of its own: the only one it
+            // ever mixes is the count-in bar, which is what arms the tempo.
+            if (!strum || a.countingIn) {
                 MixMetroClick(a, level, alt, static_cast<int>(offset));
             }
             if (strum) {
                 if (!a.countingIn) {
                     // The same subdivision step the click grid uses is exactly
-                    // one pattern slot, so the strum lands with the metronome.
+                    // one pattern slot, so the strum lands with the count.
                     const int slot = std::min(
                         a.beat * cfg.subdivision + a.sub, kStrumSlotsMax - 1);
                     g_metroShared.slot.store(slot);
@@ -5017,9 +5181,18 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
                     const bool ghost = (packed & 16) != 0;
                     const bool tie = (packed & 32) != 0;
                     if (stroke != kStrokeRest && !tie) {
-                        MixStrumVoice(a, stroke,
-                                      g_metroShared.palm.load() ? 1 : 0, accent,
-                                      ghost, static_cast<int>(offset));
+                        const bool up =
+                            stroke == kStrokeUp || stroke == kStrokeUpMute;
+                        const bool strokeMute = stroke == kStrokeDownMute ||
+                                                stroke == kStrokeUpMute;
+                        // A written mute is heavier than the picked sound, so
+                        // the scratch survives whatever the voice is set to.
+                        const int sound = std::max(
+                            g_metroShared.strumSound.load(),
+                            strokeMute ? static_cast<int>(kStrumMuted)
+                                       : static_cast<int>(kStrumOpen));
+                        MixStrumVoice(a, up, sound, accent, ghost,
+                                      static_cast<int>(offset));
                     }
                     g_metroShared.pulse.fetch_add(1);
                 }
@@ -5979,35 +6152,46 @@ void PaintToolSelect(Surface& s, const Theme& t) {
 }
 
 // The body of an animated popup list. Progress runs from 0 to 1: the plate
-// fades in and unrolls downward from its own top edge, so rows clipped
-// against it arrive with the front edge. The result is what content may
-// draw inside, and MenuAlpha is what the rows multiply their colours by so
-// the text comes in with the plate rather than sitting on bare glass.
+// fades in and unrolls from its anchor, so rows clipped against it arrive with
+// the front edge. A list with room below it unrolls downward; one that opens
+// upward from a control near the bottom keeps its bottom edge and grows up. The
+// result is what content may draw inside, and MenuAlpha is what the rows
+// multiply their colours by, so the text comes in with the plate rather than
+// sitting on bare glass.
 float MenuAlpha(float progress) {
     const float eased = Clamp01(progress);
     return eased < 0.7f ? eased / 0.7f : 1.0f;
 }
 
-RECT PaintListShell(Surface& s, const Theme& t, const RECT& full,
-                    float progress) {
+RECT PaintListShell(Surface& s,
+                    const Theme& t,
+                    const RECT& full,
+                    float progress,
+                    bool upward = false) {
     const float alpha = MenuAlpha(progress);
     const float eased = Clamp01(progress);
     const float top = L(full.top);
-    const float bottom = top + (L(full.bottom) - top) * eased;
+    const float bottom = L(full.bottom);
+    // The front is the edge that travels; the anchor edge stays put.
+    const float front = upward ? bottom - (bottom - top) * eased
+                               : top + (bottom - top) * eased;
+    const float plateTop = upward ? front : top;
+    const float plateBottom = upward ? bottom : front;
     const float left = L(full.left);
     const float right = L(full.right);
     const float radius = S(9.0f);
-    DrawShadow(s, left, bottom - S(1.0f), right, bottom + S(3.0f), radius,
-               S(5.0f), WithAlpha(kBlack, (t.dark ? 0.45f : 0.18f) * alpha));
-    FillRoundRect(s, left, top, right, bottom, radius,
+    DrawShadow(s, left, plateBottom - S(1.0f), right, plateBottom + S(3.0f),
+               radius, S(5.0f),
+               WithAlpha(kBlack, (t.dark ? 0.45f : 0.18f) * alpha));
+    FillRoundRect(s, left, plateTop, right, plateBottom, radius,
                   WithAlpha(t.menu, alpha));
     // The edge keeps its own weight and only fades with the plate, so its alpha
     // is scaled rather than replaced.
     Color edge = t.stroke;
     edge.a *= alpha;
-    StrokeRoundRect(s, left + 0.5f, top + 0.5f, right - 0.5f, bottom - 0.5f,
-                    radius, S(1.0f), edge);
-    return {full.left, static_cast<long>(bottom), full.right, full.bottom};
+    StrokeRoundRect(s, left + 0.5f, plateTop + 0.5f, right - 0.5f,
+                    plateBottom - 0.5f, radius, S(1.0f), edge);
+    return {full.left, static_cast<long>(front), full.right, full.bottom};
 }
 
 // One row of a popup list. Both lists share this so a row entering, a row
@@ -6023,21 +6207,24 @@ void PaintListRows(Surface& s,
                    const ListItem* items,
                    int count,
                    const RECT* rows,
-                   const RECT& reveal) {
+                   const RECT& reveal,
+                   bool upward = false) {
     HFONT font = g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
     const float front = L(reveal.top);
     const float travel = std::max(1.0f, static_cast<float>(S(20.0f)));
     for (int i = 0; i < count; i++) {
         const RECT& row = rows[i];
-        // A row is drawn as the front edge of the unroll reaches it, easing
-        // its last few pixels up into place as it goes.
+        // A row is drawn as the front edge of the unroll reaches it, easing its
+        // last few pixels into place as it goes. A list that grows upward hands
+        // its rows down from the top, so its front is measured from below.
         const float appear =
-            Clamp01((front - L(row.top)) / travel);
+            upward ? Clamp01((L(row.bottom) - front) / travel)
+                   : Clamp01((front - L(row.top)) / travel);
         if (appear <= 0.0f) {
             continue;
         }
         const float alpha = MenuAlpha(appear);
-        const float dy = (1.0f - appear) * S(6.0f);
+        const float dy = (1.0f - appear) * (upward ? -S(6.0f) : S(6.0f));
         const float top = L(row.top) + dy;
         const float bottom = L(row.bottom) + dy;
         const bool active = items[i].active;
@@ -7090,12 +7277,52 @@ void PaintStrum(Surface& s, const Theme& t) {
                 std::to_wstring(lround(ToolkitBpm())), g_layout.strumTempo,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.text);
 
+    // The strings: which instrument, and which chord they are fretted to. The
+    // chord is a select, since a list of ten would not fit a chip.
+    for (int i = 0; i < 2; i++) {
+        const int instrument = i == 0 ? kInstrumentGuitar : kInstrumentUkulele;
+        PaintChip(s, t, g_layout.strumInst[i],
+                  kInstrumentChipLabels[instrument], chipFont,
+                  g_strum.instrument == instrument,
+                  g_hover.id == kHitStrumInst && g_hover.index == i);
+    }
+    const bool chordOpen =
+        MenuHit(g_strumMenu) && g_strumMenu.shown == kMenuStrumChord;
+    const RECT& chordRow = g_layout.strumChord;
+    const bool chordHot = g_hover.id == kHitStrumChord;
+    FillRoundRect(s, L(chordRow.left), L(chordRow.top), L(chordRow.right),
+                  L(chordRow.bottom), S(9.0f),
+                  chordOpen || chordHot ? t.controlHover : t.control);
+    StrokeRoundRect(s, L(chordRow.left) + 0.5f, L(chordRow.top) + 0.5f,
+                    L(chordRow.right) - 0.5f, L(chordRow.bottom) - 0.5f,
+                    S(9.0f), S(1.0f),
+                    chordOpen ? WithAlpha(t.accent, 0.55f) : t.stroke);
+    RECT chordLabel = chordRow;
+    chordLabel.left += S(10);
+    chordLabel.right -= S(26);
+    g_text.Draw(s, chipFont, kStrumChords[g_strum.chord].name, chordLabel,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                t.text);
+    // The chevron points up while the list is up, because it unrolls upward.
+    PaintGlyph(s, L(chordRow.right) - S(13),
+               (L(chordRow.top) + L(chordRow.bottom)) * 0.5f,
+               chordOpen ? L'\xE70E' : L'\xE70D', S(10.0f),
+               chordOpen ? t.accent : t.textMuted);
+
+    // What the strings ring like.
+    static const PCWSTR kSoundLabels[kStrumSoundCount] = {L"Open", L"Palm",
+                                                          L"Muted"};
+    for (int i = 0; i < kStrumSoundCount; i++) {
+        PaintChip(s, t, g_layout.strumSound[i], kSoundLabels[i], chipFont,
+                  g_strum.sound == i,
+                  g_hover.id == kHitStrumSound && g_hover.index == i);
+    }
+
     // Practice switches.
-    static const PCWSTR kChipLabels[kStrumChipCount] = {
-        L"Loop", L"Count", L"Clicks", L"Palm", L"Practice"};
-    const bool chipActive[kStrumChipCount] = {
-        g_strum.loop, g_strum.countIn, g_strum.clicks, g_strum.palmMute,
-        g_strum.practice};
+    static const PCWSTR kChipLabels[kStrumChipCount] = {L"Loop", L"Count",
+                                                        L"Practice"};
+    const bool chipActive[kStrumChipCount] = {g_strum.loop, g_strum.countIn,
+                                              g_strum.practice};
     for (int i = 0; i < kStrumChipCount; i++) {
         PaintChip(s, t, g_layout.strumChip[i], kChipLabels[i], chipFont,
                   chipActive[i],
@@ -7119,6 +7346,25 @@ void PaintStrum(Surface& s, const Theme& t) {
     g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
                 hint, g_layout.strumHint,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+}
+
+// The chord list the strum select opens, two columns of five drawn last so it
+// sits over the pattern. It shares the shell, the rows and the animation with
+// the other lists, so every popup in the panel reads as the same control.
+void PaintStrumMenu(Surface& s, const Theme& t) {
+    const RECT reveal = PaintListShell(s, t, g_layout.strumChordMenu,
+                                       g_strumMenu.progress, true);
+    ListItem items[kStrumChordCount];
+    for (int i = 0; i < kStrumChordCount; i++) {
+        items[i].label = kStrumChords[i].name;
+        items[i].active = g_strum.chord == i;
+        items[i].hovered =
+            (MenuHit(g_strumMenu) && g_hover.id == kHitStrumChordRow &&
+             g_hover.index == i) ||
+            g_strumMenu.cursor == i;  // The keyboard cursor rides with the list.
+    }
+    PaintListRows(s, t, items, kStrumChordCount, g_layout.strumChordRow,
+                  reveal, true);
 }
 
 // The tuner card: a wide needle sweep with the note inside it, the strings of
@@ -7759,13 +8005,22 @@ void PaintFooter(Surface& s, const Theme& t) {
             {L"Esc", L"close"}
         };
     } else if (g_app.tool == kToolStrum) {
-        std::wstring spaceAction = g_strum.running ? L"stop" : L"play";
-        items = {
-            {L"Space", spaceAction},
-            {L"\x2190\x2192", L"select cell"},
-            {L"D U X M R", L"stroke"},
-            {L"Esc", L"close"}
-        };
+        if (MenuHit(g_strumMenu)) {
+            // The arrows browse the chord list while it is up.
+            items = {
+                {L"\x2191\x2193", L"chord"},
+                {L"Enter", L"pick"},
+                {L"Esc", L"close"}
+            };
+        } else {
+            std::wstring spaceAction = g_strum.running ? L"stop" : L"play";
+            items = {
+                {L"Space", spaceAction},
+                {L"\x2190\x2192", L"select cell"},
+                {L"D U X M R", L"stroke"},
+                {L"Esc", L"close"}
+            };
+        }
     } else if (g_app.tool == kToolCircle) {
         items = {
             {L"Space", L"play scale"},
@@ -7869,6 +8124,9 @@ void PaintPanel(Surface& s) {
     }
     if (g_app.tool == kToolTuner && MenuVisual(g_tunerMenu)) {
         PaintTunerMenu(s, t);  // Over the panel, same as the tool list.
+    }
+    if (g_app.tool == kToolStrum && MenuVisual(g_strumMenu)) {
+        PaintStrumMenu(s, t);
     }
 }
 
@@ -8049,6 +8307,20 @@ HitResult HitTest(POINT pt) {
         return hit;
     }
     if (g_app.tool == kToolStrum) {
+        // An open list owns the pointer until it closes.
+        if (MenuVisual(g_strumMenu)) {
+            for (int i = 0; i < kStrumChordCount; i++) {
+                if (PtInRect(&g_layout.strumChordRow[i], pt)) {
+                    hit.id = kHitStrumChordRow;
+                    hit.index = i;
+                    return hit;
+                }
+            }
+            if (PtInRect(&g_layout.strumChord, pt)) {
+                hit.id = kHitStrumChord;
+            }
+            return hit;
+        }
         for (int i = 0; i < kStrumPresetCount; i++) {
             if (PtInRect(&g_layout.strumPreset[i], pt)) {
                 hit.id = kHitStrumPreset;
@@ -8104,6 +8376,24 @@ HitResult HitTest(POINT pt) {
                 hit.index = i;
                 return hit;
             }
+        }
+        for (int i = 0; i < kStrumSoundCount; i++) {
+            if (PtInRect(&g_layout.strumSound[i], pt)) {
+                hit.id = kHitStrumSound;
+                hit.index = i;
+                return hit;
+            }
+        }
+        for (int i = 0; i < 2; i++) {
+            if (PtInRect(&g_layout.strumInst[i], pt)) {
+                hit.id = kHitStrumInst;
+                hit.index = i;
+                return hit;
+            }
+        }
+        if (PtInRect(&g_layout.strumChord, pt)) {
+            hit.id = kHitStrumChord;
+            return hit;
         }
         if (PtInRect(&g_layout.header, pt)) {
             hit.id = kHitHeader;
@@ -8294,6 +8584,7 @@ void SetTool(int tool) {
     }
     MenuReset(g_toolMenu);
     MenuReset(g_tunerMenu);
+    MenuReset(g_strumMenu);
     // The microphone only lives while the tuner is on screen.
     if (g_app.tool == kToolTuner) {
         TunerHalt();
@@ -8400,8 +8691,8 @@ void StrumSync() {
     g_metroShared.group.store(1);
     g_metroShared.volume.store(std::clamp(g_settings.metronomeVolume, 0, 100));
     g_metroShared.sound.store(std::clamp(g_settings.metronomeSound, 0, 2));
-    g_metroShared.clicksOn.store(g_strum.clicks);
-    g_metroShared.palm.store(g_strum.palmMute);
+    g_metroShared.strumSound.store(std::clamp(g_strum.sound, 0,
+                                              kStrumSoundCount - 1));
     g_metroShared.countIn.store(g_strum.countIn);
     const int cells = StrumSlotCount();
     for (int i = 0; i < kStrumSlotsMax; i++) {
@@ -8448,15 +8739,21 @@ void StrumStart() {
         400);
     StrumSync();
     // Render the voices before the pattern is handed over. Building them on
-    // the audio thread would hold up the first stroke while six Karplus-Strong
-    // strings are synthesised for every stroke and technique, and doing it
-    // ahead of the flag keeps the audio thread off a half-built voice set.
-    if (!g_metroAudio.strumBuilt) {
-        BuildStrumVoices(g_metroAudio);
+    // the audio thread would hold up the first stroke while the Karplus-Strong
+    // strings are synthesised for every direction and sound, and doing it ahead
+    // of the flag keeps the audio thread off a half-built voice set. The
+    // signature is the strings the voices hold, so picking a different chord
+    // re-renders them exactly once.
+    const int signature = g_strum.instrument * 32 + g_strum.chord;
+    if (!g_metroAudio.strumBuilt || g_metroAudio.strumSignature != signature) {
+        BuildStrumVoices(g_metroAudio, signature);
     }
     g_metroShared.strum.store(true);
     g_metroShared.measureTick.store(0);
     g_metroShared.slot.store(0);
+    // Ask the engine to open the bar at its top, which is also what arms the
+    // count-in when the stream is already up for the metronome.
+    g_metroShared.strumRestart.fetch_add(1);
     if (!StartMetroAudio()) {
         g_metroShared.strum.store(false);
         Wh_Log(L"Strumming: couldn't open the audio stream");
@@ -8564,18 +8861,57 @@ void StrumToggleChip(int chip) {
         case kChipCountIn:
             g_strum.countIn = !g_strum.countIn;
             break;
-        case kChipClicks:
-            g_strum.clicks = !g_strum.clicks;
-            break;
-        case kChipPalm:
-            g_strum.palmMute = !g_strum.palmMute;
-            break;
         case kChipPractice:
             g_strum.practice = !g_strum.practice;
             break;
         default:
             return;
     }
+    StrumSync();
+    Repaint();
+}
+
+// Re-renders the voice under the player's hands. The audio thread only mixes
+// from the rendered set, so a new instrument or chord cannot be heard without
+// building it again; a running pattern restarts on the new strings rather than
+// falling silent mid-bar.
+void StrumReshape() {
+    const bool wasRunning = g_strum.running;
+    if (wasRunning) {
+        StrumHalt();
+    }
+    StrumSync();
+    if (wasRunning) {
+        StrumStart();
+    }
+    Repaint();
+}
+
+void StrumSetInstrument(int instrument) {
+    if (instrument == g_strum.instrument) {
+        return;
+    }
+    g_strum.instrument = std::clamp(instrument, 0, kInstrumentCount - 1);
+    StrumReshape();
+}
+
+// Picks the chord the strings are fretted to, 0 being the open strings. The
+// list is shared by both instruments, so switching instrument keeps the choice.
+void StrumSetChord(int chord) {
+    if (chord == g_strum.chord) {
+        return;
+    }
+    g_strum.chord = std::clamp(chord, 0, kStrumChordCount - 1);
+    StrumReshape();
+}
+
+// The sound only picks which rendered voice a stroke mixes, so nothing has to
+// be built again and the pattern can keep running.
+void StrumSetSound(int sound) {
+    if (sound == g_strum.sound) {
+        return;
+    }
+    g_strum.sound = std::clamp(sound, 0, kStrumSoundCount - 1);
     StrumSync();
     Repaint();
 }
@@ -9371,7 +9707,6 @@ void ApplySettings() {
         g_strum.unit = 4;
         g_strum.subdivision = g_settings.strumSubdivision;
         g_strum.countIn = g_settings.strumCountIn;
-        g_strum.clicks = g_settings.strumClicks;
         g_strum.loop = g_settings.strumLoop;
         g_strum.rampStepBpm = g_settings.strumRampStep;
         g_strum.targetOffsetBpm = g_settings.strumTargetOffset;
@@ -9618,6 +9953,20 @@ void OnMouseDown(HWND hwnd, POINT pt) {
         }
         return;
     }
+    if (g_app.tool == kToolStrum && MenuVisual(g_strumMenu) &&
+        (hit.id == kHitNone || hit.id == kHitToolSelect)) {
+        // Same for the chord list, which also yields to the tool picker. A
+        // click on one of its own rows belongs to the list.
+        MenuHide(g_strumMenu);
+        Repaint();
+        if (hit.id == kHitToolSelect) {
+            g_pressed = hit;
+            MenuShow(g_toolMenu, kMenuTools, g_app.tool);
+            g_hover = HitResult();
+            Repaint();
+        }
+        return;
+    }
     g_pressed = hit;
     switch (hit.id) {
         case kHitClose:
@@ -9780,6 +10129,29 @@ void OnMouseDown(HWND hwnd, POINT pt) {
             break;
         case kHitStrumChip:
             StrumToggleChip(hit.index);
+            break;
+        case kHitStrumInst:
+            if (hit.index == 0 || hit.index == 1) {
+                StrumSetInstrument(hit.index == 0 ? kInstrumentGuitar
+                                                  : kInstrumentUkulele);
+            }
+            break;
+        case kHitStrumSound:
+            StrumSetSound(hit.index);
+            break;
+        case kHitStrumChord:
+            if (MenuHit(g_strumMenu)) {
+                MenuHide(g_strumMenu);
+            } else {
+                MenuShow(g_strumMenu, kMenuStrumChord, g_strum.chord);
+                g_hover = HitResult();
+            }
+            Repaint();
+            break;
+        case kHitStrumChordRow:
+            StrumSetChord(hit.index);
+            MenuHide(g_strumMenu);
+            Repaint();
             break;
         case kHitStrumTempoDown:
             StrumNudgeTempo(-1.0);
@@ -10007,6 +10379,36 @@ void OnKeyDown(WPARAM key) {
         return;
     }
     if (g_app.tool == kToolStrum) {
+        if (MenuHit(g_strumMenu)) {
+            if (key == VK_ESCAPE) {
+                MenuHide(g_strumMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_RETURN) {
+                // Enter commits the row the cursor rests on; with no row
+                // picked yet it just folds the list away.
+                if (g_strumMenu.cursor >= 0) {
+                    StrumSetChord(g_strumMenu.cursor);
+                }
+                MenuHide(g_strumMenu);
+                Repaint();
+                return;
+            }
+            // The list is two columns, so up and down step a whole column and
+            // left and right walk across it.
+            if (key == VK_UP || key == VK_DOWN) {
+                MenuMoveCursor(g_strumMenu, key == VK_DOWN ? 2 : -2);
+                Repaint();
+                return;
+            }
+            if (key == VK_LEFT || key == VK_RIGHT) {
+                MenuMoveCursor(g_strumMenu, key == VK_RIGHT ? 1 : -1);
+                Repaint();
+                return;
+            }
+            return;
+        }
         if (key == VK_ESCAPE) {
             CloseFlyout();
             return;
