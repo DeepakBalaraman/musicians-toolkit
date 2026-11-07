@@ -788,15 +788,30 @@ class FontCache {
         static const PCWSTR kUiFaces[] = {L"Segoe UI Variable Text",
                                           L"Segoe UI", L"Tahoma"};
         face_ = PickFace(kUiFaces, ARRAYSIZE(kUiFaces));
+        // The shell's symbol font. Windows 11 ships the Fluent set, Windows 10
+        // the older MDL2 one, and both carry the same glyph points.
+        static const PCWSTR kIconFaces[] = {L"Segoe Fluent Icons",
+                                            L"Segoe MDL2 Assets"};
+        iconFace_ = PickFace(kIconFaces, ARRAYSIZE(kIconFaces));
     }
 
-    HFONT Get(int px, int weight) { return Find(px, weight); }
+    HFONT Get(int px, int weight) { return Find(entries_, face_, px, weight); }
+
+    // A glyph font for the icons, so a symbol is drawn by the system set rather
+    // than by hand. The size is the glyph's em square, roughly its cap height.
+    HFONT GetIcon(int px) {
+        return Find(iconEntries_, iconFace_, px, FW_NORMAL);
+    }
 
     void Clear() {
         for (const Entry& entry : entries_) {
             DeleteObject(entry.font);
         }
         entries_.clear();
+        for (const Entry& entry : iconEntries_) {
+            DeleteObject(entry.font);
+        }
+        iconEntries_.clear();
     }
 
   private:
@@ -806,9 +821,12 @@ class FontCache {
         HFONT font;
     };
 
-    HFONT Find(int px, int weight) {
+    HFONT Find(std::vector<Entry>& entries,
+               const std::wstring& face,
+               int px,
+               int weight) {
         px = std::max(px, 6);
-        for (const Entry& entry : entries_) {
+        for (const Entry& entry : entries) {
             if (entry.px == px && entry.weight == weight) {
                 return entry.font;
             }
@@ -816,9 +834,9 @@ class FontCache {
         HFONT font = CreateFontW(-px, 0, 0, 0, weight, FALSE, FALSE, FALSE,
                                  DEFAULT_CHARSET, OUT_TT_PRECIS,
                                  CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-                                 DEFAULT_PITCH | FF_DONTCARE, face_.c_str());
+                                 DEFAULT_PITCH | FF_DONTCARE, face.c_str());
         if (font) {
-            entries_.push_back({px, weight, font});
+            entries.push_back({px, weight, font});
         }
         return font ? font : static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
     }
@@ -850,7 +868,9 @@ class FontCache {
     }
 
     std::vector<Entry> entries_;
+    std::vector<Entry> iconEntries_;
     std::wstring face_ = L"Segoe UI";
+    std::wstring iconFace_ = L"Segoe MDL2 Assets";
 };
 
 FontCache g_fonts;
@@ -5843,29 +5863,31 @@ inline float L(long value) {
     return static_cast<float>(value);
 }
 
-void PaintChevron(Surface& s,
-                  float cx,
-                  float cy,
-                  float size,
-                  bool right,
-                  Color color) {
-    const float direction = right ? 1.0f : -1.0f;
-    const Vec2 a{cx - direction * size * 0.35f, cy - size};
-    const Vec2 b{cx + direction * size * 0.45f, cy};
-    const Vec2 c{cx - direction * size * 0.35f, cy + size};
-    const float width = S(1.8f);
-    StrokeLine(s, a, b, width, color);
-    StrokeLine(s, b, c, width, color);
+// One Fluent glyph centred on a point. The shell's own symbol font draws the
+// icon, so it stays crisp at every scale instead of being rebuilt from strokes.
+// The box is twice the em square because DrawText clips to it and sits the
+// glyphs a little off centre on their own line.
+void PaintGlyph(Surface& s,
+                float cx,
+                float cy,
+                wchar_t glyph,
+                int px,
+                Color color) {
+    const LONG x = static_cast<LONG>(cx + 0.5f);
+    const LONG y = static_cast<LONG>(cy + 0.5f);
+    const RECT box{x - px, y - px, x + px, y + px};
+    g_text.Draw(s, g_fonts.GetIcon(px), std::wstring(1, glyph), box,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, color);
+}
+
+// The stepper chevrons either side of the chord diagram.
+void PaintChevron(Surface& s, float cx, float cy, bool right, Color color) {
+    PaintGlyph(s, cx, cy, right ? L'\xE76C' : L'\xE76B', S(18.0f), color);
 }
 
 // The down chevron on the tool picker, saying the label opens a list.
-void PaintDownChevron(Surface& s, float cx, float cy, float size, Color color) {
-    const float width = S(1.6f);
-    const Vec2 a{cx - size, cy - size * 0.5f};
-    const Vec2 b{cx, cy + size * 0.55f};
-    const Vec2 c{cx + size, cy - size * 0.5f};
-    StrokeLine(s, a, b, width, color);
-    StrokeLine(s, b, c, width, color);
+void PaintDownChevron(Surface& s, float cx, float cy, Color color) {
+    PaintGlyph(s, cx, cy, L'\xE70D', S(10.0f), color);
 }
 
 void PaintCloseButton(Surface& s, const Theme& t) {
@@ -5874,24 +5896,14 @@ void PaintCloseButton(Surface& s, const Theme& t) {
     const bool pressed = hovered && g_pressed.id == kHitClose;
     const float cx = L(box.left + box.right) * 0.5f;
     const float cy = L(box.top + box.bottom) * 0.5f;
-    const float radius = S(10.0f);
     if (hovered) {
-        FillCircle(s, cx, cy, radius,
+        FillCircle(s, cx, cy, S(10.0f),
                    pressed ? WithAlpha(t.text, 0.22f) : t.controlHover);
     }
-    const float arm = S(4.2f);
-    const Color color = hovered ? t.text : t.textMuted;
-    const float width = S(1.5f);
-    StrokeLine(s, Vec2{cx - arm, cy - arm}, Vec2{cx + arm, cy + arm}, width,
-               color);
-    StrokeLine(s, Vec2{cx - arm, cy + arm}, Vec2{cx + arm, cy - arm}, width,
-               color);
+    // The Fluent close cross, the same one the shell puts on its title bars.
+    PaintGlyph(s, cx, cy, L'\xE8BB', S(10.0f), hovered ? t.text : t.textMuted);
 }
 
-// The speaker on the chord card. The audio is the same one-shot clip the
-// circle of fifths plays, so the icon only has to say whether there is a chord
-// to hear and that the pointer is over it. A muted cone marks a chord with no
-// notes to sound, such as an empty voicing.
 void PaintSpeaker(Surface& s, const Theme& t) {
     const RECT& box = g_layout.speaker;
     const Voicing* voicing = SelectedVoicing();
@@ -5908,33 +5920,9 @@ void PaintSpeaker(Surface& s, const Theme& t) {
     const Color color = available ? (hovered ? t.text : t.textMuted)
                                   : WithAlpha(t.textMuted, 0.35f);
 
-    // Driver, then a cone that widens to the right.
-    FillRoundRect(s, cx - S(8.0f), cy - S(2.4f), cx - S(5.2f), cy + S(2.4f),
-                  S(0.8f), color);
-    for (int i = 0; i < 5; i++) {
-        const float x = cx - S(5.2f) + S(1.1f) * i;
-        const float half = S(2.4f) + S(1.15f) * i;
-        FillRoundRect(s, x, cy - half, x + S(1.1f), cy + half, S(0.5f), color);
-    }
-
-    // Two sound waves, as short arcs about the cone.
-    auto wave = [&](float radius) {
-        const float origin = cx + S(1.2f);
-        float lastX = 0.0f;
-        float lastY = 0.0f;
-        for (int step = 0; step <= 3; step++) {
-            const float angle = -0.85f + 1.7f * static_cast<float>(step) / 3.0f;
-            const float x = origin + radius * cosf(angle);
-            const float y = cy + radius * sinf(angle);
-            if (step > 0) {
-                StrokeLine(s, Vec2{lastX, lastY}, Vec2{x, y}, S(1.3f), color);
-            }
-            lastX = x;
-            lastY = y;
-        }
-    };
-    wave(S(5.6f));
-    wave(S(9.0f));
+    // The speaker is the Fluent "volume" glyph, so the card carries the same
+    // icon the shell uses for its own volume control.
+    PaintGlyph(s, cx, cy, L'\xE994', S(15.0f), color);
 }
 
 // One pill in the header: accent when it is the current choice, a soft hover
@@ -5988,7 +5976,7 @@ void PaintToolSelect(Surface& s, const Theme& t) {
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.text);
 
     const float cy = L(select.top + select.bottom) * 0.5f;
-    PaintDownChevron(s, L(select.right) - S(12), cy, S(3.4f),
+    PaintDownChevron(s, L(select.right) - S(12), cy,
                      open ? t.accent : t.textMuted);
 }
 
@@ -6066,11 +6054,8 @@ void PaintListRows(Surface& s,
             // A tick on the right, so the current choice still reads plainly.
             const float cx = L(row.right) - S(14);
             const float cy = (top + bottom) * 0.5f;
-            const Color mark = WithAlpha(t.accent, alpha);
-            StrokeLine(s, {cx - S(4.0f), cy}, {cx - S(1.0f), cy + S(3.0f)},
-                       S(1.6f), mark);
-            StrokeLine(s, {cx - S(1.0f), cy + S(3.0f)},
-                       {cx + S(4.5f), cy - S(3.5f)}, S(1.6f), mark);
+            PaintGlyph(s, cx, cy, L'\xE73E', S(11.0f),
+                       WithAlpha(t.accent, alpha));
         }
     }
 }
@@ -6127,13 +6112,10 @@ void PaintSearch(Surface& s, const Theme& t) {
                     L(box.right) - 0.5f, L(box.bottom) - 0.5f, S(kControlRadius),
                     S(1.0f), focused ? WithAlpha(t.accent, 0.55f) : t.stroke);
 
-    // Magnifier.
-    const float cx = L(box.left) + S(20.0f);
+    // The Fluent magnifier, on the same baseline as the placeholder text.
+    const float cx = L(box.left) + S(21.0f);
     const float cy = (L(box.top) + L(box.bottom)) * 0.5f;
-    const float radius = S(5.4f);
-    StrokeCircle(s, cx, cy, radius, S(1.6f), t.textMuted);
-    StrokeLine(s, Vec2{cx + radius * 0.7f, cy + radius * 0.7f},
-               Vec2{cx + radius * 1.7f, cy + radius * 1.7f}, S(1.6f), t.textMuted);
+    PaintGlyph(s, cx, cy, L'\xE721', S(15.0f), t.textMuted);
 
     HFONT font = g_fonts.Get(S(static_cast<float>(kFontSearch)), FW_NORMAL);
     RECT text = g_layout.searchText;
@@ -6594,13 +6576,14 @@ void PaintVoicingSlider(Surface& s, const Theme& t) {
         g_hover.id == kHitPrevious || g_hover.id == kHitDiagram;
     const bool hoveredNext = g_hover.id == kHitNext || g_hover.id == kHitDiagram;
     if (count > 1) {
-        PaintChevron(s, L(g_layout.previous.left + g_layout.previous.right) * 0.5f,
-                     L(g_layout.previous.top + g_layout.previous.bottom) * 0.5f,
-                     S(7.0f), false,
+        const RECT& backward = g_layout.previous;
+        const RECT& forward = g_layout.next;
+        PaintChevron(s, L(backward.left + backward.right) * 0.5f,
+                     L(backward.top + backward.bottom) * 0.5f, false,
                      hoveredPrevious ? t.text : t.textMuted);
-        PaintChevron(s, L(g_layout.next.left + g_layout.next.right) * 0.5f,
-                     L(g_layout.next.top + g_layout.next.bottom) * 0.5f, S(7.0f),
-                     true, hoveredNext ? t.text : t.textMuted);
+        PaintChevron(s, L(forward.left + forward.right) * 0.5f,
+                     L(forward.top + forward.bottom) * 0.5f, true,
+                     hoveredNext ? t.text : t.textMuted);
     }
 
     const int dots = std::min(count, 8);
