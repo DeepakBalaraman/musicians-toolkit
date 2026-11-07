@@ -38,7 +38,7 @@ Tap the big circle using your mouse, touchpad, or **Spacebar**. The panel automa
 ## Metronome
 
 Quickly switch between common time signatures or access compound meters like 5/8, 11/8, and 7/16 with just a couple of clicks. 
-- The beat counter gives strong clicks on downbeats and softer clicks on subdivisions to keep you on track.
+- The clicks are short sine beeps: the highest note marks the downbeat, a lower one each beat, and a soft low tick the subdivisions, so the bar reads as a pulse.
 - The metronome can continue playing even after you close the panel (configurable in settings), making it easy to practice uninterrupted.
 
 ## Tuner
@@ -87,7 +87,7 @@ Drill instrument geography against a live countdown. A note name appears and the
 
 - **Appearance & Behavior:** Match Windows dark/light themes, pick custom accent colors, adjust panel opacity, and choose screen placement.
 - **Startup:** Choose which tool and instrument open by default when you press Win+Y.
-- **Metronome Options:** Select default time signatures, click sounds (tick-tock, woodblock, or beep), volume, and background playback behavior.
+- **Metronome Options:** Select default time signatures, volume, and background playback behavior.
 - **Strumming Options:** Choose the default subdivision, count-in, loop, and the practice ramp step and target.
 - **Circle of Fifths:** Choose whether the ring opens labeled major or minor, and whether selecting a key plays its scale.
 - **Note Trainer:** Set the seconds allowed per note and whether the drill includes sharps and flats or only the naturals.
@@ -203,13 +203,6 @@ The chord data is powered by [chords-db](https://github.com/tombatossals/chords-
     $description: "Loudness of the metronome clicks."
     #! $min: 0
     #! $max: 100
-  - ClickSound: ticktock
-    $name: Click sound
-    $description: "Audio style for the beat clicks."
-    $options:
-      - ticktock: Tick-tock
-      - wood: Woodblock
-      - beep: Beep
   - KeepPlaying: true
     $name: Keep playing when panel closes
     $description: "Keep the metronome running in the background while you play."
@@ -1962,7 +1955,6 @@ struct Settings {
     int metronomeBeats = 4;
     int metronomeUnit = 4;
     int metronomeSubdivision = 1;
-    int metronomeSound = 0;
     int metronomeVolume = 70;
     bool metronomeKeepPlaying = true;
     int tunerReference = 440;  // A4 in Hz.
@@ -2158,8 +2150,6 @@ Settings LoadSettings() {
                              : subdivision == L"triplet" ? 3
                              : subdivision == L"sixteenth" ? 4
                                                            : 1;
-    const std::wstring sound = GetStringSetting(L"Metronome.ClickSound");
-    s.metronomeSound = sound == L"wood" ? 1 : sound == L"beep" ? 2 : 0;
     // A settings file written before the metronome exists has neither value, so
     // fall back to the documented defaults rather than to silence.
     const std::wstring volume = GetStringSetting(L"Metronome.Volume");
@@ -4795,7 +4785,6 @@ struct MetroConfig {
     int subdivision = 1;
     int group = 1;
     int volume = 70;
-    int sound = 0;
 };
 
 // Written by the panel, read by the audio thread once per block.
@@ -4805,7 +4794,6 @@ struct MetroShared {
     std::atomic<int> subdivision{1};
     std::atomic<int> group{1};
     std::atomic<int> volume{70};
-    std::atomic<int> sound{0};
     std::atomic<int> beat{0};
     std::atomic<unsigned> pulse{0};
     std::atomic<bool> running{false};
@@ -4835,29 +4823,26 @@ MetroConfig ReadMetroConfig() {
     c.subdivision = std::clamp(g_metroShared.subdivision.load(), 1, 4);
     c.group = std::clamp(g_metroShared.group.load(), 1, 4);
     c.volume = std::clamp(g_metroShared.volume.load(), 0, 100);
-    c.sound = std::clamp(g_metroShared.sound.load(), 0, 2);
     return c;
 }
 
-// Four strikes: the downbeat, the start of each group, the plain beat and the
-// subdivision, each a step quieter than the one before it. The frequencies sit
-// where a wooden case rings, with a noise scratch and a low body underneath, so
-// a click reads as a tick rather than a tone that would sit on top of music.
-struct MetroClickSpec {
+// The beat tones: the downbeat, the start of each group, the plain beat and
+// the subdivision. They are four notes of one A chord - the high octave, a
+// fifth between it and the beat, the beat itself, then the same note two
+// octaves down - so every click belongs to the same family. That is what
+// makes a bar read as a pulse instead of a tune, and it keeps the clicks from
+// competing with the music in the other tools.
+struct MetroBeepSpec {
     float frequency;
-    float level;
-    float seconds;
-    float decay;
-    float noise;
-    float body;
-    float bodyFrequency;
+    float level;    // Peak, before the volume setting.
+    float seconds;  // Length of the beep, tail included.
 };
 
-constexpr MetroClickSpec kMetroClickSpecs[kMetroLevels] = {
-    {2600.0f, 1.00f, 0.038f, 120.0f, 0.40f, 0.34f, 250.0f},
-    {2300.0f, 0.82f, 0.034f, 128.0f, 0.42f, 0.30f, 235.0f},
-    {2000.0f, 0.64f, 0.030f, 136.0f, 0.44f, 0.28f, 220.0f},
-    {1650.0f, 0.34f, 0.020f, 170.0f, 0.50f, 0.18f, 200.0f},
+constexpr MetroBeepSpec kMetroBeeps[kMetroLevels] = {
+    {880.0f, 0.62f, 0.075f},
+    {660.0f, 0.44f, 0.065f},
+    {440.0f, 0.38f, 0.055f},
+    {220.0f, 0.22f, 0.045f},
 };
 
 struct MetroAudio {
@@ -4868,12 +4853,12 @@ struct MetroAudio {
     HANDLE thread = nullptr;
     WAVEHDR headers[kMetroBlockCount]{};
     std::vector<short> pcm[kMetroBlockCount];
-    // Every level is rendered twice: the tick and the tock that answers it.
-    std::vector<float> clicks[kMetroLevels][2];
+    // The four beat tones, rendered once when the stream opens.
+    std::vector<float> clicks[kMetroLevels];
     // Holds the block about to be played plus the tails of the clicks that run
     // past its end, so a click is never cut off at a block boundary.
     std::vector<float> canvas;
-    int builtSound = -1;
+    bool clicksBuilt = false;
     bool prepared = false;
     long long written = 0;
     double nextEvent = 0.0;
@@ -4891,77 +4876,42 @@ struct MetroAudio {
 
 MetroAudio g_metroAudio;
 
-void BuildMetroClicks(MetroAudio& a, int sound) {
-    const bool beep = sound == 2;
-    const bool wood = sound == 1;
+// Renders the four beat tones. A beep is a short sine with a breath of third
+// harmonic, so it reads as a clean tone rather than a test signal, and it is
+// shaped by a fast attack and an exponential fall so its edges never click.
+void BuildMetroClicks(MetroAudio& a) {
+    const float attack = 0.0012f * kMetroRate;
+    const float release = 0.0050f * kMetroRate;
     for (int level = 0; level < kMetroLevels; level++) {
-        const MetroClickSpec& spec = kMetroClickSpecs[level];
-        for (int alt = 0; alt < 2; alt++) {
-            // The second strike drops in pitch and warms up, the way a clock
-            // answers the tick with a tock. The beep keeps one voice, since a
-            // pure tone with two pitches would read as a tune.
-            const bool tock = alt != 0 && !beep;
-            const float frequency = spec.frequency * (tock ? 0.78f : 1.0f);
-            const float seconds = spec.seconds * (beep ? 1.8f : 1.0f);
-            const float decay =
-                spec.decay * (beep ? 0.30f : tock ? 0.85f : 1.0f);
-            const float bodyFrequency = spec.bodyFrequency *
-                                        (tock ? 0.85f : 1.0f) *
-                                        (wood ? 0.92f : 1.0f);
-            const float body =
-                spec.body * (tock ? 1.25f : 1.0f) * (wood ? 1.35f : 1.0f);
-            const float noise = beep ? 0.0f : spec.noise * (wood ? 1.1f : 1.0f);
-            const int frames = static_cast<int>(seconds * kMetroRate);
-            std::vector<float>& out = a.clicks[level][alt];
-            out.assign(static_cast<size_t>(frames), 0.0f);
-            const int attack = static_cast<int>(kMetroRate * 0.0012f) + 1;
-            const int release = static_cast<int>(kMetroRate * 0.0035f) + 1;
-            uint32_t seed = 0x9E3779B9u ^
-                            static_cast<uint32_t>(level * 7919 + alt * 104729 +
-                                                  13);
-            float phase = 0.0f;
-            float previousNoise = 0.0f;
-            for (int i = 0; i < frames; i++) {
-                const float time = static_cast<float>(i) / kMetroRate;
-                // The strike bends down as it dies away; that drop is what
-                // makes it a tick instead of a held note.
-                const float bend =
-                    beep ? 1.0f : 1.0f + 0.55f * expf(-time * 260.0f);
-                phase += 6.2831853f * frequency * bend / kMetroRate;
-                seed ^= seed << 13;
-                seed ^= seed >> 17;
-                seed ^= seed << 5;
-                const float raw =
-                    static_cast<float>(seed) / 2147483648.0f - 1.0f;
-                const float scratch = raw - previousNoise;  // High pass, for the
-                previousNoise = raw;                       // edge of the strike.
-                float value;
-                if (beep) {
-                    value = 0.92f * sinf(phase) + 0.08f * sinf(phase * 3.0f);
-                } else {
-                    const float tone = sinf(phase) + 0.32f * sinf(phase * 2.0f);
-                    const float thump = sinf(6.2831853f * bodyFrequency * time);
-                    value = tone * (1.0f - noise) * 0.80f + scratch * noise +
-                            thump * body;
-                    value *= 0.62f;  // Room for the three parts to add up.
-                }
-                float gain = spec.level * expf(-decay * time);
-                if (i < attack) {
-                    gain *= static_cast<float>(i) / attack;
-                }
-                if (frames - i < release) {
-                    gain *= static_cast<float>(frames - i) / release;
-                }
-                out[static_cast<size_t>(i)] = value * gain;
+        const MetroBeepSpec& spec = kMetroBeeps[level];
+        const int frames = static_cast<int>(spec.seconds * kMetroRate);
+        std::vector<float>& out = a.clicks[level];
+        out.assign(static_cast<size_t>(frames), 0.0f);
+        // The tone is down by about 26 dB by the time the buffer ends, which
+        // leaves the release ramp nothing abrupt to cut.
+        const float decay = 3.0f / spec.seconds;
+        float phase = 0.0f;
+        for (int i = 0; i < frames; i++) {
+            const float time = static_cast<float>(i) / kMetroRate;
+            phase += 6.2831853f * spec.frequency / kMetroRate;
+            const float value = sinf(phase) + 0.06f * sinf(phase * 3.0f);
+            float gain = expf(-decay * time);
+            if (i < attack) {
+                gain *= static_cast<float>(i) / attack;
             }
+            if (frames - i < release) {
+                gain *= static_cast<float>(frames - i) / release;
+            }
+            out[static_cast<size_t>(i)] = value * gain * spec.level;
         }
     }
-    a.builtSound = sound;
+    a.clicksBuilt = true;
 }
 
 // Adds one click at a sample offset inside the canvas.
-void MixMetroClick(MetroAudio& a, int level, int alt, int offset) {
-    const std::vector<float>& click = a.clicks[level][std::clamp(alt, 0, 1)];
+void MixMetroClick(MetroAudio& a, int level, int offset) {
+    const std::vector<float>& click =
+        a.clicks[std::clamp(level, 0, kMetroLevels - 1)];
     const int room = static_cast<int>(a.canvas.size()) - offset;
     const int count =
         std::min(static_cast<int>(click.size()), std::min(room, kMetroTail));
@@ -5117,8 +5067,8 @@ void MixStrumVoice(MetroAudio& a, bool up, int sound, bool accent, bool ghost,
 }
 
 void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
-    if (a.builtSound != cfg.sound) {
-        BuildMetroClicks(a, cfg.sound);
+    if (!a.clicksBuilt) {
+        BuildMetroClicks(a);
     }
     // A new pattern asks for the bar to start at the top: the panel bumps
     // strumRestart, and the next block arms the count-in and puts the first
@@ -5158,14 +5108,10 @@ void FillMetroBlock(MetroAudio& a, const MetroConfig& cfg, short* out) {
                         : (cfg.group > 1 && a.beat % cfg.group == 0) ? 1
                                                                     : 2;
             }
-            // The plain beats alternate tick and tock, so a bar of even
-            // beats reads as a clock; the accents and the subdivisions keep
-            // their own voice instead of joining the alternation.
-            const int alt = (level == 2 && (a.beat & 1) != 0) ? 1 : 0;
             // The strumming tool keeps no click of its own: the only one it
             // ever mixes is the count-in bar, which is what arms the tempo.
             if (!strum || a.countingIn) {
-                MixMetroClick(a, level, alt, static_cast<int>(offset));
+                MixMetroClick(a, level, static_cast<int>(offset));
             }
             if (strum) {
                 if (!a.countingIn) {
@@ -8629,7 +8575,6 @@ void MetronomeSync() {
     g_metroShared.subdivision.store(std::clamp(g_metro.subdivision, 1, 4));
     g_metroShared.group.store(std::clamp(g_metro.group, 1, 4));
     g_metroShared.volume.store(std::clamp(g_settings.metronomeVolume, 0, 100));
-    g_metroShared.sound.store(std::clamp(g_settings.metronomeSound, 0, 2));
 }
 
 // Silences the clicks without touching the panel, for the close and unload
@@ -8690,7 +8635,6 @@ void StrumSync() {
     g_metroShared.subdivision.store(subdivision);
     g_metroShared.group.store(1);
     g_metroShared.volume.store(std::clamp(g_settings.metronomeVolume, 0, 100));
-    g_metroShared.sound.store(std::clamp(g_settings.metronomeSound, 0, 2));
     g_metroShared.strumSound.store(std::clamp(g_strum.sound, 0,
                                               kStrumSoundCount - 1));
     g_metroShared.countIn.store(g_strum.countIn);
