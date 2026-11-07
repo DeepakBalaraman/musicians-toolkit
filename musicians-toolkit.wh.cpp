@@ -1,7 +1,7 @@
 // ==WindhawkMod==
 // @id              musicians-toolkit
 // @name            Musician's Toolkit
-// @description     A Win+Y flyout with a chord library, a tap tempo calculator, a metronome, an instrument tuner, a strumming pattern builder and an interactive circle of fifths for guitar, ukulele and piano
+// @description     An all-in-one toolkit containing a chord library, a metronome, a tuner, a tap tempo calculator, a strumming pattern builder, an interactive circle of fifths and a timed note trainer for guitar, ukulele and piano
 // @version         1.0.0
 // @author          DpakB
 // @homepage        https://dpakb.com
@@ -16,7 +16,7 @@
 /*
 # Musician's Toolkit
 
-Press **Win+Y** to open a handy utility panel in the corner of your screen. It includes a built-in chord library, a tap tempo calculator, a metronome, an instrument tuner, a strumming pattern builder, and an interactive circle of fifths. (The shortcut can be changed in Settings.)
+Press **Win+Y** to open a handy utility panel in the corner of your screen. It includes a built-in chord library, a tap tempo calculator, a metronome, an instrument tuner, a strumming pattern builder, an interactive circle of fifths, and a timed note trainer. (The shortcut can be changed in Settings.)
 
 Click the picker at the top left to switch tools, or press **Ctrl+Tab** to cycle through them using your keyboard.
 
@@ -62,11 +62,20 @@ Explore all twelve keys arranged around a ring, each a fifth clockwise from the 
 - **Chords:** Click one of the seven diatonic chord chips to hear that triad, or press **1**–**7**.
 - **Major / Minor:** Toggle to relabel the ring with the relative-minor keys.
 
+## Note Trainer
+
+Drill instrument geography against a live countdown. A note name appears and the microphone listens for you to play it, so the drill works exactly like finding it on the real instrument.
+- **Round:** Press **Space** to start or stop. Each prompt gets its own timer, set under Settings > Note trainer (2–20 seconds per note).
+- **Listening:** Play the note and it is recognised as soon as it settles in tune; the readout under the prompt shows what the microphone hears right now.
+- **Feedback:** A correct note flashes green with the points it earned, and a miss shows which note it was before the next prompt appears.
+- **Score:** Fast answers score more, so a quick hit is worth up to twice a slow one, and the panel tracks your streak, best streak and accuracy. **R** resets the score.
+- **Customising:** **Tab** cycles Guitar, Ukulele and Piano, and **N** (or the Naturals chip) keeps the drill to the white notes.
+
 ## Keyboard Shortcuts
 
 - **Win+Y:** Open or close the panel (the key and modifiers are configurable under Settings > Shortcut).
 - **Ctrl+Tab:** Switch between tools.
-- **Tab:** Switch instruments (in the chord library or tuner).
+- **Tab:** Switch instruments (in the chord library, tuner or note trainer).
 - **Up / Down:** Navigate search results or adjust metronome BPM.
 - **Left / Right:** Step through chord fingerings, halve/double tap tempo, or change metronome signatures.
 - **Esc:** Clear search, or close the panel if the search is empty.
@@ -78,6 +87,7 @@ Explore all twelve keys arranged around a ring, each a fifth clockwise from the 
 - **Metronome Options:** Select default time signatures, click sounds (tick-tock, woodblock, or beep), volume, and background playback behavior.
 - **Strumming Options:** Choose the default subdivision, count-in, metronome clicks, loop, and the practice ramp step and target.
 - **Circle of Fifths:** Choose whether the ring opens labeled major or minor, and whether selecting a key plays its scale.
+- **Note Trainer:** Set the seconds allowed per note and whether the drill includes sharps and flats or only the naturals.
 - **Tap Tempo & Tuner:** Customize responsiveness, tap keys, and reference pitch (A4 = 440 Hz standard).
 
 The chord data is powered by [chords-db](https://github.com/tombatossals/chords-db) by David Rubert (MIT), packed directly into the mod so it requires no external files or internet connection.
@@ -97,6 +107,7 @@ The chord data is powered by [chords-db](https://github.com/tombatossals/chords-
       - tuner: Tuner
       - strum: Strumming
       - circle: Circle of fifths
+      - trainer: Note trainer
   - DefaultInstrument: guitar
     $name: Default instrument
     $description: "The starting instrument for chords and tuning."
@@ -277,6 +288,18 @@ The chord data is powered by [chords-db](https://github.com/tombatossals/chords-
   - PlayOnSelect: true
     $name: Play the scale on select
     $description: "Hear the major scale play when you pick a key."
+- NoteTrainer:
+  - Seconds: 5
+    $name: Seconds per note
+    $description: "How long you have to find each note before it counts as a miss."
+    #! $min: 2
+    #! $max: 20
+  - NoteSet: chromatic
+    $name: Notes to drill
+    $description: "Chromatic includes the sharps and flats; naturals keeps to the white notes."
+    $options:
+      - chromatic: Chromatic
+      - naturals: Naturals only
 */
 // ==/WindhawkModSettings==
 
@@ -1931,6 +1954,8 @@ struct Settings {
     int strumTargetOffset = 20;
     bool circleMinor = false;
     bool circlePlayOnSelect = true;
+    int trainerSeconds = 5;  // Time allowed per note.
+    bool trainerNaturals = false;
     // The toggle shortcut. Win+Y is the default, but any key with any mix of
     // modifiers can be set in the options.
     WORD hotkeyVk = 'Y';
@@ -2050,6 +2075,7 @@ Settings LoadSettings() {
                     : startTool == L"tuner"     ? 3
                     : startTool == L"strum"     ? 4
                     : startTool == L"circle"    ? 5
+                    : startTool == L"trainer"   ? 6
                                                 : 0;
     const std::wstring theme = GetStringSetting(L"Appearance.Theme");
     s.theme = theme == L"light" ? kThemeLight
@@ -2162,6 +2188,14 @@ Settings LoadSettings() {
     s.circlePlayOnSelect = circlePlayOnSelect.empty()
                                ? true
                                : Wh_GetIntSetting(L"Circle.PlayOnSelect") != 0;
+
+    // The note trainer defaults. A file written before this tool has no
+    // NoteTrainer.Seconds, so it reads back as zero and keeps five seconds.
+    const int trainerSeconds = Wh_GetIntSetting(L"NoteTrainer.Seconds");
+    s.trainerSeconds =
+        std::clamp(trainerSeconds == 0 ? 5 : trainerSeconds, 2, 20);
+    const std::wstring trainerNoteSet = GetStringSetting(L"NoteTrainer.NoteSet");
+    s.trainerNaturals = trainerNoteSet == L"naturals";
 
     // The toggle shortcut. The key defaults to Y and Win is the default
     // modifier, so an older settings file keeps opening on Win+Y. Reading the
@@ -2526,6 +2560,78 @@ PCWSTR CircleModeName(int degree) {
     return kModes[degree];
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Note trainer
+//
+// A target note appears at random; the player finds it on their instrument and
+// the microphone (the tuner's, reused here) recognises it before the live timer
+// runs out. Each instrument carries a range to sample from, naturals mode keeps
+// the drill to the white notes, and the score rewards reading the geography
+// quickly with a speed bonus on top of a plain hit.
+
+struct TrainerRange {
+    int minMidi;  // Lowest note in the drill.
+    int span;     // Semitones from there up to the highest.
+};
+
+// Indexed by the Instrument enum: guitar, ukulele, piano. The ranges sit where
+// each instrument is normally first read, so a beginner never reaches past the
+// board on a random prompt.
+constexpr TrainerRange kTrainerRanges[kInstrumentCount] = {
+    {40, 26},  // Guitar:  low E2 across the first position and beyond.
+    {60, 18},  // Ukulele: middle C over the fingerboard.
+    {48, 25},  // Piano:   C3 up to C5.
+};
+constexpr PCWSTR kTrainerInstrumentLabels[kInstrumentCount] = {
+    L"Guitar", L"Ukulele", L"Piano"};
+// The order the three chips are drawn in: guitar, piano, ukulele.
+constexpr int kTrainerChipOrder[3] = {kInstrumentGuitar, kInstrumentPiano,
+                                      kInstrumentUkulele};
+constexpr int kTrainerChipCount = 3;
+
+// A reading within this many cents of the target counts as the right note.
+constexpr int kTrainerCents = 40;
+// Matching ticks in a row needed before a note is scored, so a single doubtful
+// frame cannot bank a hit.
+constexpr int kTrainerStable = 2;
+constexpr double kTrainerResultFlashMs = 750.0;
+
+// Pitch classes with no accidental: C D E F G A B.
+bool TrainerIsNatural(int midi) {
+    static const bool kNatural[12] = {true,  false, true,  false, true, true,
+                                      false, true,  false, true,  false, true};
+    return kNatural[((midi % 12) + 12) % 12];
+}
+
+// The trainer's live state. The microphone thread only ever publishes a
+// frequency; everything here is the panel's running view of the round, touched
+// from the timer tick and the paint.
+struct NoteTrainerState {
+    bool running = false;       // A round is being played.
+    bool listening = false;     // The trainer is holding the microphone open.
+    bool micFailed = false;     // No input device, so detection cannot work.
+    bool naturals = false;      // Restrict prompts to the white notes.
+    int seconds = 5;            // Per-note time limit, from the settings.
+    int instrument = kInstrumentGuitar;  // Which range to drill.
+    int target = -1;            // The MIDI note to find now.
+    double noteEndsAt = 0.0;    // When this prompt's timer runs out.
+    double roundMs = 5000.0;    // noteEndsAt - start, kept for the bar.
+    int stable = 0;             // Consecutive ticks that matched the target.
+    int heard = -1;             // The last clear reading, for the live display.
+    int correct = 0;            // Hits this session.
+    int total = 0;              // Prompts resolved this session.
+    int score = 0;              // Speed-weighted points.
+    int streak = 0;             // Hits in a row.
+    int bestStreak = 0;         // Longest run so far.
+    int result = 0;             // 0 idle, 1 just hit, 2 just missed.
+    double resultAt = -1000.0;  // When the last result landed, for the flash.
+    int lastPoints = 0;         // Points the last hit scored.
+    bool seeded = false;        // rand() has been given a start value.
+    bool defaultsApplied = false;
+};
+
+NoteTrainerState g_trainer;
+
 enum Tool {
     kToolChords,
     kToolTempo,
@@ -2533,6 +2639,7 @@ enum Tool {
     kToolTuner,
     kToolStrum,
     kToolCircle,
+    kToolTrainer,
     kToolCount,
 };
 
@@ -2548,6 +2655,8 @@ PCWSTR ToolLabel(int tool) {
             return L"Strumming";
         case kToolCircle:
             return L"Circle of fifths";
+        case kToolTrainer:
+            return L"Note trainer";
         default:
             break;
     }
@@ -2596,6 +2705,9 @@ enum Hit {
     kHitCircleKey,
     kHitCircleMode,
     kHitCircleChord,
+    kHitTrainerStart,
+    kHitTrainerInst,
+    kHitTrainerNaturals,
 };
 
 struct HitResult {
@@ -2711,6 +2823,21 @@ struct Layout {
     int circleCy = 0;
     int circleRingR = 0;
     int circleBadgeR = 0;
+
+    // Note trainer, in the same rectangle once more. A row of instrument chips
+    // and a Start button on top, the big target note in the middle, the note
+    // heard and a countdown bar under it, then a line of score and streak.
+    RECT trainerPad{};
+    RECT trainerInst[3]{};
+    RECT trainerStart{};
+    RECT trainerNaturals{};
+    RECT trainerPrompt{};
+    RECT trainerPlayed{};
+    RECT trainerBar{};
+    RECT trainerFeedback{};
+    RECT trainerScore{};
+    RECT trainerStreak{};
+    RECT trainerHint{};
 };
 
 int S(float dip) {
@@ -3100,6 +3227,44 @@ void ComputeLayout() {
                       circleTop + S(390)};
     l.circleHint = {l.circlePad.left, circleTop + S(396), l.circlePad.right,
                     circleTop + S(414)};
+
+    // Note trainer, laid out in the same rectangle once more. A row of three
+    // instrument chips with a naturals toggle and a Start button across the
+    // top, the big target note in the middle, the note heard and a countdown
+    // bar beneath it, then the feedback and score lines.
+    l.trainerPad = l.metroPad;
+    const int trainerTop = l.trainerPad.top;
+    const int trainerLeft = l.trainerPad.left + S(16);
+    const int trainerRight = l.trainerPad.right - S(16);
+    const int trainerChipW = S(56);
+    const int trainerGap = S(4);
+    for (int i = 0; i < 3; i++) {
+        const int x = trainerLeft + i * (trainerChipW + trainerGap);
+        l.trainerInst[i] = {x, trainerTop + S(4), x + trainerChipW,
+                            trainerTop + S(28)};
+    }
+    const int trainerStartW = S(72);
+    l.trainerStart = {trainerRight - trainerStartW, trainerTop + S(4),
+                      trainerRight, trainerTop + S(28)};
+    const int trainerNatW = S(78);
+    l.trainerNaturals = {l.trainerStart.left - S(6) - trainerNatW,
+                         trainerTop + S(4), l.trainerStart.left - S(6),
+                         trainerTop + S(28)};
+    l.trainerPrompt = {trainerLeft, trainerTop + S(64), trainerRight,
+                       trainerTop + S(150)};
+    l.trainerPlayed = {trainerLeft, trainerTop + S(158), trainerRight,
+                       trainerTop + S(180)};
+    l.trainerBar = {trainerLeft, trainerTop + S(192), trainerRight,
+                    trainerTop + S(204)};
+    l.trainerFeedback = {trainerLeft, trainerTop + S(216), trainerRight,
+                         trainerTop + S(240)};
+    const int trainerMid = (trainerLeft + trainerRight) / 2;
+    l.trainerScore = {trainerLeft, trainerTop + S(270), trainerMid,
+                      trainerTop + S(294)};
+    l.trainerStreak = {trainerMid, trainerTop + S(270), trainerRight,
+                       trainerTop + S(294)};
+    l.trainerHint = {l.trainerPad.left, trainerTop + S(396), l.trainerPad.right,
+                     trainerTop + S(414)};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3338,6 +3503,7 @@ constexpr UINT_PTR kFlashTimer = 3;
 constexpr UINT_PTR kPulseTimer = 4;
 constexpr UINT_PTR kTunerTimer = 5;
 constexpr UINT_PTR kMenuAnimTimer = 6;
+constexpr UINT_PTR kTrainerTimer = 7;
 constexpr double kOpenDurationMs = 190.0;
 constexpr double kCloseDurationMs = 140.0;
 constexpr float kSlideDistance = 14.0f;
@@ -3365,6 +3531,12 @@ void TunerSetString(int string);
 void TunerToggleString(int string);
 void TunerStepInstrument(int delta);
 void TunerStepTuning(int delta);
+void TrainerEnter();
+void TrainerHalt();
+void TrainerToggle();
+void TrainerTick();
+void TrainerResetScore();
+void TrainerSetInstrument(int instrument);
 void SetTool(int tool);
 void Repaint();
 
@@ -3802,6 +3974,8 @@ void FinishClose() {
     }
     // The microphone is only wanted while the tuner is on screen.
     TunerHalt();
+    // The trainer holds the same microphone and drives its own round timer.
+    TrainerHalt();
     if (g_dragging) {
         ReleaseCapture();
     }
@@ -3905,6 +4079,11 @@ void OpenFlyout() {
     // The tuner only listens while its panel is up.
     if (g_app.tool == kToolTuner) {
         TunerStart();
+    }
+    // The trainer holds the same microphone, so it has to wake it again after
+    // the panel was closed; the round itself still waits for Start.
+    if (g_app.tool == kToolTrainer) {
+        TrainerEnter();
     }
 }
 
@@ -7368,6 +7547,132 @@ void PaintCircle(Surface& s, const Theme& t) {
                 t.textFaint);
 }
 
+// The note trainer card: three instrument chips, a naturals toggle and a Start
+// button across the top, the big target note in the middle, the note the
+// microphone hears and a draining countdown bar, then the running score.
+void PaintTrainer(Surface& s, const Theme& t) {
+    const RECT& card = g_layout.trainerPad;
+    FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
+                  S(kCardRadius), t.card);
+    StrokeRoundRect(s, L(card.left) + 0.5f, L(card.top) + 0.5f,
+                    L(card.right) - 0.5f, L(card.bottom) - 0.5f, S(kCardRadius),
+                    S(1.0f), t.stroke);
+
+    HFONT chipFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    for (int i = 0; i < kTrainerChipCount; i++) {
+        const int inst = kTrainerChipOrder[i];
+        PaintChip(s, t, g_layout.trainerInst[i], kTrainerInstrumentLabels[inst],
+                  chipFont, g_trainer.instrument == inst,
+                  g_hover.id == kHitTrainerInst && g_hover.index == i);
+    }
+    PaintChip(s, t, g_layout.trainerNaturals, L"Naturals", chipFont,
+              g_trainer.naturals, g_hover.id == kHitTrainerNaturals);
+    const bool running = g_trainer.running;
+    PaintChip(s, t, g_layout.trainerStart, running ? L"Stop" : L"Start",
+              chipFont, running, g_hover.id == kHitTrainerStart);
+
+    // The big target note. Idle waits, a live round shows the note to find.
+    HFONT bigFont =
+        g_fonts.Get(S(static_cast<float>(kFontBpm)), kWeightSemiBold);
+    std::wstring prompt;
+    Color promptColor = t.textFaint;
+    if (running && g_trainer.target >= 0) {
+        prompt = NoteLabel(g_trainer.target);
+        promptColor = t.text;
+    } else if (running) {
+        prompt = L"...";
+    } else {
+        prompt = L"Ready";
+    }
+    g_text.Draw(s, bigFont, prompt, g_layout.trainerPrompt,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, promptColor);
+
+    // The note the microphone is hearing right now.
+    std::wstring played;
+    Color playedColor = t.textMuted;
+    if (g_trainer.micFailed) {
+        played = L"no microphone \x00B7 check Settings \x203A Privacy";
+        playedColor = t.textFaint;
+    } else if (!running) {
+        played = L"press Start, then play the note";
+    } else {
+        played = L"you played: ";
+        played += NoteLabel(g_trainer.heard);
+        playedColor = g_trainer.heard == g_trainer.target ? t.accent : t.text;
+    }
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
+                played, g_layout.trainerPlayed,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, playedColor);
+
+    // The live countdown, draining right to left over the seconds limit.
+    const RECT& bar = g_layout.trainerBar;
+    FillRoundRect(s, L(bar.left), L(bar.top), L(bar.right), L(bar.bottom),
+                  S(6.0f), t.control);
+    if (running && g_trainer.roundMs > 0.0) {
+        const float remain = Clamp01(static_cast<float>(
+            (g_trainer.noteEndsAt - NowMs()) / g_trainer.roundMs));
+        const float fill =
+            static_cast<float>(L(bar.right) - L(bar.left)) * remain;
+        if (fill > S(2.0f)) {
+            FillRoundRect(s, L(bar.left), L(bar.top), L(bar.left) + fill,
+                          L(bar.bottom), S(6.0f),
+                          remain > 0.34f ? t.accent : t.textMuted);
+        }
+    }
+
+    // The result flash, easing out over the note just hit or missed.
+    const double since = NowMs() - g_trainer.resultAt;
+    if (g_trainer.result != 0 && since < kTrainerResultFlashMs) {
+        const float fade = Clamp01(static_cast<float>(
+            1.0 - since / kTrainerResultFlashMs));
+        std::wstring feedback;
+        Color color;
+        if (g_trainer.result == 1) {
+            feedback = L"Correct  +";
+            feedback += std::to_wstring(g_trainer.lastPoints);
+            color = t.accent;
+        } else {
+            feedback = L"Miss \x00B7 it was ";
+            feedback += NoteLabel(g_trainer.target);
+            color = t.textMuted;
+        }
+        g_text.Draw(
+            s, g_fonts.Get(S(static_cast<float>(kFontTone)), kWeightSemiBold),
+            feedback, g_layout.trainerFeedback,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+            WithAlpha(color, 0.35f + 0.65f * fade));
+    }
+
+    // Score on the left, streak and accuracy on the right.
+    std::wstring score = L"Score ";
+    score += std::to_wstring(g_trainer.score);
+    g_text.Draw(s,
+                g_fonts.Get(S(static_cast<float>(kFontTone)), kWeightSemiBold),
+                score, g_layout.trainerScore,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.text);
+    const int accuracy =
+        g_trainer.total > 0
+            ? static_cast<int>(lround(100.0 * g_trainer.correct /
+                                      static_cast<double>(g_trainer.total)))
+            : 0;
+    std::wstring streak = L"Streak ";
+    streak += std::to_wstring(g_trainer.streak);
+    streak += L"  \x00B7  Best ";
+    streak += std::to_wstring(g_trainer.bestStreak);
+    streak += L"  \x00B7  ";
+    streak += std::to_wstring(accuracy);
+    streak += L"%";
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
+                streak, g_layout.trainerStreak,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+
+    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
+                L"Play the shown note \x00B7 the mic listens \x00B7 faster reads score more",
+                g_layout.trainerHint, DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                t.textFaint);
+}
+
 void PaintFooter(Surface& s, const Theme& t) {
     RECT rcFooter = g_layout.foot;
 
@@ -7418,11 +7723,19 @@ void PaintFooter(Surface& s, const Theme& t) {
             {L"D U X M R", L"stroke"},
             {L"Esc", L"close"}
         };
-    } else {
+    } else if (g_app.tool == kToolCircle) {
         items = {
             {L"Space", L"play scale"},
             {L"\x2190\x2192", L"step keys"},
             {L"1\x2013\x37", L"chord"},
+            {L"Esc", L"close"}
+        };
+    } else {
+        std::wstring spaceAction = g_trainer.running ? L"stop" : L"start";
+        items = {
+            {L"Space", spaceAction},
+            {L"R", L"reset score"},
+            {L"Tab", L"instrument"},
             {L"Esc", L"close"}
         };
     }
@@ -7472,8 +7785,10 @@ void PaintPanel(Surface& s) {
         PaintTuner(s, t);
     } else if (g_app.tool == kToolStrum) {
         PaintStrum(s, t);
-    } else {
+    } else if (g_app.tool == kToolCircle) {
         PaintCircle(s, t);
+    } else {
+        PaintTrainer(s, t);
     }
     PaintFooter(s, t);
     if (MenuVisual(g_toolMenu)) {
@@ -7755,6 +8070,27 @@ HitResult HitTest(POINT pt) {
         }
         return hit;
     }
+    if (g_app.tool == kToolTrainer) {
+        for (int i = 0; i < kTrainerChipCount; i++) {
+            if (PtInRect(&g_layout.trainerInst[i], pt)) {
+                hit.id = kHitTrainerInst;
+                hit.index = i;
+                return hit;
+            }
+        }
+        if (PtInRect(&g_layout.trainerNaturals, pt)) {
+            hit.id = kHitTrainerNaturals;
+            return hit;
+        }
+        if (PtInRect(&g_layout.trainerStart, pt)) {
+            hit.id = kHitTrainerStart;
+            return hit;
+        }
+        if (PtInRect(&g_layout.header, pt)) {
+            hit.id = kHitHeader;
+        }
+        return hit;
+    }
     for (int i = 0; i < kInstrumentCount; i++) {
         if (PtInRect(&g_layout.tabs[i], pt)) {
             hit.id = kHitTab;
@@ -7878,6 +8214,10 @@ void SetTool(int tool) {
     if (g_app.tool == kToolTuner) {
         TunerHalt();
     }
+    // The trainer borrows that same microphone and runs its own round timer.
+    if (g_app.tool == kToolTrainer) {
+        TrainerHalt();
+    }
     // And the pattern only plays while the strumming card is up.
     if (g_app.tool == kToolStrum) {
         StrumHalt();
@@ -7897,6 +8237,9 @@ void SetTool(int tool) {
     }
     if (g_app.tool == kToolTuner && g_phase == kPhaseOpen) {
         TunerStart();
+    }
+    if (g_app.tool == kToolTrainer && g_phase == kPhaseOpen) {
+        TrainerEnter();
     }
     Repaint();
 }
@@ -8421,6 +8764,179 @@ void CircleToggleMode(bool play) {
     Repaint();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Note trainer controls
+//
+// The trainer borrows the tuner's microphone: one capture thread publishes the
+// frequency it hears into g_tunerShared, and a panel timer reads it each tick
+// to decide whether the note just played is the one shown. A match held for a
+// couple of ticks scores; a bare hit plus a bonus for the time left on the
+// clock, so reading the geography fast pays best.
+
+int TrainerRandomNote() {
+    const TrainerRange& range = kTrainerRanges[g_trainer.instrument];
+    const int lo = range.minMidi;
+    const int hi = lo + range.span;
+    int midi = lo;
+    // Retry off an immediate repeat or a black note in naturals mode, but give
+    // up rather than spin if the range is too tight to satisfy both.
+    for (int guard = 0; guard < 200; guard++) {
+        midi = lo + rand() % (hi - lo + 1);
+        if (midi == g_trainer.target) {
+            continue;
+        }
+        if (!g_trainer.naturals || TrainerIsNatural(midi)) {
+            break;
+        }
+    }
+    return midi;
+}
+
+void TrainerNextNote() {
+    g_trainer.target = TrainerRandomNote();
+    g_trainer.roundMs = g_trainer.seconds * 1000.0;
+    g_trainer.noteEndsAt = NowMs() + g_trainer.roundMs;
+    g_trainer.stable = 0;
+    g_trainer.heard = -1;
+}
+
+// Opening the tool wakes the microphone; the round itself only starts on
+// demand so the drill never begins before the player is ready.
+void TrainerEnter() {
+    if (!g_trainer.seeded) {
+        srand(static_cast<unsigned>(GetTickCount64()));
+        g_trainer.seeded = true;
+    }
+    if (!g_trainer.listening) {
+        g_tunerShared.frequency.store(0.0f);
+        g_tunerShared.confidence.store(0.0f);
+        g_trainer.listening = StartTunerAudio();
+        g_trainer.micFailed = !g_trainer.listening;
+        if (!g_trainer.listening) {
+            Wh_Log(L"Note trainer: couldn't open the microphone");
+        }
+    }
+    Repaint();
+}
+
+// Leaving the tool or closing the panel: stop the round, release the mic and
+// take the tick down. Safe to call when nothing is running.
+void TrainerHalt() {
+    g_trainer.running = false;
+    if (g_trainer.listening) {
+        g_trainer.listening = false;
+        StopTunerAudio();
+    }
+    g_trainer.micFailed = false;
+    g_trainer.result = 0;
+    if (g_panel.Hwnd()) {
+        KillTimer(g_panel.Hwnd(), kTrainerTimer);
+    }
+    Repaint();
+}
+
+void TrainerResetScore() {
+    g_trainer.correct = 0;
+    g_trainer.total = 0;
+    g_trainer.score = 0;
+    g_trainer.streak = 0;
+    g_trainer.bestStreak = 0;
+    g_trainer.result = 0;
+    Repaint();
+}
+
+void TrainerStartRound() {
+    TrainerEnter();  // Make sure the mic is open before the first prompt.
+    if (g_trainer.micFailed) {
+        Repaint();  // Without input every prompt would time out, so stay idle.
+        return;
+    }
+    g_trainer.running = true;
+    g_trainer.result = 0;
+    TrainerNextNote();
+    if (g_panel.Hwnd()) {
+        SetTimer(g_panel.Hwnd(), kTrainerTimer, 60, nullptr);
+    }
+    Repaint();
+}
+
+void TrainerStopRound() {
+    g_trainer.running = false;
+    g_trainer.result = 0;
+    if (g_panel.Hwnd()) {
+        KillTimer(g_panel.Hwnd(), kTrainerTimer);
+    }
+    Repaint();
+}
+
+void TrainerToggle() {
+    if (g_trainer.running) {
+        TrainerStopRound();
+    } else {
+        TrainerStartRound();
+    }
+}
+
+void TrainerSetInstrument(int instrument) {
+    instrument = std::clamp(instrument, 0, kInstrumentCount - 1);
+    if (instrument == g_trainer.instrument) {
+        return;
+    }
+    g_trainer.instrument = instrument;
+    if (g_trainer.running) {
+        TrainerNextNote();  // The new range takes over on the next prompt.
+    }
+    Repaint();
+}
+
+// One tick of a live round: read the microphone, decide the note, and move on
+// when it is matched or the timer runs out.
+void TrainerTick() {
+    if (!g_trainer.running || g_app.tool != kToolTrainer ||
+        g_phase == kPhaseClosed) {
+        return;
+    }
+    const double now = NowMs();
+    const float raw = g_tunerShared.frequency.load();
+    int cents = 0;
+    const int heard =
+        raw > 0.0f ? NoteFromFrequency(raw, g_tuner.reference, cents) : -1;
+    g_trainer.heard = heard;
+
+    if (heard == g_trainer.target && cents >= -kTrainerCents &&
+        cents <= kTrainerCents) {
+        if (++g_trainer.stable >= kTrainerStable) {
+            const double remain = static_cast<double>(Clamp01(
+                static_cast<float>((g_trainer.noteEndsAt - now) /
+                                   g_trainer.roundMs)));
+            const int points = 100 + static_cast<int>(lround(remain * 100.0));
+            g_trainer.score += points;
+            g_trainer.lastPoints = points;
+            g_trainer.correct++;
+            g_trainer.total++;
+            g_trainer.streak++;
+            g_trainer.bestStreak =
+                std::max(g_trainer.bestStreak, g_trainer.streak);
+            g_trainer.result = 1;
+            g_trainer.resultAt = now;
+            TrainerNextNote();
+        }
+    } else {
+        g_trainer.stable = 0;
+    }
+
+    // A fresh prompt has just armed its own timer, so a hit cannot also read as
+    // this tick's timeout; only a genuinely expired clock misses here.
+    if (now >= g_trainer.noteEndsAt) {
+        g_trainer.total++;
+        g_trainer.streak = 0;
+        g_trainer.result = 2;
+        g_trainer.resultAt = now;
+        TrainerNextNote();
+    }
+    Repaint();
+}
+
 // refit is set when the whole meter changes, so a preset or a signature step
 // picks up the grouping that meter is normally felt in; the steppers leave a
 // group the player chose alone.
@@ -8545,6 +9061,13 @@ void ApplySettings() {
         g_circle.defaultsApplied = true;
         g_circle.minor = g_settings.circleMinor;
         g_circle.playOnSelect = g_settings.circlePlayOnSelect;
+    }
+    if (!g_trainer.defaultsApplied) {
+        // The trainer's time limit and note set come from the settings once,
+        // so a later pass never resets a round in progress.
+        g_trainer.defaultsApplied = true;
+        g_trainer.seconds = g_settings.trainerSeconds;
+        g_trainer.naturals = g_settings.trainerNaturals;
     }
     MetronomeSync();
     // The reference pitch follows the settings; the panel never edits it.
@@ -8939,6 +9462,19 @@ void OnMouseDown(HWND hwnd, POINT pt) {
         case kHitCircleChord:
             CirclePlayChord(hit.index);
             break;
+        case kHitTrainerInst:
+            TrainerSetInstrument(kTrainerChipOrder[hit.index]);
+            break;
+        case kHitTrainerNaturals:
+            g_trainer.naturals = !g_trainer.naturals;
+            if (g_trainer.running) {
+                TrainerNextNote();
+            }
+            Repaint();
+            break;
+        case kHitTrainerStart:
+            TrainerToggle();
+            break;
         case kHitHeader:
             g_dragging = true;
             GetCursorPos(&g_dragCursor);
@@ -9026,6 +9562,19 @@ void OnWheel(HWND hwnd, WPARAM wParam, POINT pt) {
         // The wheel walks the ring a fifth at a time, silent until you press
         // Space or click.
         CircleSelect(g_circle.key + direction, false);
+        return;
+    }
+    if (g_app.tool == kToolTrainer) {
+        // The wheel steps the instrument chips, matching the click order.
+        int step = 0;
+        for (int i = 0; i < kTrainerChipCount; i++) {
+            if (kTrainerChipOrder[i] == g_trainer.instrument) {
+                step = i;
+                break;
+            }
+        }
+        step = (step + direction + kTrainerChipCount) % kTrainerChipCount;
+        TrainerSetInstrument(kTrainerChipOrder[step]);
         return;
     }
     if (g_app.tool == kToolTuner) {
@@ -9193,6 +9742,42 @@ void OnKeyDown(WPARAM key) {
         // The number keys play the diatonic chord built on that degree.
         if (key >= '1' && key <= '7') {
             CirclePlayChord(static_cast<int>(key - '1'));
+            return;
+        }
+        return;
+    }
+    if (g_app.tool == kToolTrainer) {
+        if (key == VK_ESCAPE) {
+            CloseFlyout();
+            return;
+        }
+        if (key == VK_SPACE || key == VK_RETURN) {
+            TrainerToggle();
+            return;
+        }
+        if (key == 'R') {
+            TrainerResetScore();
+            return;
+        }
+        if (key == VK_TAB) {
+            // Tab walks the instrument chips in the order they are drawn.
+            int step = 0;
+            for (int i = 0; i < kTrainerChipCount; i++) {
+                if (kTrainerChipOrder[i] == g_trainer.instrument) {
+                    step = i;
+                    break;
+                }
+            }
+            TrainerSetInstrument(
+                kTrainerChipOrder[(step + 1) % kTrainerChipCount]);
+            return;
+        }
+        if (key == 'N') {
+            g_trainer.naturals = !g_trainer.naturals;
+            if (g_trainer.running) {
+                TrainerNextNote();
+            }
+            Repaint();
             return;
         }
         return;
@@ -9461,6 +10046,13 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                     TunerPoll();
                     TunerAnimate();
                 }
+            } else if (wParam == kTrainerTimer) {
+                if (g_phase == kPhaseClosed || g_app.tool != kToolTrainer ||
+                    !g_trainer.running) {
+                    KillTimer(hwnd, kTrainerTimer);
+                } else {
+                    TrainerTick();
+                }
             } else if (wParam == kMenuAnimTimer) {
                 if (g_phase == kPhaseClosed || !AnyMenuAnimating()) {
                     // Nothing left to roll, so stop the ticks.
@@ -9696,6 +10288,7 @@ DWORD WINAPI WorkerThreadProc(LPVOID) {
     MetronomeHalt();
     // And hand the microphone back on the way out.
     TunerHalt();
+    TrainerHalt();
     StrumHalt();
     DestroyWindows();
     UnregisterWindowClasses();
