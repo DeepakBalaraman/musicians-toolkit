@@ -16,6 +16,8 @@
 /*
 # Musician's Toolkit
 
+![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot.png)
+
 A chord library, a tuner, a metronome, a strumming trainer, a circle of
 fifths, a tap tempo and a note drill, for guitar, ukulele and piano. All of
 it lives in one small panel that stays on top of your other windows, so you
