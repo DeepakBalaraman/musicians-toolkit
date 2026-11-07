@@ -52,8 +52,8 @@ Open the tuner and let your microphone listen. A smooth needle sweeps across an 
 ## Strumming Pattern
 
 Build a strumming pattern on a one-measure grid and hear it played back with the same acoustic voice as the chord library, in lock step with the tempo.
-- **Pattern:** The list holds the patterns players actually use in that meter, grouped under the grid each one is written in - quarter notes, eighths, triplets, sixteenths. 4/4 alone offers downstrokes, steady eighths, the D D U U D U strum, the folk D DU UDU, a backbeat, the reggae skank, a triplet shuffle and two sixteenth-note patterns; the odd and compound meters list the groupings their bars are counted in, so 7/8 offers 2+2+3 and 3+2+2. Every row is drawn as the bar itself: an arrow per cell, the accent colour on the accented strokes, a faint tick where the hand rests. Picking a row also moves the **1/4 · 1/8 · Triplet · 1/16** chips to the grid that row was notated in, so a pattern always arrives with the cells it was written for. Editing a cell by hand leaves the card reading **Custom**, and **Tab** steps through the list without opening it.
-- **Grid:** Click a cell to cycle it through rest, down, up, down-muted and up-muted strokes. Shift-click adds an accent, Ctrl-click a ghost note, and Alt-click a tie (let ring). The keyboard keys **D U X M R** lay a stroke, and **A G T** toggle accent, ghost and tie.
+- **Pattern:** The list holds the patterns players actually use in that meter, grouped under the grid each one is written in - quarter notes, eighths, triplets, sixteenths. 4/4 alone offers the four downstrokes, steady eighths, the D DU D DU strum, the folk D DU UDU, the pop D D D U D U, a backbeat, the reggae skank, a muted chug, a triplet shuffle and straight sixteenths; the odd and compound meters list the groupings their bars are counted in, so 7/8 offers 2+2+3 and 3+2+2. Every row is drawn as the bar itself: an arrow per cell, the accent colour on the accented strokes, a faint dot where the hand rests, and a tick on the pattern that is loaded. Picking a row also moves the **1/4 · 1/8 · Triplet · 1/16** chips to the grid that row was notated in, so a pattern always arrives with the cells it was written for. Editing a cell by hand leaves the card reading **Custom**, and **Tab** steps through the list without opening it.
+- **Grid:** Click a cell to cycle it through rest, down, up, down-muted and up-muted strokes, or walk the bar with the arrow keys and type a single letter: **D** down, **U** up, **X** muted downstroke, **M** muted upstroke, **R** rest. The marks that ride on a stroke each have their own letter too - **A** accent, **G** ghost note, **T** tie (let ring) - and **C** clears the bar. No modifiers needed. A ghost draws brackets round its arrow, a tie bends a slur into the next cell, and the three keys are hinted along the foot of the card.
 - **Strings:** Pick Guitar or Ukulele, then fret a chord from the list or leave the strings open, so the pattern rings with the voicing you would really play.
 - **Sound:** Open strums ring out, Palm chokes them into a damped rhythm, and Muted turns every stroke into a percussive scratch. A stroke written as a mute stays a scratch whatever the sound is set to, and ghosts are quieter and partial.
 - **Meter:** Pick the time signature from the list - 4/4 common time, 3/4 waltz, 2/4 march, 5/4, 6/8, 7/8, 9/8 or 12/8 - and each row tells you what the meter is and how many patterns go with it. The **1/4 · 1/8 · Triplet · 1/16** chips set the note value one cell stands for, read against the meter's own unit, so the eighths of 6/8 are its plain grid and the chips there read 1/8, 1/16, Triplet and 1/32.
@@ -84,6 +84,7 @@ Drill instrument geography against a live countdown. A note name appears and the
 - **Tab:** Switch instruments (in the chord library, tuner, circle of fifths or note trainer).
 - **Up / Down:** Navigate search results or adjust metronome BPM.
 - **Left / Right:** Step through chord fingerings, halve/double tap tempo, or change metronome signatures.
+- **D U X M R, A G T, C:** In the strumming tool, lay the stroke on the cell under the cursor, toggle its accent, ghost note and tie, and clear the bar. All single keys, no modifiers.
 - **Esc:** Clear search, or close the panel if the search is empty.
 
 ## Settings
@@ -2516,12 +2517,14 @@ struct StrumPreset {
 // grid. Picking a row also switches the grid chips to the grid that row is
 // written in, so a pattern always arrives with the cells it was notated for.
 //
-// The patterns are the ones method books actually open with: D D U U D U, the
-// steady eighths, the folk D DU UDU, the backbeat and the reggae skank; the
-// shuffle and the all-triplet roll for the triplet grid; straight sixteenths
-// and the same sixteenths with the beat accented. A boom-chick is left out on
-// purpose: it is one hand alternating a bass note with a chord, which a single
-// voice cannot state honestly.
+// The patterns are the ones players actually reach for: the count itself, the
+// steady eighths, the two strums every method book opens with - D DU D DU and
+// the folk D DU UDU - then the pop D D D U D U, the backbeat, the reggae skank
+// and the muted funk chug; the triplet grid holds the shuffle, and straight
+// sixteenths close each meter. A stroke lands down on the beat and up on the
+// off-beat, so every row alternates the way a hand really moves. A boom-chick
+// is left out on purpose: it is one hand alternating a bass note with a chord,
+// which a single voice cannot state honestly.
 //
 // The odd and compound meters list the groupings their bars are counted in -
 // 5/4 as 3+2 or 2+3, 7/8 as 2+2+3 or 3+2+2, and 9/8 and 12/8 as three and four
@@ -2529,21 +2532,23 @@ struct StrumPreset {
 // eighth of 6/8 is already the triplet those meters are felt in and six to an
 // eighth is not a strum anyone plays.
 constexpr StrumPreset kStrumPresets[] = {
-    // 4/4 - common time, where most of the vocabulary lives.
+    // 4/4 - common time, where most of the vocabulary lives: the count, the
+    // eighth-note engine, the two strums every method book opens with, the pop
+    // strum, the backbeat, the off-beat skank and the muted chug.
     {L"Downstrokes", 4, 4, 1, L"Dddd"},
     {L"Eighths", 4, 4, 2, L"dudududu"},
-    {L"Pop", 4, 4, 2, L"d-duu-du"},
+    {L"Down-up", 4, 4, 2, L"d-dud-du"},
     {L"Folk", 4, 4, 2, L"d-du-udu"},
-    {L"Backbeat", 4, 4, 2, L"--D---D-"},
+    {L"Pop", 4, 4, 2, L"d-d-dudu"},
+    {L"Backbeat", 4, 4, 2, L"d-D-d-D-"},
     {L"Skank", 4, 4, 2, L"-u-u-u-u"},
+    {L"Chug", 4, 4, 2, L"xcxcxcxc"},
     {L"Shuffle", 4, 4, 3, L"d-ud-ud-ud-u"},
-    {L"Roll", 4, 4, 3, L"dudududududu"},
     {L"Sixteenths", 4, 4, 4, L"dudududududududu"},
-    {L"Accents", 4, 4, 4, L"DuduDuduDuduDudu"},
     // 3/4 - the waltz: the bass of the count on one, two lighter strokes after
     // it, said once a beat and then again in eighths with upstrokes between.
-    {L"Waltz", 3, 4, 1, L"Ddd"},
-    {L"Waltz with ups", 3, 4, 2, L"D-dudu"},
+    {L"Downstrokes", 3, 4, 1, L"Ddd"},
+    {L"Waltz", 3, 4, 2, L"d-dudu"},
     {L"Eighths", 3, 4, 2, L"dududu"},
     {L"Shuffle", 3, 4, 3, L"d-ud-ud-u"},
     {L"Sixteenths", 3, 4, 4, L"dudududududu"},
@@ -2625,8 +2630,6 @@ constexpr int StrumPatternRowsMax() {
     }
     return best;
 }
-
-constexpr int kStrumPatternRowsMax = StrumPatternRowsMax();
 
 // The four grids a pattern can be written in, in the order the list reads them.
 constexpr int kStrumGridCount = 4;
@@ -3486,8 +3489,12 @@ void ComputeLayout() {
                               rowTop + meterRowHeight};
     }
 
+    // The transport is one run: a wide bar that starts and stops the pattern,
+    // carrying the play glyph on its centre line, then the tempo stepper. The
+    // bar takes the room a word would have needed, so the row reads as one
+    // control instead of a small chip beside a hole.
     const int strumTransportY = strumTop + S(212);
-    l.strumPlay = {strumLeft, strumTransportY, strumLeft + S(120),
+    l.strumPlay = {strumLeft, strumTransportY, strumRight - S(128),
                    strumTransportY + S(38)};
     l.strumTempoDown = {strumRight - S(120), strumTransportY,
                         strumRight - S(88), strumTransportY + S(38)};
@@ -7467,6 +7474,87 @@ void PaintStrumSelect(Surface& s,
                open ? t.accent : t.textMuted);
 }
 
+// The keycaps live with the footer further down; the card's hint line paints
+// its keys with that same chrome, so a shortcut reads the same wherever it is
+// written.
+void PaintKeycap(Surface& s,
+                 const Theme& t,
+                 HFONT font,
+                 const std::wstring& key,
+                 const RECT& box);
+
+// One piece of a hint line: a key in its cap, a run of plain words, or both -
+// the key then what it does. A token with no key is just words, and a token
+// with no text is a bare cap.
+struct HintToken {
+    PCWSTR key;
+    PCWSTR text;
+};
+
+// A centred hint made of keycaps and words. The caps are measured with the
+// words beside them and the whole line is laid out from its own width, so the
+// dot separators always sit square between the pairs.
+void PaintHintRow(Surface& s,
+                  const Theme& t,
+                  const RECT& row,
+                  const HintToken* tokens,
+                  int count) {
+    HFONT keyFont =
+        g_fonts.Get(S(static_cast<float>(kFontFoot)), kWeightSemiBold);
+    HFONT textFont = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    const int capPad = S(5);
+    const int capGap = S(4);
+    const int dotPad = S(7);
+    const int dotWidth = g_text.Measure(textFont, L"\x00B7").cx;
+
+    // The keys are measured first, so the line can be centred as one run.
+    int total = 0;
+    for (int i = 0; i < count; i++) {
+        if (i > 0) {
+            total += dotWidth + dotPad * 2;
+        }
+        if (tokens[i].key) {
+            total += g_text.Measure(keyFont, tokens[i].key).cx + capPad * 2;
+            if (tokens[i].text) {
+                total += capGap;
+            }
+        }
+        if (tokens[i].text) {
+            total += g_text.Measure(textFont, tokens[i].text).cx;
+        }
+    }
+
+    const int capHeight = S(15);
+    const int centerY = (row.top + row.bottom) / 2;
+    int x = row.left + (static_cast<int>(row.right - row.left) - total) / 2;
+    for (int i = 0; i < count; i++) {
+        if (i > 0) {
+            const RECT dot{x, row.top, x + dotWidth + dotPad * 2, row.bottom};
+            g_text.Draw(s, textFont, L"\x00B7", dot,
+                        DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+            x += dotWidth + dotPad * 2;
+        }
+        if (tokens[i].key) {
+            const int width =
+                g_text.Measure(keyFont, tokens[i].key).cx + capPad * 2;
+            const int capTop = centerY - capHeight / 2;
+            const RECT cap{x, capTop, x + width, capTop + capHeight};
+            PaintKeycap(s, t, keyFont, std::wstring(tokens[i].key), cap);
+            x += width;
+            if (tokens[i].text) {
+                x += capGap;
+            }
+        }
+        if (tokens[i].text) {
+            const int width = g_text.Measure(textFont, tokens[i].text).cx;
+            const RECT label{x, row.top, x + width + S(2), row.bottom};
+            g_text.Draw(s, textFont, tokens[i].text, label,
+                        DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+            x += width;
+        }
+    }
+}
+
 // The strumming card: the pattern select, the pattern grid with a moving
 // playhead, a meter and density row, the transport with a tempo stepper, the
 // rows that pick the voice and the practice switches, then a hint line.
@@ -7528,6 +7616,20 @@ void PaintStrum(Surface& s, const Theme& t) {
         g_fonts.Get(S(static_cast<float>(glyphPx)), kWeightSemiBold);
     HFONT markFont = g_fonts.Get(S(static_cast<float>(glyphPx)) * 0.6f,
                                  kWeightSemiBold);
+    // Brackets either side of a point, the way a ghost note is written on a
+    // staff. The arms are short, so the mark stays inside its cell however
+    // tight the grid gets.
+    const auto paintGhost = [&](float gx, float gy, float arm, float half,
+                                float elbow, Color ink) {
+        StrokeLine(s, {gx - arm, gy - half}, {gx - arm - elbow, gy}, S(1.2f),
+                   ink);
+        StrokeLine(s, {gx - arm - elbow, gy}, {gx - arm, gy + half}, S(1.2f),
+                   ink);
+        StrokeLine(s, {gx + arm, gy - half}, {gx + arm + elbow, gy}, S(1.2f),
+                   ink);
+        StrokeLine(s, {gx + arm + elbow, gy}, {gx + arm, gy + half}, S(1.2f),
+                   ink);
+    };
     float previousCenter = 0.0f;
     bool havePrevious = false;
     for (int i = 0; i < cells; i++) {
@@ -7547,28 +7649,35 @@ void PaintStrum(Surface& s, const Theme& t) {
                             S(7.0f), S(1.4f), WithAlpha(t.accent, 0.55f));
         }
 
-        // A tie lets the previous stroke ring, so no new glyph is drawn and a
-        // slur is bent from the last struck cell into this one.
+        // A tie lets the previous stroke ring, so no new arrow is drawn and a
+        // slur is bent from the last struck cell into this one. The chain keeps
+        // its start, so a run of tied cells reads as one bend, and a tie with
+        // nothing behind it starts inside its own cell rather than vanishing.
         if (g_strum.tie[i]) {
-            if (havePrevious) {
-                const float y = L(cell.bottom) - S(9.0f);
-                const float apex = y - S(11.0f);
-                Vec2 a{previousCenter, y};
-                Vec2 b{cx, y};
-                Vec2 prev = a;
-                for (int k = 1; k <= 8; k++) {
-                    const float u = k / 8.0f;
-                    const float mx =
-                        (1 - u) * (1 - u) * a.x + 2 * (1 - u) * u *
-                            ((a.x + b.x) * 0.5f) +
-                        u * u * b.x;
-                    const float my =
-                        (1 - u) * (1 - u) * a.y + 2 * (1 - u) * u * apex +
-                        u * u * b.y;
-                    StrokeLine(s, prev, {mx, my}, S(1.3f), t.textMuted);
-                    prev = {mx, my};
-                }
+            const float y = L(cell.bottom) - S(9.0f);
+            const float apex = y - S(11.0f);
+            const float span = L(cell.right - cell.left);
+            const float from =
+                havePrevious ? previousCenter
+                             : cx - std::min(L(S(7)), span * 0.3f);
+            Vec2 a{from, y};
+            Vec2 b{cx, y};
+            Vec2 prev = a;
+            for (int k = 1; k <= 8; k++) {
+                const float u = k / 8.0f;
+                const float mx =
+                    (1 - u) * (1 - u) * a.x + 2 * (1 - u) * u *
+                        ((a.x + b.x) * 0.5f) +
+                    u * u * b.x;
+                const float my =
+                    (1 - u) * (1 - u) * a.y + 2 * (1 - u) * u * apex +
+                    u * u * b.y;
+                StrokeLine(s, prev, {mx, my}, S(1.4f),
+                           WithAlpha(t.text, 0.55f));
+                prev = {mx, my};
             }
+            previousCenter = cx;
+            havePrevious = true;
         } else if (sounded) {
             const bool up = stroke == kStrokeUp || stroke == kStrokeUpMute;
             const bool mute =
@@ -7576,7 +7685,9 @@ void PaintStrum(Surface& s, const Theme& t) {
             Color color =
                 g_strum.accent[i] ? t.accent : (mute ? t.textMuted : t.text);
             if (g_strum.ghost[i]) {
-                color = WithAlpha(color, 0.42f);
+                // A ghost is barely played, so it is drawn faint and inside
+                // brackets: the mark is on the cell, not only in the ink.
+                color = WithAlpha(color, 0.45f);
             }
             const std::wstring glyph =
                 up ? std::wstring(L"\x2191") : std::wstring(L"\x2193");
@@ -7593,9 +7704,24 @@ void PaintStrum(Surface& s, const Theme& t) {
                 g_text.Draw(s, markFont, L">", caret,
                             DT_CENTER | DT_TOP | DT_SINGLELINE, t.accent);
             }
+            if (g_strum.ghost[i]) {
+                const float span = L(cell.right - cell.left);
+                const float arm = std::clamp(span * 0.34f, L(S(5)), L(S(9)));
+                paintGhost(cx, cy, arm, S(7.0f), S(2.0f), color);
+            }
             previousCenter = cx;
             havePrevious = true;
         } else {
+            // An empty cell is a rest, marked with the same faint dot the
+            // pattern rows use so the grid and the list read alike.
+            FillCircle(s, cx, cy, S(1.6f), t.textFaint);
+            // A rest still answers the ghost key: the brackets are drawn on an
+            // empty cell too, so pressing G always shows something.
+            if (g_strum.ghost[i]) {
+                const float span = L(cell.right - cell.left);
+                const float arm = std::clamp(span * 0.24f, L(S(4)), L(S(8)));
+                paintGhost(cx, cy, arm, S(5.0f), S(1.6f), t.textFaint);
+            }
             havePrevious = false;
         }
 
@@ -7623,7 +7749,9 @@ void PaintStrum(Surface& s, const Theme& t) {
                   fits);
     }
 
-    // Transport: a play button on the left, a tempo stepper on the right.
+    // Transport: one wide bar that starts and stops the bar, then a tempo
+    // stepper. The bar is filled while idle and outlined while it runs, so the
+    // glyph is the only thing that has to change when the state does.
     const bool playHot = g_hover.id == kHitStrumPlay;
     const RECT& play = g_layout.strumPlay;
     if (running) {
@@ -7638,9 +7766,12 @@ void PaintStrum(Surface& s, const Theme& t) {
                       L(play.bottom), S(9.0f),
                       WithAlpha(t.accent, playHot ? 1.0f : 0.93f));
     }
-    g_text.Draw(s, chipFont, running ? L"Stop" : L"Play", play,
-                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
-                running ? t.text : t.onAccent);
+    // A Fluent transport glyph rather than a word: the triangle while the
+    // pattern is waiting, the filled square while it runs.
+    PaintGlyph(s, L(play.left + play.right) * 0.5f,
+               L(play.top + play.bottom) * 0.5f,
+               running ? L'\xE71A' : L'\xE768', S(18.0f),
+               running ? t.text : t.onAccent);
 
     PaintChip(s, t, g_layout.strumTempoDown, L"\x2212", chipFont, false,
               g_hover.id == kHitStrumTempoDown);
@@ -7684,23 +7815,35 @@ void PaintStrum(Surface& s, const Theme& t) {
                   g_hover.id == kHitStrumChip && g_hover.index == i);
     }
 
-    std::wstring hint;
-    if (countingIn) {
-        hint = L"Count in \x00B7 get ready";
-    } else if (running) {
-        hint = L"Space stops";
-        if (g_strum.practice) {
-            hint += L" \x00B7 ramp to ";
-            hint += std::to_wstring(g_strum.targetBpm);
-            hint += L" bpm";
+    if (countingIn || running) {
+        std::wstring hint;
+        if (countingIn) {
+            hint = L"Count in \x00B7 get ready";
+        } else {
+            hint = L"Space stops";
+            if (g_strum.practice) {
+                hint += L" \x00B7 ramp to ";
+                hint += std::to_wstring(g_strum.targetBpm);
+                hint += L" bpm";
+            }
         }
+        g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)),
+                                   FW_NORMAL),
+                    hint, g_layout.strumHint,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
     } else {
-        hint = L"Click a cell \x00B7 Shift accent \x00B7 Ctrl ghost \x00B7 "
-               L"Alt tie";
+        // Idle: the marks that ride on a stroke, each on the key that sets it,
+        // drawn as caps so the letters read as keys and not as prose.
+        static const HintToken kIdleHint[] = {
+            {nullptr, L"Click a cell"},
+            {L"A", L"accent"},
+            {L"G", L"ghost"},
+            {L"T", L"tie"},
+        };
+        PaintHintRow(s, t, g_layout.strumHint, kIdleHint,
+                     static_cast<int>(sizeof(kIdleHint) /
+                                      sizeof(kIdleHint[0])));
     }
-    g_text.Draw(s, g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL),
-                hint, g_layout.strumHint,
-                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
 }
 
 // The chord list the strum select opens, two columns of five drawn last so it
@@ -7790,7 +7933,10 @@ void PaintStrumPatternMenu(Surface& s, const Theme& t) {
     RECT full = g_layout.strumPatternMenu;
     full.bottom = full.top + S(8) + count * rowHeight;
     const RECT reveal = PaintListShell(s, t, full, g_patternMenu.progress);
-    HFONT nameFont = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    HFONT nameFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    HFONT headFont =
+        g_fonts.Get(S(static_cast<float>(kFontFoot)), kWeightSemiBold);
     const float front = L(reveal.top);
     const float travel = std::max(1.0f, static_cast<float>(S(20.0f)));
     for (int i = 0; i < count; i++) {
@@ -7807,16 +7953,23 @@ void PaintStrumPatternMenu(Surface& s, const Theme& t) {
         const StrumEntry& entry = entries[i];
         if (entry.kind == kStrumEntryHeading) {
             // A heading names the grid the lines under it are written in. It
-            // is a label rather than a choice, so it takes no wash.
+            // is a label rather than a choice, so it takes no wash, and a
+            // hairline under it ties the rows below to it.
             std::wstring text = StrumGridLabel(entry.preset, g_strum.unit);
             text += L"  \x00B7  ";
             text += StrumGridNote(entry.preset);
             Color ink = t.textMuted;
-            ink.a *= alpha * 0.85f;
-            RECT label = {row.left + S(12), static_cast<long>(top),
-                          row.right - S(12), static_cast<long>(bottom)};
-            g_text.Draw(s, nameFont, text.c_str(), label,
-                        DT_LEFT | DT_VCENTER | DT_SINGLELINE, ink);
+            ink.a *= alpha * 0.9f;
+            RECT label = {row.left + S(10), static_cast<long>(top),
+                          row.right - S(26), static_cast<long>(bottom)};
+            g_text.Draw(s, headFont, text.c_str(), label,
+                        DT_LEFT | DT_VCENTER | DT_SINGLELINE |
+                            DT_END_ELLIPSIS,
+                        ink);
+            Color rule = t.grid;
+            rule.a *= alpha * 0.7f;
+            StrokeLine(s, {L(row.left) + S(10), bottom - S(1)},
+                       {L(row.right) - S(26), bottom - S(1)}, S(1.0f), rule);
             continue;
         }
         const bool active = g_strum.preset == entry.preset;
@@ -7831,16 +7984,24 @@ void PaintStrumPatternMenu(Surface& s, const Theme& t) {
                           wash);
         }
         const StrumPreset& p = kStrumPresets[entry.preset];
-        RECT strip = {row.left + S(104), static_cast<long>(top),
-                      row.right - S(12), static_cast<long>(bottom)};
+        // The bar keeps the bulk of the row; the name and the tick that marks
+        // the loaded pattern take the two ends of it.
+        RECT strip = {row.left + S(110), static_cast<long>(top),
+                      row.right - S(26), static_cast<long>(bottom)};
         PaintStrumStrip(s, t, p, strip, alpha);
-        RECT name = {row.left + S(12), static_cast<long>(top),
-                     row.left + S(100), static_cast<long>(bottom)};
+        RECT name = {row.left + S(10), static_cast<long>(top),
+                     row.left + S(106), static_cast<long>(bottom)};
         Color ink = active ? t.text : t.textMuted;
         ink.a *= alpha;
         g_text.Draw(s, nameFont, p.name, name,
                     DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
                     ink);
+        if (active) {
+            Color mark = t.accent;
+            mark.a *= alpha;
+            PaintGlyph(s, L(row.right) - S(13), (top + bottom) * 0.5f,
+                       L'\xE73E', S(11.0f), mark);
+        }
     }
 }
 
@@ -10766,27 +10927,13 @@ void OnMouseDown(HWND hwnd, POINT pt) {
             Repaint();
             break;
         case kHitStrumSlot: {
-            // A plain click cycles the cell through the five strokes; the
-            // modifiers reach the three that live beside every stroke.
+            // A click picks the cell and steps it along the five strokes. The
+            // marks that ride on a stroke are keyboard work, on single letters
+            // that need no modifier: a accent, g ghost, t tie.
             const int slot = hit.index;
-            g_strum.slotCursor = slot;
             if (slot >= 0 && slot < StrumSlotCount()) {
-                const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-                const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-                const bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
-                if (shift) {
-                    g_strum.accent[slot] = !g_strum.accent[slot];
-                } else if (ctrl) {
-                    g_strum.ghost[slot] = !g_strum.ghost[slot];
-                } else if (alt) {
-                    g_strum.tie[slot] = !g_strum.tie[slot];
-                } else {
-                    StrumCycleSlot(slot);
-                }
-                if (shift || ctrl || alt) {
-                    g_strum.preset = -1;
-                    StrumSync();
-                }
+                g_strum.slotCursor = slot;
+                StrumEditSlot(slot);
                 Repaint();
             }
             break;
