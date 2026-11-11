@@ -1,8 +1,8 @@
 // ==WindhawkMod==
 // @id              musicians-toolkit
 // @name            Musician's Toolkit
-// @description     An all-in-one toolkit flyout for musicians, containing a chord library, a metronome, a tuner, a tap tempo calculator, a strumming pattern builder, an interactive circle of fifths and a timed note trainer for guitar, ukulele and piano.
-// @version         1.0.0
+// @description     An all-in-one toolkit flyout for musicians, containing a chord library, a song analyzer, a metronome, a tuner, a tap tempo calculator, a strumming pattern builder, an interactive circle of fifths and a timed note trainer for guitar, ukulele and piano.
+// @version         1.1.0
 // @author          DpakB
 // @homepage        https://dpakb.com
 // @github          https://github.com/DeepakBalaraman
@@ -10,19 +10,20 @@
 // @donateUrl       https://buymeacoffee.com/dpakb
 // @license         MIT
 // @include         windhawk.exe
-// @compilerOptions -luser32 -lgdi32 -lshell32 -ladvapi32 -lole32 -lwinmm
+// @compilerOptions -luser32 -lgdi32 -lshell32 -ladvapi32 -lole32 -lwinmm -lwinhttp -luuid
 // ==/WindhawkMod==
 
 // ==WindhawkModReadme==
 /*
+
 # Musician's Toolkit
 
 ![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot.png)
 
-A chord library, a tuner, a metronome, a strumming trainer, a circle of
-fifths, a tap tempo and a note drill, for guitar, ukulele and piano. All of
-it lives in one small panel that stays on top of your other windows, so you
-can keep it beside your DAW, tab app or video lesson.
+A chord library, a song analyzer, a tuner, a metronome, a strumming trainer, a
+circle of fifths, a tap tempo and a note drill, for guitar, ukulele and piano.
+All of it lives in one small panel that stays on top of your other windows, so
+you can keep it beside your DAW, tab app or video lesson.
 
 Press **Win+Y** to open it and pick a tool from the menu in the top left.
 **Ctrl+Tab** cycles through them. Close it with the **x**, with **Esc**, or
@@ -42,6 +43,28 @@ letter, and the one you settle on is drawn underneath.
   through the other ways to play the same chord.
 - **Hear it** - the speaker on the card plays the chord, strummed on an
   acoustic guitar or played on a piano.
+
+## Song Analyzer
+
+Paste a link to a song or a video, or pick a file, and the panel has it
+transcribed: the chords bar by bar, the key, the tempo, the meter and the
+length of the piece.
+
+- **Link or file** - paste a URL and press **Space** (or click **Analyze**),
+  or press **Ctrl+O** and pick an audio or video file from disk.
+- **Chart** - one cell per bar, with the measure number and the chord being
+  played. The scroll wheel or the **arrow keys** walk a long chart.
+- **Progress** - the bar under the chart shows the run as it goes, step by
+  step, and the line beneath it names what is happening. **Space** cancels a
+  run that is taking too long.
+- **Acappella** - for a solo vocal recording, which is measured differently.
+- **Export** - PDF, MIDI, MusicXML, text, CSV or JSON. The file lands in
+  `Downloads\MusiciansToolkit` (or the folder set under Settings > Analyzer)
+  and opens straight away.
+- **Online** - the audio is sent to [magic-chords.dev](https://magic-chords.dev)
+  to be analyzed, so this tool needs an internet connection. The free service
+  takes 12 runs an hour; a run keeps going if you close the panel and is still
+  there when you come back.
 
 ## Tap Tempo
 
@@ -160,6 +183,7 @@ listens and you play it before the clock runs out.
   change the metronome's meter.
 - **D U X M R, A G T, C** - lay strokes in the strumming grid, add accents,
   ghosts and ties, clear the bar.
+- **Ctrl+O** - pick a song or video file for the analyzer.
 - **Esc** - clear the search, or close the panel when the search is empty.
 
 ## Settings
@@ -172,6 +196,8 @@ listens and you play it before the clock runs out.
 - **Shortcut** - the key and modifiers that open the panel.
 - **Metronome** - volume, background playback, default meter and subdivision.
 - **Chords** - hide the finger numbers.
+- **Analyzer** - the API address, acappella mode, and where exports are
+  saved.
 - **Tap tempo** - how long a pause resets the taps, and whether Space or
   Enter count as taps.
 - **Tuner** - reference pitch.
@@ -180,8 +206,14 @@ listens and you play it before the clock runs out.
   its scale.
 - **Note trainer** - seconds per note, chromatic or naturals.
 
-The chord library comes from [chords-db](https://github.com/tombatossals/chords-db)
+## GitHub Repo
+The source code of this mod can be found in this ![GitHub Repo](https://github.com/DeepakBalaraman/musicians-toolkit).
+
+## Credits
+
+- The chord library comes from [chords-db](https://github.com/tombatossals/chords-db)
 by David Rubert (MIT). It is packed into the mod, so there is nothing to
+- Song analyzer is powered by [Magic Chords Public API](https://magic-chords.dev/api)
 download and no internet connection needed.
 */
 // ==/WindhawkModReadme==
@@ -194,6 +226,7 @@ download and no internet connection needed.
     $description: "The tool the panel opens on when you press Win+Y."
     $options:
       - chords: Chords
+      - analyzer: Song analyzer
       - tempo: Tap tempo
       - metronome: Metronome
       - tuner: Tuner
@@ -385,6 +418,16 @@ download and no internet connection needed.
     $options:
       - chromatic: Chromatic
       - naturals: Naturals only
+- Analyzer:
+  - BaseUrl: https://magic-chords.dev
+    $name: API base URL
+    $description: "Where the Magic Chords API lives, for a self-hosted instance."
+  - Acappella: false
+    $name: Acappella mode
+    $description: "Send acappella mode, for solo vocal recordings."
+  - ExportFolder: ""
+    $name: Export folder
+    $description: "Where exports are saved. Leave empty for Downloads\\MusiciansToolkit."
 */
 // ==/WindhawkModSettings==
 
@@ -395,6 +438,9 @@ download and no internet connection needed.
 
 #include <mmreg.h>
 #include <mmsystem.h>
+#include <shellapi.h>
+#include <shobjidl.h>
+#include <winhttp.h>
 
 #include <algorithm>
 #include <atomic>
@@ -2073,6 +2119,320 @@ int TunerNearestString(int midi) {
     return best > 1 ? -1 : nearest;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// JSON
+//
+// The Magic Chords API documents its request bodies but leaves every response
+// schema empty, so the replies are read with this small parser instead of being
+// trusted. UTF-8 arrives from WinHTTP and is widened once; malformed input just
+// returns false, because this runs inside windhawk.exe where an exception would
+// take the process down.
+
+struct JsonValue {
+    enum Type { Null, Bool, Number, String, Array, Object };
+    Type type = Null;
+    bool boolean = false;
+    double number = 0.0;
+    std::wstring text;
+    std::vector<JsonValue> items;
+    std::vector<std::pair<std::wstring, JsonValue>> members;
+
+    const JsonValue* Find(PCWSTR key) const {
+        if (type != Object) {
+            return nullptr;
+        }
+        for (const auto& member : members) {
+            if (member.first == key) {
+                return &member.second;
+            }
+        }
+        return nullptr;
+    }
+    std::wstring Str(PCWSTR key) const {
+        const JsonValue* value = Find(key);
+        return value && value->type == String ? value->text : std::wstring();
+    }
+    double Num(PCWSTR key, double fallback = 0.0) const {
+        const JsonValue* value = Find(key);
+        return value && value->type == Number ? value->number : fallback;
+    }
+    const JsonValue* At(size_t index) const {
+        return type == Array && index < items.size() ? &items[index] : nullptr;
+    }
+    size_t Size() const { return type == Array ? items.size() : 0; }
+};
+
+class JsonReader {
+  public:
+    JsonReader(const wchar_t* text, size_t length)
+        : cursor_(text), end_(text + length) {}
+
+    bool Parse(JsonValue& out) {
+        Skip();
+        if (!Value(out, 0)) {
+            return false;
+        }
+        Skip();
+        return cursor_ == end_;
+    }
+
+  private:
+    void Skip() {
+        while (cursor_ < end_ && iswspace(*cursor_)) {
+            cursor_++;
+        }
+    }
+
+    bool Eat(wchar_t c) {
+        Skip();
+        if (cursor_ < end_ && *cursor_ == c) {
+            cursor_++;
+            return true;
+        }
+        return false;
+    }
+
+    bool Peek(wchar_t c) {
+        Skip();
+        return cursor_ < end_ && *cursor_ == c;
+    }
+
+    bool Word(PCWSTR word) {
+        const size_t length = wcslen(word);
+        if (static_cast<size_t>(end_ - cursor_) < length ||
+            wcsncmp(cursor_, word, length) != 0) {
+            return false;
+        }
+        cursor_ += length;
+        return true;
+    }
+
+    bool Value(JsonValue& out, int depth) {
+        if (depth > 64) {
+            return false;
+        }
+        Skip();
+        if (cursor_ >= end_) {
+            return false;
+        }
+        switch (*cursor_) {
+            case L'{':
+                return Object(out, depth);
+            case L'[':
+                return Array(out, depth);
+            case L'"':
+                out.type = JsonValue::String;
+                return String(out.text);
+            case L't':
+                out.type = JsonValue::Bool;
+                out.boolean = true;
+                return Word(L"true");
+            case L'f':
+                out.type = JsonValue::Bool;
+                out.boolean = false;
+                return Word(L"false");
+            case L'n':
+                out.type = JsonValue::Null;
+                return Word(L"null");
+            default:
+                return Number(out);
+        }
+    }
+
+    bool Number(JsonValue& out) {
+        const wchar_t* start = cursor_;
+        if (cursor_ < end_ && *cursor_ == L'-') {
+            cursor_++;
+        }
+        while (cursor_ < end_ && iswdigit(*cursor_)) {
+            cursor_++;
+        }
+        if (cursor_ < end_ && *cursor_ == L'.') {
+            cursor_++;
+            while (cursor_ < end_ && iswdigit(*cursor_)) {
+                cursor_++;
+            }
+        }
+        if (cursor_ < end_ && (*cursor_ == L'e' || *cursor_ == L'E')) {
+            cursor_++;
+            if (cursor_ < end_ && (*cursor_ == L'+' || *cursor_ == L'-')) {
+                cursor_++;
+            }
+            while (cursor_ < end_ && iswdigit(*cursor_)) {
+                cursor_++;
+            }
+        }
+        if (cursor_ == start) {
+            return false;
+        }
+        const std::wstring token(start, cursor_);
+        out.type = JsonValue::Number;
+        out.number = wcstod(token.c_str(), nullptr);
+        return true;
+    }
+
+    bool Hex4(unsigned& value) {
+        if (end_ - cursor_ < 4) {
+            return false;
+        }
+        value = 0;
+        for (int i = 0; i < 4; i++) {
+            const wchar_t c = cursor_[i];
+            int digit = -1;
+            if (c >= L'0' && c <= L'9') {
+                digit = c - L'0';
+            } else if (c >= L'a' && c <= L'f') {
+                digit = c - L'a' + 10;
+            } else if (c >= L'A' && c <= L'F') {
+                digit = c - L'A' + 10;
+            }
+            if (digit < 0) {
+                return false;
+            }
+            value = (value << 4) | static_cast<unsigned>(digit);
+        }
+        cursor_ += 4;
+        return true;
+    }
+
+    bool String(std::wstring& out) {
+        if (!Eat(L'"')) {
+            return false;
+        }
+        out.clear();
+        while (cursor_ < end_) {
+            const wchar_t c = *cursor_++;
+            if (c == L'"') {
+                return true;
+            }
+            if (c != L'\\') {
+                out += c;
+                continue;
+            }
+            if (cursor_ >= end_) {
+                return false;
+            }
+            const wchar_t escaped = *cursor_++;
+            switch (escaped) {
+                case L'"':
+                case L'\\':
+                case L'/':
+                    out += escaped;
+                    break;
+                case L'b':
+                    out += L'\b';
+                    break;
+                case L'f':
+                    out += L'\f';
+                    break;
+                case L'n':
+                    out += L'\n';
+                    break;
+                case L'r':
+                    out += L'\r';
+                    break;
+                case L't':
+                    out += L'\t';
+                    break;
+                case L'u': {
+                    unsigned code = 0;
+                    if (!Hex4(code)) {
+                        return false;
+                    }
+                    if (code >= 0xD800 && code <= 0xDBFF &&
+                        end_ - cursor_ >= 6 && cursor_[0] == L'\\' &&
+                        cursor_[1] == L'u') {
+                        const wchar_t* save = cursor_;
+                        cursor_ += 2;
+                        unsigned low = 0;
+                        if (Hex4(low) && low >= 0xDC00 && low <= 0xDFFF) {
+                            code = 0x10000 + ((code - 0xD800) << 10) +
+                                   (low - 0xDC00);
+                        } else {
+                            cursor_ = save;
+                        }
+                    }
+                    if (code >= 0x10000) {
+                        code -= 0x10000;
+                        out += static_cast<wchar_t>(0xD800 + (code >> 10));
+                        out += static_cast<wchar_t>(0xDC00 + (code & 0x3FF));
+                    } else {
+                        out += static_cast<wchar_t>(code);
+                    }
+                    break;
+                }
+                default:
+                    return false;
+            }
+        }
+        return false;
+    }
+
+    bool Array(JsonValue& out, int depth) {
+        if (!Eat(L'[')) {
+            return false;
+        }
+        out.type = JsonValue::Array;
+        if (Eat(L']')) {
+            return true;
+        }
+        for (;;) {
+            out.items.emplace_back();
+            if (!Value(out.items.back(), depth + 1)) {
+                return false;
+            }
+            if (Eat(L',')) {
+                continue;
+            }
+            return Eat(L']');
+        }
+    }
+
+    bool Object(JsonValue& out, int depth) {
+        if (!Eat(L'{')) {
+            return false;
+        }
+        out.type = JsonValue::Object;
+        if (Eat(L'}')) {
+            return true;
+        }
+        for (;;) {
+            std::wstring key;
+            if (!String(key) || !Eat(L':')) {
+                return false;
+            }
+            out.members.emplace_back(std::move(key), JsonValue());
+            if (!Value(out.members.back().second, depth + 1)) {
+                return false;
+            }
+            if (Eat(L',')) {
+                continue;
+            }
+            return Eat(L'}');
+        }
+    }
+
+    const wchar_t* cursor_;
+    const wchar_t* end_;
+};
+
+bool JsonParse(const std::string& utf8, JsonValue& out) {
+    out = JsonValue();
+    if (utf8.empty()) {
+        return false;
+    }
+    const int length = MultiByteToWideChar(
+        CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.size()), nullptr, 0);
+    if (length <= 0) {
+        return false;
+    }
+    std::wstring wide(static_cast<size_t>(length), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.size()),
+                        &wide[0], length);
+    JsonReader reader(wide.c_str(), wide.size());
+    return reader.Parse(out);
+}
+
 struct Settings {
     int theme = kThemeAuto;
     std::wstring accentChoice = L"accent";
@@ -2085,8 +2445,8 @@ struct Settings {
     // Off by default, so the panel stays up while you play. The x button and
     // the shortcut close it; only turn this on for the old click-away habit.
     bool closeOnFocusLoss = false;
-    // The order matches the Tool enum: chords, tempo, metronome, tuner,
-    // strumming, circle of fifths.
+    // The order matches the Tool enum: chords, analyzer, tempo, metronome,
+    // tuner, strumming, circle of fifths, note trainer.
     int defaultTool = 0;
     bool showFingerings = false;
     int defaultInstrument = 0;
@@ -2108,6 +2468,12 @@ struct Settings {
     bool circlePlayOnSelect = true;
     int trainerSeconds = 5;  // Time allowed per note.
     bool trainerNaturals = false;
+    // The song analyzer talks to the Magic Chords API. The base URL is a
+    // setting so a self-hosted instance works too; the folder is where the
+    // exported PDF, MIDI, MusicXML and text files land.
+    std::wstring analyzerBaseUrl = L"https://magic-chords.dev";
+    bool analyzerAcappella = false;
+    std::wstring analyzerExportFolder;
     // The toggle shortcut. Win+Y is the default, but any key with any mix of
     // modifiers can be set in the options.
     WORD hotkeyVk = 'Y';
@@ -2222,13 +2588,14 @@ bool ParseHotkeyKey(const std::wstring& raw, WORD& vk, std::wstring& label) {
 Settings LoadSettings() {
     Settings s;
     const std::wstring startTool = GetStringSetting(L"Startup.DefaultTool");
-    s.defaultTool = startTool == L"tempo"   ? 1
-                    : startTool == L"metronome" ? 2
-                    : startTool == L"tuner"     ? 3
-                    : startTool == L"strum"     ? 4
-                    : startTool == L"circle"    ? 5
-                    : startTool == L"trainer"   ? 6
-                                                : 0;
+    s.defaultTool = startTool == L"analyzer"  ? 1
+                    : startTool == L"tempo"   ? 2
+                    : startTool == L"metronome" ? 3
+                    : startTool == L"tuner"   ? 4
+                    : startTool == L"strum"   ? 5
+                    : startTool == L"circle"  ? 6
+                    : startTool == L"trainer" ? 7
+                                              : 0;
     const std::wstring theme = GetStringSetting(L"Appearance.Theme");
     s.theme = theme == L"light" ? kThemeLight
               : theme == L"dark" ? kThemeDark
@@ -2353,6 +2720,21 @@ Settings LoadSettings() {
         std::clamp(trainerSeconds == 0 ? 5 : trainerSeconds, 2, 20);
     const std::wstring trainerNoteSet = GetStringSetting(L"NoteTrainer.NoteSet");
     s.trainerNaturals = trainerNoteSet == L"naturals";
+
+    // The analyzer. A settings file written before this tool has none of these,
+    // so the base URL falls back to the public service and the folder to empty,
+    // which means Downloads\MusiciansToolkit when an export runs.
+    const std::wstring analyzerBase = GetStringSetting(L"Analyzer.BaseUrl");
+    s.analyzerBaseUrl =
+        analyzerBase.empty() ? L"https://magic-chords.dev" : analyzerBase;
+    while (!s.analyzerBaseUrl.empty() && s.analyzerBaseUrl.back() == L'/') {
+        s.analyzerBaseUrl.pop_back();
+    }
+    const std::wstring analyzerAcappella =
+        GetStringSetting(L"Analyzer.Acappella");
+    s.analyzerAcappella = !analyzerAcappella.empty() &&
+                          Wh_GetIntSetting(L"Analyzer.Acappella") != 0;
+    s.analyzerExportFolder = GetStringSetting(L"Analyzer.ExportFolder");
 
     // The toggle shortcut. The key defaults to Y and Win is the default
     // modifier, so an older settings file keeps opening on Win+Y. Reading the
@@ -3005,8 +3387,75 @@ struct NoteTrainerState {
 
 NoteTrainerState g_trainer;
 
+////////////////////////////////////////////////////////////////////////////////
+// Song analyzer state
+//
+// The request thread only ever writes this state under the lock and then posts
+// kMessageAnalyzer; the panel reads it under the same lock while painting. A
+// run keeps going when the panel closes or another tool is picked, because it
+// takes about a minute and the public quota is small.
+
+constexpr int kAnalyzerFormatCount = 6;
+constexpr int kAnalyzerVisibleRows = 6;
+PCWSTR kAnalyzerFormats[kAnalyzerFormatCount] = {L"pdf", L"midi", L"musicxml",
+                                                 L"txt", L"csv",  L"json"};
+PCWSTR kAnalyzerFormatLabels[kAnalyzerFormatCount] = {
+    L"PDF", L"MIDI", L"MusicXML", L"Text", L"CSV", L"JSON"};
+PCWSTR kAnalyzerFormatExtensions[kAnalyzerFormatCount] = {
+    L"pdf", L"mid", L"musicxml", L"txt", L"csv", L"json"};
+
+enum AnalyzerPhase {
+    kAnalyzerIdle,
+    kAnalyzerSubmitting,
+    kAnalyzerRunning,
+    kAnalyzerReady,
+    kAnalyzerFailed,
+};
+
+struct AnalyzerBar {
+    std::wstring chord;
+};
+
+struct AnalyzerState {
+    int phase = kAnalyzerIdle;
+    std::wstring jobId;
+    std::wstring source;
+    std::wstring status;
+    std::wstring error;
+    std::wstring key;
+    std::wstring tempo;
+    std::wstring meter;
+    std::wstring duration;
+    std::wstring exportNote;
+    std::vector<AnalyzerBar> bars;
+    int scroll = 0;
+    int selected = -1;
+    int progress = 0;
+    int columns = 4;
+    bool busy = false;
+};
+
+AnalyzerState g_analyzer;
+SRWLOCK g_analyzerLock = SRWLOCK_INIT;
+std::atomic<bool> g_analyzerCancel(false);
+HANDLE g_analyzerThread = nullptr;
+bool g_analyzerAcappella = false;
+bool g_analyzerSeeded = false;
+
+// The URL field keeps a caret and a selection anchor, both counted in
+// characters; Browse and Space submit whatever it holds.
+struct AnalyzerInput {
+    std::wstring text;
+    int caret = 0;
+    int anchor = 0;
+    bool focused = false;
+};
+
+AnalyzerInput g_analyzerInput;
+
 enum Tool {
     kToolChords,
+    kToolAnalyzer,
     kToolTempo,
     kToolMetronome,
     kToolTuner,
@@ -3018,6 +3467,8 @@ enum Tool {
 
 PCWSTR ToolLabel(int tool) {
     switch (tool) {
+        case kToolAnalyzer:
+            return L"Song analyzer";
         case kToolTempo:
             return L"Tap tempo";
         case kToolMetronome:
@@ -3088,6 +3539,13 @@ enum Hit {
     kHitTrainerStart,
     kHitTrainerInst,
     kHitTrainerNaturals,
+    kHitAnalyzerField,
+    kHitAnalyzerBrowse,
+    kHitAnalyzerAction,
+    kHitAnalyzerAcappella,
+    kHitAnalyzerExport,
+    kHitAnalyzerExportRow,
+    kHitAnalyzerBar,
 };
 
 struct HitResult {
@@ -3230,6 +3688,22 @@ struct Layout {
     RECT trainerScore{};
     RECT trainerStreak{};
     RECT trainerHint{};
+
+    // Song analyzer, in the same rectangle once more. A URL field with a Browse
+    // chip beside it, the transport row under that, the bar chart, the key and
+    // tempo line, the status line and the export list over the chart.
+    RECT analyzerPad{};
+    RECT analyzerField{};
+    RECT analyzerBrowse{};
+    RECT analyzerAction{};
+    RECT analyzerAcappella{};
+    RECT analyzerExport{};
+    RECT analyzerChart{};
+    RECT analyzerMeta{};
+    RECT analyzerStatus{};
+    RECT analyzerHint{};
+    RECT analyzerExportMenu{};
+    RECT analyzerExportRow[kAnalyzerFormatCount]{};
 };
 
 int S(float dip) {
@@ -3237,6 +3711,57 @@ int S(float dip) {
 }
 
 Layout g_layout;
+
+// One cell of the analyzer's bar chart. The chart keeps a fixed six rows and
+// as many columns as the meter has beats, and scrolling walks it a row at a
+// time, so paint and hit-testing read the same rectangle for the same bar.
+RECT AnalyzerCellRect(int index, int columns, int scroll) {
+    const RECT& chart = g_layout.analyzerChart;
+    const int row = index / columns - scroll;
+    const int column = index % columns;
+    const int width =
+        std::max(1, static_cast<int>(chart.right - chart.left) / columns);
+    const int height = std::max(
+        1, static_cast<int>(chart.bottom - chart.top) / kAnalyzerVisibleRows);
+    const int left = static_cast<int>(chart.left) + column * width;
+    const int top = static_cast<int>(chart.top) + row * height;
+    return {left, top, left + width,
+            std::min(top + height, static_cast<int>(chart.bottom))};
+}
+
+// The bar under the pointer, or -1 for a gap at the end of the chart. The
+// chart is only a grid of bars, so a click selects the bar in that cell.
+int AnalyzerBarAt(POINT pt) {
+    const RECT& chart = g_layout.analyzerChart;
+    if (!PtInRect(&chart, pt)) {
+        return -1;
+    }
+    int columns = 4;
+    int scroll = 0;
+    int count = 0;
+    AcquireSRWLockShared(&g_analyzerLock);
+    columns = std::clamp(g_analyzer.columns, 2, 8);
+    scroll = g_analyzer.scroll;
+    count = static_cast<int>(g_analyzer.bars.size());
+    ReleaseSRWLockShared(&g_analyzerLock);
+    if (count == 0) {
+        return -1;
+    }
+    const int height = std::max(
+        1, static_cast<int>(chart.bottom - chart.top) / kAnalyzerVisibleRows);
+    const int width =
+        std::max(1, static_cast<int>(chart.right - chart.left) / columns);
+    const int row = (static_cast<int>(pt.y) - static_cast<int>(chart.top)) /
+                    height;
+    const int column = (static_cast<int>(pt.x) - static_cast<int>(chart.left)) /
+                       width;
+    if (row < 0 || row >= kAnalyzerVisibleRows || column < 0 ||
+        column >= columns) {
+        return -1;
+    }
+    const int index = (scroll + row) * columns + column;
+    return index < count ? index : -1;
+}
 
 // Defined with the strumming state further down, but the layout needs it.
 int StrumSlotCount();
@@ -3725,6 +4250,45 @@ void ComputeLayout() {
                        trainerTop + S(294)};
     l.trainerHint = {l.trainerPad.left, trainerTop + S(396), l.trainerPad.right,
                      trainerTop + S(414)};
+
+    // Song analyzer, laid out in the same rectangle once more. A URL field and
+    // a Browse chip on top, the transport row under it, the bar chart, the key
+    // and tempo line and the status line, with the export list unrolling over
+    // the chart from the Export chip.
+    l.analyzerPad = l.metroPad;
+    const int analyzerTop = l.analyzerPad.top;
+    const int analyzerLeft = l.analyzerPad.left + S(16);
+    const int analyzerRight = l.analyzerPad.right - S(16);
+    l.analyzerBrowse = {analyzerRight - S(70), analyzerTop + S(4),
+                        analyzerRight, analyzerTop + S(32)};
+    l.analyzerField = {analyzerLeft, analyzerTop + S(4),
+                       l.analyzerBrowse.left - S(6), analyzerTop + S(32)};
+    l.analyzerAction = {analyzerLeft, analyzerTop + S(40),
+                        analyzerLeft + S(92), analyzerTop + S(68)};
+    l.analyzerAcappella = {l.analyzerAction.right + S(6), analyzerTop + S(40),
+                           l.analyzerAction.right + S(98),
+                           analyzerTop + S(68)};
+    l.analyzerExport = {analyzerRight - S(68), analyzerTop + S(40),
+                        analyzerRight, analyzerTop + S(68)};
+    l.analyzerChart = {analyzerLeft, analyzerTop + S(78), analyzerRight,
+                       analyzerTop + S(276)};
+    l.analyzerMeta = {analyzerLeft, analyzerTop + S(284), analyzerRight,
+                      analyzerTop + S(302)};
+    l.analyzerStatus = {analyzerLeft, analyzerTop + S(310), analyzerRight,
+                        analyzerTop + S(356)};
+    l.analyzerHint = {l.analyzerPad.left, analyzerTop + S(396),
+                      l.analyzerPad.right, analyzerTop + S(414)};
+    const int exportRowHeight = S(26);
+    const int exportMenuTop = l.analyzerExport.bottom + S(4);
+    l.analyzerExportMenu = {
+        analyzerRight - S(150), exportMenuTop, analyzerRight,
+        exportMenuTop + S(8) + exportRowHeight * kAnalyzerFormatCount};
+    for (int i = 0; i < kAnalyzerFormatCount; i++) {
+        const int rowTop = exportMenuTop + S(4) + i * exportRowHeight;
+        l.analyzerExportRow[i] = {l.analyzerExportMenu.left + S(4), rowTop,
+                                  l.analyzerExportMenu.right - S(4),
+                                  rowTop + exportRowHeight};
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4151,6 +4715,12 @@ void TrainerResetScore();
 void TrainerSetInstrument(int instrument);
 void SetTool(int tool);
 void Repaint();
+void AnalyzerHalt();
+void AnalyzerBrowse();
+void AnalyzerCancel();
+void AnalyzerExport(int format);
+void AnalyzerScrollBy(int rows);
+void AnalyzerSubmitUrl();
 
 ////////////////////////////////////////////////////////////////////////////////
 // Popup lists
@@ -4174,6 +4744,7 @@ MenuState g_tunerMenu;
 MenuState g_strumMenu;     // The chord the strings are fretted to.
 MenuState g_patternMenu;   // The pattern the grid is set to.
 MenuState g_meterMenu;     // The meter the pattern list is filtered by.
+MenuState g_exportMenu;    // The formats the analyzer can export.
 
 enum MenuKind {
     kMenuNone = 0,
@@ -4183,6 +4754,7 @@ enum MenuKind {
     kMenuStrumChord = 4,
     kMenuStrumPattern = 5,
     kMenuStrumMeter = 6,
+    kMenuAnalyzerExport = 7,
 };
 
 bool MenuHit(const MenuState& m) {
@@ -4200,7 +4772,7 @@ bool MenuAnimating(const MenuState& m) {
 bool AnyMenuAnimating() {
     return MenuAnimating(g_toolMenu) || MenuAnimating(g_tunerMenu) ||
            MenuAnimating(g_strumMenu) || MenuAnimating(g_patternMenu) ||
-           MenuAnimating(g_meterMenu);
+           MenuAnimating(g_meterMenu) || MenuAnimating(g_exportMenu);
 }
 
 void StartMenuAnimTimer() {
@@ -4279,6 +4851,8 @@ int MenuRowCount(const MenuState& m) {
         }
         case kMenuStrumMeter:
             return kSignatureCount;
+        case kMenuAnalyzerExport:
+            return kAnalyzerFormatCount;
         default:
             break;
     }
@@ -4326,6 +4900,9 @@ void UpdateMenuAnimations() {
     }
     if (MenuAnimating(g_meterMenu)) {
         moved = MenuStep(g_meterMenu, g_meterMenu.target != 0) || moved;
+    }
+    if (MenuAnimating(g_exportMenu)) {
+        moved = MenuStep(g_exportMenu, g_exportMenu.target != 0) || moved;
     }
     if (moved) {
         Repaint();
@@ -4634,6 +5211,8 @@ void FinishClose() {
     MenuReset(g_strumMenu);
     MenuReset(g_patternMenu);
     MenuReset(g_meterMenu);
+    MenuReset(g_exportMenu);
+    g_analyzerInput.focused = false;
 }
 
 void UpdateAnimation() {
@@ -8962,6 +9541,247 @@ void PaintTrainer(Surface& s, const Theme& t) {
                 t.textFaint);
 }
 
+// The x coordinate of a caret position inside the analyzer's URL field.
+int AnalyzerFieldEdge(int index) {
+    const int left = static_cast<int>(g_layout.analyzerField.left) + S(10);
+    index = std::clamp(index, 0, static_cast<int>(g_analyzerInput.text.size()));
+    if (index == 0) {
+        return left;
+    }
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontSearch)), FW_NORMAL);
+    const std::wstring prefix =
+        g_analyzerInput.text.substr(0, static_cast<size_t>(index));
+    return left + g_text.Measure(font, prefix).cx;
+}
+
+// The caret position nearest to a click in the field.
+int AnalyzerFieldIndex(int x) {
+    const int count = static_cast<int>(g_analyzerInput.text.size());
+    int best = 0;
+    int bestDistance = std::abs(x - AnalyzerFieldEdge(0));
+    for (int i = 1; i <= count; i++) {
+        const int distance = std::abs(x - AnalyzerFieldEdge(i));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = i;
+        }
+    }
+    return best;
+}
+
+// The analyzer card: a URL field, the transport, the bar chart the service's
+// own text export describes, the key and tempo line and the status line. The
+// whole card reads g_analyzer under the shared lock, so a poll landing mid
+// paint is either seen completely or not at all.
+void PaintAnalyzer(Surface& s, const Theme& t) {
+    const RECT& card = g_layout.analyzerPad;
+    FillRoundRect(s, L(card.left), L(card.top), L(card.right), L(card.bottom),
+                  S(kCardRadius), t.card);
+    StrokeRoundRect(s, L(card.left) + 0.5f, L(card.top) + 0.5f,
+                    L(card.right) - 0.5f, L(card.bottom) - 0.5f, S(kCardRadius),
+                    S(1.0f), t.stroke);
+
+    AcquireSRWLockShared(&g_analyzerLock);
+    const int phase = g_analyzer.phase;
+    const bool busy = phase == kAnalyzerSubmitting || phase == kAnalyzerRunning;
+    const bool ready = phase == kAnalyzerReady;
+    const bool failed = phase == kAnalyzerFailed;
+
+    HFONT chipFont =
+        g_fonts.Get(S(static_cast<float>(kFontTab)), kWeightSemiBold);
+    HFONT fieldFont =
+        g_fonts.Get(S(static_cast<float>(kFontSearch)), FW_NORMAL);
+    HFONT smallFont = g_fonts.Get(S(static_cast<float>(kFontFoot)), FW_NORMAL);
+    HFONT numberFont = g_fonts.Get(S(static_cast<float>(kFontFret)), FW_NORMAL);
+
+    // The URL field, with a selection and a blinking caret like the search box.
+    const RECT& field = g_layout.analyzerField;
+    const bool focused = g_analyzerInput.focused;
+    FillRoundRect(s, L(field.left), L(field.top), L(field.right),
+                  L(field.bottom), S(kControlRadius),
+                  focused ? t.controlHover : t.control);
+    StrokeRoundRect(s, L(field.left) + 0.5f, L(field.top) + 0.5f,
+                    L(field.right) - 0.5f, L(field.bottom) - 0.5f,
+                    S(kControlRadius), S(1.0f),
+                    focused ? WithAlpha(t.accent, 0.55f) : t.stroke);
+    RECT fieldText = field;
+    fieldText.left += S(10);
+    fieldText.right -= S(8);
+    if (g_analyzerInput.text.empty()) {
+        g_text.Draw(s, fieldFont, L"Paste a song or video URL", fieldText,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+    } else {
+        const int start = std::min(g_analyzerInput.caret, g_analyzerInput.anchor);
+        const int end = std::max(g_analyzerInput.caret, g_analyzerInput.anchor);
+        const float selLeft = L(AnalyzerFieldEdge(start));
+        const float selRight =
+            std::min(L(AnalyzerFieldEdge(end)), L(fieldText.right));
+        if (selRight > selLeft) {
+            const float cy = (L(field.top) + L(field.bottom)) * 0.5f;
+            FillRoundRect(s, selLeft - S(1.0f), cy - S(9.0f),
+                          selRight + S(1.0f), cy + S(9.0f), S(2.0f),
+                          t.selection);
+        }
+        g_text.Draw(s, fieldFont, g_analyzerInput.text, fieldText,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.text);
+    }
+    if (focused && g_windowActive &&
+        g_analyzerInput.caret == g_analyzerInput.anchor) {
+        const double blink = fmod(NowMs() - g_caretStart, 1060.0);
+        if (blink < 530.0) {
+            const float x = std::min(L(AnalyzerFieldEdge(g_analyzerInput.caret)),
+                                     L(fieldText.right) - S(2.0f));
+            const float cy = (L(field.top) + L(field.bottom)) * 0.5f;
+            FillRoundRect(s, x, cy - S(9.0f), x + S(1.6f), cy + S(9.0f),
+                          S(0.8f), t.accent);
+        }
+    }
+
+    PaintChip(s, t, g_layout.analyzerBrowse, L"Browse", chipFont, false,
+              g_hover.id == kHitAnalyzerBrowse);
+    PaintChip(s, t, g_layout.analyzerAction, busy ? L"Cancel" : L"Analyze",
+              chipFont, busy, g_hover.id == kHitAnalyzerAction);
+    PaintChip(s, t, g_layout.analyzerAcappella, L"Acappella", chipFont,
+              g_analyzerAcappella, g_hover.id == kHitAnalyzerAcappella);
+    PaintChip(s, t, g_layout.analyzerExport,
+              MenuHit(g_exportMenu) ? L"Export \x25B4" : L"Export", chipFont,
+              false, g_hover.id == kHitAnalyzerExport, ready);
+
+    // The chart, one cell per bar with the measure number above the chord, and
+    // a centred line when there is nothing to draw yet.
+    const RECT& chart = g_layout.analyzerChart;
+    FillRoundRect(s, L(chart.left), L(chart.top), L(chart.right),
+                  L(chart.bottom), S(8.0f), t.control);
+    const int count = static_cast<int>(g_analyzer.bars.size());
+    if (count == 0) {
+        std::wstring message = L"Paste a URL, or browse for a file";
+        Color ink = t.textFaint;
+        if (busy) {
+            message = L"Analyzing\x2026";
+            ink = t.textMuted;
+        } else if (failed) {
+            message = g_analyzer.error.empty() ? L"The analysis failed"
+                                              : g_analyzer.error;
+            ink = t.textMuted;
+        } else if (ready) {
+            message = L"No chords detected";
+        }
+        RECT area = chart;
+        area.left += S(14);
+        area.right -= S(14);
+        g_text.Draw(s, fieldFont, message, area,
+                    DT_CENTER | DT_VCENTER | DT_WORDBREAK, ink);
+    } else {
+        const int columns = std::clamp(g_analyzer.columns, 2, 8);
+        const int scroll =
+            std::clamp(g_analyzer.scroll, 0,
+                       std::max(0, (count + columns - 1) / columns - 1));
+        const int first = scroll * columns;
+        const int last =
+            std::min(count, first + columns * kAnalyzerVisibleRows);
+        for (int i = first; i < last; i++) {
+            RECT cell = AnalyzerCellRect(i, columns, scroll);
+            cell.left += S(2);
+            cell.right -= S(2);
+            cell.top += S(2);
+            cell.bottom -= S(2);
+            if (i == g_analyzer.selected) {
+                FillRoundRect(s, L(cell.left), L(cell.top), L(cell.right),
+                              L(cell.bottom), S(6.0f), t.selection);
+            }
+            RECT number = cell;
+            number.bottom = number.top + S(12);
+            g_text.Draw(s, numberFont, std::to_wstring(i + 1), number,
+                        DT_CENTER | DT_TOP | DT_SINGLELINE, t.textFaint);
+            RECT chord = cell;
+            chord.top = number.bottom;
+            g_text.Draw(s, chipFont, g_analyzer.bars[i].chord, chord,
+                        DT_CENTER | DT_VCENTER | DT_SINGLELINE |
+                            DT_END_ELLIPSIS,
+                        t.text);
+        }
+    }
+
+    // The key, tempo, meter and length the analysis found.
+    std::wstring meta;
+    auto append = [&meta](const std::wstring& part) {
+        if (part.empty()) {
+            return;
+        }
+        if (!meta.empty()) {
+            meta += L"  \x00B7  ";
+        }
+        meta += part;
+    };
+    append(g_analyzer.key);
+    append(g_analyzer.tempo);
+    append(g_analyzer.meter);
+    append(g_analyzer.duration);
+    g_text.Draw(s, smallFont, meta, g_layout.analyzerMeta,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textMuted);
+
+    // The progress bar while a run is live, and one line of status under it.
+    const RECT& status = g_layout.analyzerStatus;
+    if (busy) {
+        RECT bar = status;
+        bar.bottom = bar.top + S(5);
+        FillRoundRect(s, L(bar.left), L(bar.top), L(bar.right), L(bar.bottom),
+                      S(2.5f), t.control);
+        const float fill =
+            static_cast<float>(L(bar.right) - L(bar.left)) *
+            Clamp01(static_cast<float>(g_analyzer.progress) / 100.0f);
+        if (fill > S(2.0f)) {
+            FillRoundRect(s, L(bar.left), L(bar.top), L(bar.left) + fill,
+                          L(bar.bottom), S(2.5f), t.accent);
+        }
+    }
+    std::wstring line;
+    Color ink = t.textMuted;
+    if (failed) {
+        line = g_analyzer.error;
+        ink = t.text;
+    } else if (busy) {
+        line = g_analyzer.status;
+    } else if (!g_analyzer.exportNote.empty()) {
+        line = g_analyzer.exportNote;
+        ink = t.accent;
+    } else if (ready) {
+        line = g_analyzer.source;
+        line += L"  \x00B7  ";
+        line += std::to_wstring(count);
+        line += L" bars";
+    } else {
+        line = L"Chords, key and tempo, from any link or file";
+        ink = t.textFaint;
+    }
+    RECT lineBox = status;
+    lineBox.top += S(10);
+    g_text.Draw(s, smallFont, line, lineBox,
+                DT_CENTER | DT_TOP | DT_WORDBREAK, ink);
+    ReleaseSRWLockShared(&g_analyzerLock);
+
+    g_text.Draw(s, smallFont,
+                L"The audio is sent to magic-chords.dev \x00B7 12 runs an hour",
+                g_layout.analyzerHint,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE, t.textFaint);
+}
+
+// The six export formats, unrolled downward from the Export chip. It shares the
+// popup shell and rows with every other list, so it rolls and fades alike.
+void PaintAnalyzerExportMenu(Surface& s, const Theme& t) {
+    const RECT reveal =
+        PaintListShell(s, t, g_layout.analyzerExportMenu, g_exportMenu.progress);
+    ListItem items[kAnalyzerFormatCount];
+    for (int i = 0; i < kAnalyzerFormatCount; i++) {
+        items[i].label = kAnalyzerFormatLabels[i];
+        items[i].hovered =
+            (g_hover.id == kHitAnalyzerExportRow && g_hover.index == i) ||
+            g_exportMenu.cursor == i;
+    }
+    PaintListRows(s, t, items, kAnalyzerFormatCount, g_layout.analyzerExportRow,
+                  reveal);
+}
+
 // One Fluent keycap: the shortcut key in a small rounded box, the way the shell
 // draws shortcut hints in its own tips.
 void PaintKeycap(Surface& s,
@@ -8996,6 +9816,13 @@ void PaintFooter(Surface& s, const Theme& t) {
             {L"\x2191\x2193", L"browse"},
             {L"Tab", L"instrument"},
             {L"\x2190\x2192", L"fingering"},
+            {L"Esc", L"close"}
+        };
+    } else if (g_app.tool == kToolAnalyzer) {
+        items = {
+            {L"Space", L"analyze / cancel"},
+            {L"\x2191\x2193", L"scroll bars"},
+            {L"Ctrl+O", L"browse"},
             {L"Esc", L"close"}
         };
     } else if (g_app.tool == kToolTempo) {
@@ -9135,6 +9962,8 @@ void PaintPanel(Surface& s) {
         PaintSearch(s, t);
         PaintResults(s, t);
         PaintCard(s, t);
+    } else if (g_app.tool == kToolAnalyzer) {
+        PaintAnalyzer(s, t);
     } else if (g_app.tool == kToolTempo) {
         PaintTempo(s, t);
     } else if (g_app.tool == kToolMetronome) {
@@ -9163,6 +9992,9 @@ void PaintPanel(Surface& s) {
     }
     if (g_app.tool == kToolStrum && MenuVisual(g_meterMenu)) {
         PaintStrumMeterMenu(s, t);  // Last, so it sits over the meter select.
+    }
+    if (g_app.tool == kToolAnalyzer && MenuVisual(g_exportMenu)) {
+        PaintAnalyzerExportMenu(s, t);
     }
 }
 
@@ -9226,6 +10058,50 @@ HitResult HitTest(POINT pt) {
     }
     if (PtInRect(&g_layout.toolSelect, pt)) {
         hit.id = kHitToolSelect;
+        return hit;
+    }
+    if (g_app.tool == kToolAnalyzer) {
+        if (MenuVisual(g_exportMenu)) {
+            // The open list owns the pointer until it closes; a click on one of
+            // its rows is the only one that exports.
+            for (int i = 0; i < kAnalyzerFormatCount; i++) {
+                if (PtInRect(&g_layout.analyzerExportRow[i], pt)) {
+                    hit.id = kHitAnalyzerExportRow;
+                    hit.index = i;
+                    return hit;
+                }
+            }
+            return hit;
+        }
+        if (PtInRect(&g_layout.analyzerField, pt)) {
+            hit.id = kHitAnalyzerField;
+            return hit;
+        }
+        if (PtInRect(&g_layout.analyzerBrowse, pt)) {
+            hit.id = kHitAnalyzerBrowse;
+            return hit;
+        }
+        if (PtInRect(&g_layout.analyzerAction, pt)) {
+            hit.id = kHitAnalyzerAction;
+            return hit;
+        }
+        if (PtInRect(&g_layout.analyzerAcappella, pt)) {
+            hit.id = kHitAnalyzerAcappella;
+            return hit;
+        }
+        if (PtInRect(&g_layout.analyzerExport, pt)) {
+            hit.id = kHitAnalyzerExport;
+            return hit;
+        }
+        const int bar = AnalyzerBarAt(pt);
+        if (bar >= 0) {
+            hit.id = kHitAnalyzerBar;
+            hit.index = bar;
+            return hit;
+        }
+        if (PtInRect(&g_layout.header, pt)) {
+            hit.id = kHitHeader;
+        }
         return hit;
     }
     if (g_app.tool == kToolTempo) {
@@ -9584,6 +10460,7 @@ HitResult HitTest(POINT pt) {
 // Input
 
 constexpr UINT kMessageSettings = WM_APP + 1;
+constexpr UINT kMessageAnalyzer = WM_APP + 2;
 constexpr int kHotkeyToggle = 1;
 constexpr size_t kMaxQueryLength = 48;
 
@@ -9655,6 +10532,7 @@ void SetTool(int tool) {
     MenuReset(g_strumMenu);
     MenuReset(g_patternMenu);
     MenuReset(g_meterMenu);
+    MenuReset(g_exportMenu);
     // The microphone only lives while the tuner is on screen.
     if (g_app.tool == kToolTuner) {
         TunerHalt();
@@ -9670,6 +10548,7 @@ void SetTool(int tool) {
     // A tempo field belongs to the card it was opened on, so it goes with it.
     g_tempoEntry.active = false;
     g_tempoEntry.count = 0;
+    g_analyzerInput.focused = false;
     g_app.tool = static_cast<Tool>(tool);
     if (g_selecting) {
         g_selecting = false;
@@ -10932,6 +11811,1060 @@ void TrainerTick() {
     Repaint();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Song analyzer
+//
+// The whole contract below was checked against the live service, because
+// openapi.json leaves every response schema empty and the docs page is wrong on
+// several points:
+//
+//   POST /api/v1/analyze/url   {"url":...}             -> 202 {job_id,status}
+//   POST /api/v1/analyze       multipart field "file"  -> 202 {job_id,status}
+//   GET  /api/v1/jobs/{id}     running  -> {status,progress_percentage,message}
+//                              done     -> {status:"complete"}
+//                              failed   -> {status:"error",error_key,message}
+//   GET  /api/v1/jobs/{id}/result -> duration, tempo, key, time_signature,
+//                                    layout.measures[].slot.label, segments[]
+//   GET  /api/v1/jobs/{id}/export?format=pdf|midi|musicxml|txt|csv|json
+//                              -> the file, with Content-Disposition
+//
+// Two facts shape the code: URL validation is asynchronous, so a 202 is never
+// treated as success until the first poll agrees; and failures carry a human
+// sentence in "message", which is what the card shows.
+
+struct AnalyzerRequest {
+    int kind = 0;  // 0 URL, 1 upload, 2 export.
+    std::wstring baseUrl;
+    std::wstring url;
+    std::wstring filename;
+    std::wstring jobId;
+    std::wstring source;
+    std::wstring exportFolder;
+    std::vector<uint8_t> file;
+    int format = 0;
+    bool acappella = false;
+};
+
+struct HttpResult {
+    int status = 0;  // 0 when nothing came back at all.
+    std::string body;
+    std::wstring contentType;
+    std::wstring disposition;
+    int retryAfter = 0;
+};
+
+std::string NarrowText(const std::wstring& text) {
+    if (text.empty()) {
+        return std::string();
+    }
+    const int length = WideCharToMultiByte(CP_UTF8, 0, text.c_str(),
+                                           static_cast<int>(text.size()),
+                                           nullptr, 0, nullptr, nullptr);
+    std::string out(static_cast<size_t>(length), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, text.c_str(),
+                        static_cast<int>(text.size()), &out[0], length, nullptr,
+                        nullptr);
+    return out;
+}
+
+// JSON string escaping for the one body this tool builds by hand.
+void AppendJsonString(std::string& out, const std::wstring& text) {
+    out += '"';
+    for (wchar_t c : text) {
+        if (c == L'"') {
+            out += "\\\"";
+        } else if (c == L'\\') {
+            out += "\\\\";
+        } else if (c == L'\n') {
+            out += "\\n";
+        } else if (c == L'\r') {
+            out += "\\r";
+        } else if (c == L'\t') {
+            out += "\\t";
+        } else if (c < 0x20) {
+            char escape[8];
+            wsprintfA(escape, "\\u%04x", static_cast<unsigned>(c));
+            out += escape;
+        } else {
+            out += NarrowText(std::wstring(1, c));
+        }
+    }
+    out += '"';
+}
+
+PCWSTR MimeForFile(const std::wstring& path) {
+    const size_t dot = path.find_last_of(L'.');
+    std::wstring ext =
+        dot == std::wstring::npos ? std::wstring() : path.substr(dot + 1);
+    for (wchar_t& c : ext) {
+        c = static_cast<wchar_t>(towlower(c));
+    }
+    if (ext == L"mp3") {
+        return L"audio/mpeg";
+    }
+    if (ext == L"wav") {
+        return L"audio/wav";
+    }
+    if (ext == L"flac") {
+        return L"audio/flac";
+    }
+    if (ext == L"m4a" || ext == L"aac") {
+        return L"audio/mp4";
+    }
+    if (ext == L"ogg" || ext == L"opus") {
+        return L"audio/ogg";
+    }
+    if (ext == L"mp4" || ext == L"m4v") {
+        return L"video/mp4";
+    }
+    if (ext == L"webm" || ext == L"mkv") {
+        return L"video/webm";
+    }
+    return L"application/octet-stream";
+}
+
+std::wstring FileNameOf(const std::wstring& path) {
+    const size_t slash = path.find_last_of(L"\\/");
+    return slash == std::wstring::npos ? path : path.substr(slash + 1);
+}
+
+std::string BuildMultipart(const std::vector<uint8_t>& file,
+                           const std::wstring& filename,
+                           PCWSTR mime,
+                           const std::string& boundary) {
+    std::string body;
+    body += "--" + boundary + "\r\n";
+    body += "Content-Disposition: form-data; name=\"file\"; filename=\"";
+    body += NarrowText(filename);
+    body += "\"\r\nContent-Type: ";
+    body += NarrowText(mime);
+    body += "\r\n\r\n";
+    if (!file.empty()) {
+        body.append(reinterpret_cast<const char*>(file.data()), file.size());
+    }
+    body += "\r\n--" + boundary + "--\r\n";
+    return body;
+}
+
+// One blocking WinHTTP request. The cancel flag is checked between every step
+// and inside the read loop, and the timeouts keep a stalled request from
+// holding the unload path for longer than it has to.
+bool HttpRequest(PCWSTR verb,
+                 const std::wstring& url,
+                 const std::string* body,
+                 PCWSTR contentType,
+                 HttpResult& out) {
+    out = HttpResult();
+    if (g_analyzerCancel.load()) {
+        return false;
+    }
+    URL_COMPONENTS parts{};
+    parts.dwStructSize = sizeof(parts);
+    parts.dwSchemeLength = static_cast<DWORD>(-1);
+    parts.dwHostNameLength = static_cast<DWORD>(-1);
+    parts.dwUrlPathLength = static_cast<DWORD>(-1);
+    parts.dwExtraInfoLength = static_cast<DWORD>(-1);
+    if (!WinHttpCrackUrl(url.c_str(), static_cast<DWORD>(url.size()), 0,
+                         &parts)) {
+        Wh_Log(L"Analyzer: bad URL (%s)", url.c_str());
+        return false;
+    }
+    const std::wstring host(parts.lpszHostName, parts.dwHostNameLength);
+    std::wstring path(parts.lpszUrlPath, parts.dwUrlPathLength);
+    if (parts.dwExtraInfoLength) {
+        path.append(parts.lpszExtraInfo, parts.dwExtraInfoLength);
+    }
+    const bool secure = parts.nScheme == INTERNET_SCHEME_HTTPS;
+
+    HINTERNET session =
+        WinHttpOpen(L"MusiciansToolkit",
+                    WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
+                    WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!session) {
+        Wh_Log(L"Analyzer: WinHttpOpen failed (%u)", GetLastError());
+        return false;
+    }
+    WinHttpSetTimeouts(session, 8000, 8000, 8000, 15000);
+
+    bool ok = false;
+    HINTERNET connect = WinHttpConnect(session, host.c_str(), parts.nPort, 0);
+    if (!connect) {
+        Wh_Log(L"Analyzer: WinHttpConnect failed (%u)", GetLastError());
+    } else {
+        HINTERNET request = WinHttpOpenRequest(
+            connect, verb, path.c_str(), nullptr, WINHTTP_NO_REFERER,
+            WINHTTP_DEFAULT_ACCEPT_TYPES, secure ? WINHTTP_FLAG_SECURE : 0);
+        if (!request) {
+            Wh_Log(L"Analyzer: WinHttpOpenRequest failed (%u)",
+                   GetLastError());
+        } else {
+            std::wstring headers;
+            if (contentType && *contentType) {
+                headers = L"Content-Type: ";
+                headers += contentType;
+                headers += L"\r\n";
+            }
+            // The total length has to carry the body as well. Passing zero
+            // here while a body is supplied makes the send fail at once with
+            // ERROR_INVALID_PARAMETER, which reads as an unreachable server.
+            const DWORD bodyLength =
+                body ? static_cast<DWORD>(body->size()) : 0;
+            const BOOL sent = WinHttpSendRequest(
+                request,
+                headers.empty() ? WINHTTP_NO_ADDITIONAL_HEADERS
+                                : headers.c_str(),
+                headers.empty() ? 0 : static_cast<DWORD>(-1),
+                bodyLength ? const_cast<char*>(body->data()) : nullptr,
+                bodyLength, bodyLength, 0);
+            BOOL received = FALSE;
+            if (!sent) {
+                Wh_Log(L"Analyzer: WinHttpSendRequest failed (%u)",
+                       GetLastError());
+            } else if (!g_analyzerCancel.load()) {
+                received = WinHttpReceiveResponse(request, nullptr);
+                if (!received) {
+                    Wh_Log(L"Analyzer: WinHttpReceiveResponse failed (%u)",
+                           GetLastError());
+                }
+            }
+            if (received) {
+                DWORD status = 0;
+                DWORD size = sizeof(status);
+                WinHttpQueryHeaders(
+                    request,
+                    WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                    WINHTTP_HEADER_NAME_BY_INDEX, &status, &size,
+                    WINHTTP_NO_HEADER_INDEX);
+                out.status = static_cast<int>(status);
+
+                auto readHeader = [&](DWORD query, std::wstring& value) {
+                    wchar_t buffer[1024];
+                    DWORD length = sizeof(buffer);
+                    value.clear();
+                    if (WinHttpQueryHeaders(request, query,
+                                            WINHTTP_HEADER_NAME_BY_INDEX,
+                                            buffer, &length,
+                                            WINHTTP_NO_HEADER_INDEX)) {
+                        value.assign(buffer, length / sizeof(wchar_t));
+                        while (!value.empty() && value.back() == L'\0') {
+                            value.pop_back();
+                        }
+                    }
+                };
+                readHeader(WINHTTP_QUERY_CONTENT_TYPE, out.contentType);
+                readHeader(WINHTTP_QUERY_CONTENT_DISPOSITION,
+                           out.disposition);
+                std::wstring retry;
+                readHeader(WINHTTP_QUERY_RETRY_AFTER, retry);
+                if (!retry.empty()) {
+                    out.retryAfter = _wtoi(retry.c_str());
+                }
+
+                for (;;) {
+                    if (g_analyzerCancel.load()) {
+                        break;
+                    }
+                    DWORD available = 0;
+                    if (!WinHttpQueryDataAvailable(request, &available) ||
+                        available == 0) {
+                        ok = true;
+                        break;
+                    }
+                    if (out.body.size() + available > 64u * 1024 * 1024) {
+                        break;  // A sane export never reaches this.
+                    }
+                    const size_t offset = out.body.size();
+                    out.body.resize(offset + available);
+                    DWORD read = 0;
+                    if (!WinHttpReadData(request, &out.body[offset], available,
+                                         &read)) {
+                        ok = false;
+                        break;
+                    }
+                    out.body.resize(offset + read);
+                    if (read == 0) {
+                        ok = true;
+                        break;
+                    }
+                }
+            }
+            WinHttpCloseHandle(request);
+        }
+        WinHttpCloseHandle(connect);
+    }
+    WinHttpCloseHandle(session);
+    return ok;
+}
+
+// One sentence out of any of the three error shapes the service uses.
+std::wstring HttpErrorText(const HttpResult& result) {
+    JsonValue doc;
+    if (JsonParse(result.body, doc)) {
+        std::wstring text = doc.Str(L"error");
+        if (text.empty()) {
+            const JsonValue* detail = doc.Find(L"detail");
+            if (detail) {
+                if (detail->type == JsonValue::String) {
+                    text = detail->text;
+                } else if (detail->type == JsonValue::Array) {
+                    const JsonValue* first = detail->At(0);
+                    if (first) {
+                        text = first->Str(L"msg");
+                    }
+                }
+            }
+        }
+        if (text.empty()) {
+            text = doc.Str(L"message");
+        }
+        if (!text.empty()) {
+            return text;
+        }
+    }
+    if (result.status == 0) {
+        return L"Couldn't reach the analyzer";
+    }
+    if (result.status == 429) {
+        return L"The hourly quota is used up, try again later";
+    }
+    std::wstring text = L"The service answered HTTP ";
+    text += std::to_wstring(result.status);
+    return text;
+}
+
+void AnalyzerPost() {
+    if (g_messageWindow) {
+        PostMessageW(g_messageWindow, kMessageAnalyzer, 0, 0);
+    }
+}
+
+void AnalyzerFail(const std::wstring& text) {
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    g_analyzer.phase = kAnalyzerFailed;
+    g_analyzer.busy = false;
+    g_analyzer.error = text.empty() ? L"The analysis failed" : text;
+    g_analyzer.status.clear();
+    g_analyzer.progress = 0;
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    AnalyzerPost();
+}
+
+void AnalyzerNote(const std::wstring& text) {
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    g_analyzer.exportNote = text;
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    AnalyzerPost();
+}
+
+void AnalyzerCancelled() {
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    g_analyzer.phase = kAnalyzerIdle;
+    g_analyzer.busy = false;
+    g_analyzer.status = L"Cancelled";
+    g_analyzer.progress = 0;
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    AnalyzerPost();
+}
+
+void AnalyzerSleep(int ms) {
+    while (ms > 0) {
+        if (g_analyzerCancel.load()) {
+            return;
+        }
+        const int step = std::min(ms, 100);
+        Sleep(static_cast<DWORD>(step));
+        ms -= step;
+    }
+}
+
+// Turns the result payload into the bar chart. layout.measures[].slot.label is
+// the representative chord per bar; a missing layout (a silent clip, which the
+// service still accepts) falls back to the second-level segments, and "N" is
+// its word for no chord at all.
+void AnalyzerApplyResult(const HttpResult& response, const std::wstring& source) {
+    JsonValue doc;
+    if (!JsonParse(response.body, doc)) {
+        AnalyzerFail(L"Couldn't read the analysis");
+        return;
+    }
+    std::vector<std::wstring> chords;
+    int columns = 4;
+    const JsonValue* layout = doc.Find(L"layout");
+    if (layout && layout->type == JsonValue::Object) {
+        const JsonValue* measures = layout->Find(L"measures");
+        if (measures && measures->type == JsonValue::Array) {
+            for (size_t i = 0; i < measures->Size(); i++) {
+                const JsonValue* measure = measures->At(i);
+                std::wstring label;
+                const JsonValue* slot = measure->Find(L"slot");
+                if (slot) {
+                    label = slot->Str(L"label");
+                }
+                if (label.empty()) {
+                    label = measure->Str(L"label");
+                }
+                if (!label.empty() && label != L"N") {
+                    chords.push_back(label);
+                }
+            }
+        }
+        const double beats = layout->Num(L"beats_per_measure", 0.0);
+        if (beats >= 2.0 && beats <= 8.0) {
+            columns = static_cast<int>(lround(beats));
+        }
+    }
+    if (chords.empty()) {
+        const JsonValue* segments = doc.Find(L"segments");
+        if (segments && segments->type == JsonValue::Array) {
+            for (size_t i = 0; i < segments->Size(); i++) {
+                const std::wstring label = segments->At(i)->Str(L"label");
+                if (!label.empty() && label != L"N") {
+                    chords.push_back(label);
+                }
+            }
+        }
+    }
+
+    std::wstring key;
+    const JsonValue* harmony = doc.Find(L"harmonic_analysis");
+    if (harmony) {
+        const JsonValue* summary = harmony->Find(L"summary");
+        if (summary) {
+            key = summary->Str(L"key");
+        }
+    }
+    if (key.empty()) {
+        key = doc.Str(L"key");
+    }
+    const double tempo = doc.Num(L"tempo", 0.0);
+    std::wstring tempoText;
+    if (tempo > 0.0) {
+        tempoText = std::to_wstring(lround(tempo));
+        tempoText += L" BPM";
+    }
+    std::wstring meter = doc.Str(L"time_signature");
+    const int meterBeats = _wtoi(meter.c_str());
+    if (meterBeats >= 2 && meterBeats <= 8) {
+        columns = meterBeats;
+    }
+    const double duration = doc.Num(L"duration", 0.0);
+    std::wstring durationText;
+    if (duration > 0.0) {
+        const int seconds = static_cast<int>(lround(duration));
+        durationText = std::to_wstring(seconds / 60);
+        durationText += L":";
+        const int rest = seconds % 60;
+        if (rest < 10) {
+            durationText += L"0";
+        }
+        durationText += std::to_wstring(rest);
+    }
+
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    g_analyzer.phase = kAnalyzerReady;
+    g_analyzer.busy = false;
+    g_analyzer.progress = 100;
+    g_analyzer.error.clear();
+    g_analyzer.exportNote.clear();
+    g_analyzer.source = source;
+    g_analyzer.key = key;
+    g_analyzer.tempo = tempoText;
+    g_analyzer.meter = meter;
+    g_analyzer.duration = durationText;
+    g_analyzer.columns = std::clamp(columns, 2, 8);
+    g_analyzer.scroll = 0;
+    g_analyzer.selected = -1;
+    g_analyzer.bars.clear();
+    g_analyzer.bars.reserve(chords.size());
+    for (const std::wstring& chord : chords) {
+        g_analyzer.bars.push_back({chord});
+    }
+    g_analyzer.status = chords.empty() ? L"No chords detected"
+                                       : L"Analysis complete";
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    AnalyzerPost();
+}
+
+void AnalyzerRunJob(AnalyzerRequest& request) {
+    const std::wstring base = request.baseUrl;
+    std::wstring jobId;
+    HttpResult response;
+    bool sent = false;
+    if (request.kind == 0) {
+        std::string body = "{\"url\":";
+        AppendJsonString(body, request.url);
+        body += ",\"acappella\":";
+        body += request.acappella ? "true" : "false";
+        body += "}";
+        sent = HttpRequest(L"POST", base + L"/api/v1/analyze/url", &body,
+                           L"application/json", response);
+    } else {
+        const std::string boundary = "----MusiciansToolkitBoundary";
+        const std::string body =
+            BuildMultipart(request.file, request.filename,
+                           MimeForFile(request.filename), boundary);
+        std::wstring type = L"multipart/form-data; boundary=";
+        type.append(boundary.begin(), boundary.end());
+        sent = HttpRequest(L"POST", base + L"/api/v1/analyze", &body,
+                           type.c_str(), response);
+    }
+    if (g_analyzerCancel.load()) {
+        AnalyzerCancelled();
+        return;
+    }
+    if (!sent) {
+        AnalyzerFail(L"Couldn't reach the analyzer");
+        return;
+    }
+    if (response.status != 200 && response.status != 202) {
+        AnalyzerFail(HttpErrorText(response));
+        return;
+    }
+    JsonValue envelope;
+    if (JsonParse(response.body, envelope)) {
+        jobId = envelope.Str(L"job_id");
+    }
+    if (jobId.empty()) {
+        AnalyzerFail(L"The service didn't start a job");
+        return;
+    }
+    {
+        AcquireSRWLockExclusive(&g_analyzerLock);
+        g_analyzer.jobId = jobId;
+        g_analyzer.phase = kAnalyzerRunning;
+        g_analyzer.progress = 0;
+        g_analyzer.status = L"Queued";
+        ReleaseSRWLockExclusive(&g_analyzerLock);
+        AnalyzerPost();
+    }
+
+    const double deadline = NowMs() + 15.0 * 60.0 * 1000.0;
+    bool complete = false;
+    while (!g_analyzerCancel.load() && NowMs() < deadline) {
+        HttpResult poll;
+        if (HttpRequest(L"GET", base + L"/api/v1/jobs/" + jobId, nullptr,
+                        nullptr, poll)) {
+            if (poll.status == 200) {
+                JsonValue doc;
+                if (JsonParse(poll.body, doc)) {
+                    const std::wstring state = doc.Str(L"status");
+                    if (state == L"complete" || state == L"completed" ||
+                        state == L"succeeded") {
+                        complete = true;
+                        break;
+                    }
+                    if (state == L"error" || state == L"failed") {
+                        std::wstring text = doc.Str(L"message");
+                        if (text.empty()) {
+                            text = doc.Str(L"error_key");
+                        }
+                        if (text.empty()) {
+                            text = HttpErrorText(poll);
+                        }
+                        AnalyzerFail(text);
+                        return;
+                    }
+                    const int percent =
+                        static_cast<int>(lround(doc.Num(L"progress_percentage",
+                                                        0.0)));
+                    std::wstring message = doc.Str(L"message");
+                    if (message.empty()) {
+                        message = L"Analyzing\x2026";
+                    }
+                    AcquireSRWLockExclusive(&g_analyzerLock);
+                    g_analyzer.phase = kAnalyzerRunning;
+                    g_analyzer.progress = std::clamp(percent, 0, 100);
+                    g_analyzer.status = message;
+                    ReleaseSRWLockExclusive(&g_analyzerLock);
+                    AnalyzerPost();
+                }
+            } else if (poll.status == 429) {
+                AnalyzerSleep(std::max(1500, poll.retryAfter * 1000));
+                continue;
+            } else if (poll.status > 0) {
+                AnalyzerFail(HttpErrorText(poll));
+                return;
+            }
+        } else if (g_analyzerCancel.load()) {
+            break;
+        }
+        AnalyzerSleep(1500);
+    }
+    if (g_analyzerCancel.load()) {
+        AnalyzerCancelled();
+        return;
+    }
+    if (!complete) {
+        AnalyzerFail(L"The analysis took too long");
+        return;
+    }
+
+    {
+        AcquireSRWLockExclusive(&g_analyzerLock);
+        g_analyzer.status = L"Reading the chords\x2026";
+        ReleaseSRWLockExclusive(&g_analyzerLock);
+        AnalyzerPost();
+    }
+    HttpResult result;
+    if (!HttpRequest(L"GET", base + L"/api/v1/jobs/" + jobId + L"/result",
+                     nullptr, nullptr, result)) {
+        if (g_analyzerCancel.load()) {
+            AnalyzerCancelled();
+        } else {
+            AnalyzerFail(L"Couldn't fetch the analysis");
+        }
+        return;
+    }
+    if (result.status != 200 || result.body.empty()) {
+        AnalyzerFail(HttpErrorText(result));
+        return;
+    }
+    AnalyzerApplyResult(result, request.source);
+}
+
+// The export lands in the configured folder, or Downloads\MusiciansToolkit,
+// keeps the server's own filename when it sends one, and opens through the
+// shell so the PDF or MIDI is in front of the player.
+void AnalyzerRunExport(AnalyzerRequest& request) {
+    HttpResult response;
+    const std::wstring url = request.baseUrl + L"/api/v1/jobs/" +
+                             request.jobId + L"/export?format=" +
+                             kAnalyzerFormats[request.format];
+    if (!HttpRequest(L"GET", url, nullptr, nullptr, response)) {
+        if (g_analyzerCancel.load()) {
+            AnalyzerNote(L"Cancelled");
+        } else {
+            AnalyzerFail(L"Couldn't reach the analyzer");
+        }
+        return;
+    }
+    if (response.status == 409) {
+        AnalyzerNote(L"The analysis is not finished yet");
+        return;
+    }
+    if (response.status != 200 || response.body.empty()) {
+        AnalyzerFail(HttpErrorText(response));
+        return;
+    }
+
+    std::wstring folder = request.exportFolder;
+    if (folder.empty()) {
+        wchar_t profile[MAX_PATH];
+        const DWORD length = GetEnvironmentVariableW(L"USERPROFILE", profile,
+                                                     MAX_PATH);
+        if (length == 0 || length >= MAX_PATH) {
+            AnalyzerFail(L"Couldn't find a folder to save in");
+            return;
+        }
+        folder = profile;
+        folder += L"\\Downloads\\MusiciansToolkit";
+    }
+    const size_t slash = folder.find_last_of(L'\\');
+    if (slash != std::wstring::npos) {
+        CreateDirectoryW(folder.substr(0, slash).c_str(), nullptr);
+    }
+    CreateDirectoryW(folder.c_str(), nullptr);
+
+    std::wstring name;
+    const size_t key = response.disposition.find(L"filename=");
+    if (key != std::wstring::npos) {
+        name = response.disposition.substr(key + 9);
+        if (!name.empty() && name.front() == L'"') {
+            name = name.substr(1);
+        }
+        const size_t quote = name.find(L'"');
+        if (quote != std::wstring::npos) {
+            name = name.substr(0, quote);
+        }
+        const size_t nameSlash = name.find_last_of(L"\\/");
+        if (nameSlash != std::wstring::npos) {
+            name = name.substr(nameSlash + 1);
+        }
+    }
+    if (name.empty()) {
+        name = L"analysis.";
+        name += kAnalyzerFormatExtensions[request.format];
+    }
+    const std::wstring path = folder + L"\\" + name;
+
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr,
+                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        AnalyzerFail(L"Couldn't save the export");
+        return;
+    }
+    DWORD written = 0;
+    const BOOL ok =
+        WriteFile(file, response.body.data(),
+                  static_cast<DWORD>(response.body.size()), &written, nullptr);
+    CloseHandle(file);
+    if (!ok) {
+        AnalyzerFail(L"Couldn't save the export");
+        return;
+    }
+    {
+        AcquireSRWLockExclusive(&g_analyzerLock);
+        g_analyzer.exportNote = L"Saved ";
+        g_analyzer.exportNote += name;
+        ReleaseSRWLockExclusive(&g_analyzerLock);
+        AnalyzerPost();
+    }
+    ShellExecuteW(nullptr, L"open", path.c_str(), nullptr, nullptr,
+                  SW_SHOWNORMAL);
+}
+
+DWORD WINAPI AnalyzerThreadProc(LPVOID param) {
+    AnalyzerRequest* request = static_cast<AnalyzerRequest*>(param);
+    if (request) {
+        if (request->kind == 2) {
+            AnalyzerRunExport(*request);
+        } else {
+            AnalyzerRunJob(*request);
+        }
+        delete request;
+    }
+    return 0;
+}
+
+void AnalyzerStartRequest(AnalyzerRequest* request) {
+    g_analyzerCancel.store(false);
+    if (g_analyzerThread) {
+        // Only an export can still be in flight here - a job holds the card
+        // busy until its thread is done - so this wait is a short one. It is
+        // still waited on rather than closed outright, so no thread is ever
+        // left running without a handle the unload path can join.
+        WaitForSingleObject(g_analyzerThread, 5000);
+        CloseHandle(g_analyzerThread);
+        g_analyzerThread = nullptr;
+    }
+    g_analyzerThread =
+        CreateThread(nullptr, 0, AnalyzerThreadProc, request, 0, nullptr);
+    if (!g_analyzerThread) {
+        delete request;
+        AnalyzerFail(L"Couldn't start the analysis thread");
+    }
+}
+
+// Leaving the mod: stop the worker and wait for it, so no thread is left
+// running code in a module that is about to be unloaded.
+void AnalyzerHalt() {
+    g_analyzerCancel.store(true);
+    if (g_analyzerThread) {
+        WaitForSingleObject(g_analyzerThread, 16000);
+        CloseHandle(g_analyzerThread);
+        g_analyzerThread = nullptr;
+    }
+}
+
+bool AnalyzerBusy() {
+    AcquireSRWLockShared(&g_analyzerLock);
+    const bool busy = g_analyzer.phase == kAnalyzerSubmitting ||
+                      g_analyzer.phase == kAnalyzerRunning;
+    ReleaseSRWLockShared(&g_analyzerLock);
+    return busy;
+}
+
+bool AnalyzerReady() {
+    AcquireSRWLockShared(&g_analyzerLock);
+    const bool ready = g_analyzer.phase == kAnalyzerReady;
+    ReleaseSRWLockShared(&g_analyzerLock);
+    return ready;
+}
+
+// Clears the card for a fresh run. Called on the panel thread before the
+// request thread is started, so the old chart is gone the moment it submits.
+void AnalyzerBegin(const std::wstring& source) {
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    g_analyzer.phase = kAnalyzerSubmitting;
+    g_analyzer.busy = true;
+    g_analyzer.progress = 0;
+    g_analyzer.status = L"Submitting\x2026";
+    g_analyzer.error.clear();
+    g_analyzer.exportNote.clear();
+    g_analyzer.source = source;
+    g_analyzer.key.clear();
+    g_analyzer.tempo.clear();
+    g_analyzer.meter.clear();
+    g_analyzer.duration.clear();
+    g_analyzer.bars.clear();
+    g_analyzer.scroll = 0;
+    g_analyzer.selected = -1;
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    MenuReset(g_exportMenu);
+    Repaint();
+}
+
+void AnalyzerSubmitUrl() {
+    if (AnalyzerBusy()) {
+        return;
+    }
+    const std::wstring url = Trim(g_analyzerInput.text);
+    if (url.empty()) {
+        AnalyzerNote(L"Paste a link first");
+        return;
+    }
+    AnalyzerBegin(url);
+    AnalyzerRequest* request = new AnalyzerRequest();
+    request->kind = 0;
+    request->baseUrl = g_settings.analyzerBaseUrl;
+    request->url = url;
+    request->source = url;
+    request->acappella = g_analyzerAcappella;
+    AnalyzerStartRequest(request);
+}
+
+void AnalyzerSubmitFile(const std::wstring& path,
+                        std::vector<uint8_t>&& data) {
+    if (AnalyzerBusy() || data.empty()) {
+        return;
+    }
+    const std::wstring name = FileNameOf(path);
+    AnalyzerBegin(name);
+    AnalyzerRequest* request = new AnalyzerRequest();
+    request->kind = 1;
+    request->baseUrl = g_settings.analyzerBaseUrl;
+    request->filename = name;
+    request->source = name;
+    request->acappella = g_analyzerAcappella;
+    request->file = std::move(data);
+    AnalyzerStartRequest(request);
+}
+
+bool AnalyzerReadFile(const std::wstring& path, std::vector<uint8_t>& out) {
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                              nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                              nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    LARGE_INTEGER size{};
+    bool ok = GetFileSizeEx(file, &size) && size.QuadPart > 0 &&
+              size.QuadPart <= 100ll * 1024 * 1024;
+    out.clear();
+    if (ok) {
+        out.resize(static_cast<size_t>(size.QuadPart));
+        size_t total = 0;
+        while (total < out.size()) {
+            DWORD read = 0;
+            const DWORD want = static_cast<DWORD>(
+                std::min<size_t>(out.size() - total, 1u << 20));
+            if (!ReadFile(file, out.data() + total, want, &read, nullptr) ||
+                read == 0) {
+                ok = false;
+                break;
+            }
+            total += read;
+        }
+        if (ok) {
+            out.resize(total);
+        }
+    }
+    CloseHandle(file);
+    return ok;
+}
+
+// The file picker. COM is already STA in the panel thread, and a plain .mp4 is
+// accepted by the service, so video containers belong in the filter too.
+void AnalyzerBrowse() {
+    if (AnalyzerBusy()) {
+        return;
+    }
+    IFileOpenDialog* dialog = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
+                                CLSCTX_INPROC_SERVER, IID_IFileOpenDialog,
+                                reinterpret_cast<void**>(&dialog)))) {
+        AnalyzerNote(L"Couldn't open the file picker");
+        return;
+    }
+    COMDLG_FILTERSPEC filter[] = {
+        {L"Audio and video",
+         L"*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.opus;*.mp4;*.webm;*.mkv"}};
+    dialog->SetFileTypes(1, filter);
+    dialog->SetTitle(L"Choose a song to analyze");
+    FILEOPENDIALOGOPTIONS options = 0;
+    if (SUCCEEDED(dialog->GetOptions(&options))) {
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST);
+    }
+    std::wstring path;
+    if (SUCCEEDED(dialog->Show(g_panel.Hwnd()))) {
+        IShellItem* item = nullptr;
+        if (SUCCEEDED(dialog->GetResult(&item))) {
+            PWSTR raw = nullptr;
+            if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &raw))) {
+                path = raw;
+                CoTaskMemFree(raw);
+            }
+            item->Release();
+        }
+    }
+    dialog->Release();
+    if (path.empty()) {
+        return;
+    }
+    std::vector<uint8_t> data;
+    if (!AnalyzerReadFile(path, data)) {
+        AnalyzerNote(L"Couldn't read that file, or it is over 100 MB");
+        return;
+    }
+    AnalyzerSubmitFile(path, std::move(data));
+}
+
+void AnalyzerCancel() {
+    bool busy = false;
+    AcquireSRWLockShared(&g_analyzerLock);
+    busy = g_analyzer.phase == kAnalyzerSubmitting ||
+           g_analyzer.phase == kAnalyzerRunning;
+    ReleaseSRWLockShared(&g_analyzerLock);
+    if (!busy) {
+        return;
+    }
+    g_analyzerCancel.store(true);
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    g_analyzer.status = L"Stopping\x2026";
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    Repaint();
+}
+
+void AnalyzerExport(int format) {
+    if (format < 0 || format >= kAnalyzerFormatCount) {
+        return;
+    }
+    std::wstring jobId;
+    AcquireSRWLockShared(&g_analyzerLock);
+    const int phase = g_analyzer.phase;
+    jobId = g_analyzer.jobId;
+    ReleaseSRWLockShared(&g_analyzerLock);
+    if (phase != kAnalyzerReady || jobId.empty()) {
+        return;
+    }
+    AnalyzerRequest* request = new AnalyzerRequest();
+    request->kind = 2;
+    request->baseUrl = g_settings.analyzerBaseUrl;
+    request->jobId = jobId;
+    request->format = format;
+    request->exportFolder = g_settings.analyzerExportFolder;
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    g_analyzer.exportNote = L"Exporting\x2026";
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    Repaint();
+    AnalyzerStartRequest(request);
+}
+
+void AnalyzerScrollBy(int rows) {
+    AcquireSRWLockExclusive(&g_analyzerLock);
+    const int count = static_cast<int>(g_analyzer.bars.size());
+    const int columns = std::clamp(g_analyzer.columns, 2, 8);
+    const int total = count == 0 ? 0 : (count + columns - 1) / columns;
+    const int maxScroll = std::max(0, total - kAnalyzerVisibleRows);
+    g_analyzer.scroll =
+        std::clamp(g_analyzer.scroll + rows, 0, maxScroll);
+    ReleaseSRWLockExclusive(&g_analyzerLock);
+    Repaint();
+}
+
+// The URL field's editing. It keeps a caret and an anchor, so a paste can
+// replace a selection and Ctrl+A marks the whole link, exactly like the search
+// box in the chord tool.
+void AnalyzerSetCaret(int index, bool extend) {
+    g_analyzerInput.caret =
+        std::clamp(index, 0, static_cast<int>(g_analyzerInput.text.size()));
+    if (!extend) {
+        g_analyzerInput.anchor = g_analyzerInput.caret;
+    }
+}
+
+void AnalyzerDeleteSelection() {
+    const int start =
+        std::min(g_analyzerInput.caret, g_analyzerInput.anchor);
+    const int end = std::max(g_analyzerInput.caret, g_analyzerInput.anchor);
+    if (start == end) {
+        return;
+    }
+    g_analyzerInput.text.erase(static_cast<size_t>(start),
+                               static_cast<size_t>(end - start));
+    g_analyzerInput.caret = start;
+    g_analyzerInput.anchor = start;
+}
+
+void AnalyzerTypeChar(wchar_t c) {
+    if (g_analyzerInput.text.size() >= 512) {
+        return;
+    }
+    AnalyzerDeleteSelection();
+    g_analyzerInput.text.insert(
+        static_cast<size_t>(g_analyzerInput.caret), 1, c);
+    g_analyzerInput.caret++;
+    g_analyzerInput.anchor = g_analyzerInput.caret;
+    g_caretStart = NowMs();
+    Repaint();
+}
+
+void AnalyzerErase(bool forward) {
+    if (g_analyzerInput.caret != g_analyzerInput.anchor) {
+        AnalyzerDeleteSelection();
+    } else if (forward) {
+        if (g_analyzerInput.caret <
+            static_cast<int>(g_analyzerInput.text.size())) {
+            g_analyzerInput.text.erase(
+                static_cast<size_t>(g_analyzerInput.caret), 1);
+        }
+    } else if (g_analyzerInput.caret > 0) {
+        g_analyzerInput.text.erase(
+            static_cast<size_t>(g_analyzerInput.caret - 1), 1);
+        g_analyzerInput.caret--;
+        g_analyzerInput.anchor = g_analyzerInput.caret;
+    }
+    g_caretStart = NowMs();
+    Repaint();
+}
+
+void AnalyzerClearField() {
+    g_analyzerInput.text.clear();
+    g_analyzerInput.caret = 0;
+    g_analyzerInput.anchor = 0;
+    Repaint();
+}
+
+void AnalyzerPaste() {
+    std::wstring pasted;
+    if (OpenClipboard(g_panel.Hwnd())) {
+        HANDLE handle = GetClipboardData(CF_UNICODETEXT);
+        if (handle) {
+            const wchar_t* raw =
+                static_cast<const wchar_t*>(GlobalLock(handle));
+            if (raw) {
+                pasted = raw;
+                GlobalUnlock(handle);
+            }
+        }
+        CloseClipboard();
+    }
+    std::wstring clean;
+    for (wchar_t c : pasted) {
+        if (c >= 32 && c != 127) {
+            clean += c;
+        }
+    }
+    if (clean.empty()) {
+        return;
+    }
+    AnalyzerDeleteSelection();
+    const size_t room = 512 - g_analyzerInput.text.size();
+    if (clean.size() > room) {
+        clean.resize(room);
+    }
+    g_analyzerInput.text.insert(
+        static_cast<size_t>(g_analyzerInput.caret), clean);
+    g_analyzerInput.caret += static_cast<int>(clean.size());
+    g_analyzerInput.anchor = g_analyzerInput.caret;
+    g_caretStart = NowMs();
+    Repaint();
+}
+
+bool AnalyzerFieldActive() {
+    return g_app.tool == kToolAnalyzer && g_analyzerInput.focused;
+}
+
 // refit is set when the whole meter changes, so a preset or a signature step
 // picks up the grouping that meter is normally felt in; the steppers leave a
 // group the player chose alone.
@@ -11075,6 +13008,11 @@ void ApplySettings() {
         previous.trainerNaturals != g_settings.trainerNaturals) {
         g_trainer.defaultsApplied = true;
         g_trainer.naturals = g_settings.trainerNaturals;
+    }
+    if (!g_analyzerSeeded ||
+        previous.analyzerAcappella != g_settings.analyzerAcappella) {
+        g_analyzerSeeded = true;
+        g_analyzerAcappella = g_settings.analyzerAcappella;
     }
     MetronomeSync();
     // The reference pitch follows the settings; the panel never edits it.
@@ -11328,6 +13266,24 @@ void OnMouseDown(HWND hwnd, POINT pt) {
         }
         return;
     }
+    if (g_app.tool == kToolAnalyzer && MenuVisual(g_exportMenu) &&
+        (hit.id == kHitNone || hit.id == kHitToolSelect)) {
+        // The format list covers the lower card, so a click outside it - or on
+        // the header, which belongs to the tool picker - puts it away.
+        MenuHide(g_exportMenu);
+        Repaint();
+        if (hit.id == kHitToolSelect) {
+            g_pressed = hit;
+            MenuShow(g_toolMenu, kMenuTools, g_app.tool);
+            g_hover = HitResult();
+            Repaint();
+        }
+        return;
+    }
+    // Anything but the URL field takes the caret away from it.
+    if (g_app.tool == kToolAnalyzer && hit.id != kHitAnalyzerField) {
+        g_analyzerInput.focused = false;
+    }
     g_pressed = hit;
     switch (hit.id) {
         case kHitClose:
@@ -11573,6 +13529,46 @@ void OnMouseDown(HWND hwnd, POINT pt) {
         case kHitTrainerStart:
             TrainerToggle();
             break;
+        case kHitAnalyzerField:
+            SetFocus(hwnd);
+            g_analyzerInput.focused = true;
+            // The link is longer than the field, so a click parks the caret at
+            // the end of it rather than guessing at a glyph.
+            AnalyzerSetCaret(static_cast<int>(g_analyzerInput.text.size()),
+                             false);
+            Repaint();
+            break;
+        case kHitAnalyzerBrowse:
+            AnalyzerBrowse();
+            break;
+        case kHitAnalyzerAction:
+            if (AnalyzerBusy()) {
+                AnalyzerCancel();
+            } else {
+                AnalyzerSubmitUrl();
+            }
+            break;
+        case kHitAnalyzerAcappella:
+            g_analyzerAcappella = !g_analyzerAcappella;
+            Repaint();
+            break;
+        case kHitAnalyzerExport:
+            if (MenuHit(g_exportMenu)) {
+                MenuHide(g_exportMenu);
+            } else {
+                MenuShow(g_exportMenu, kMenuAnalyzerExport, 0);
+                g_hover = HitResult();
+            }
+            Repaint();
+            break;
+        case kHitAnalyzerExportRow:
+            MenuHide(g_exportMenu);
+            AnalyzerExport(hit.index);
+            break;
+        case kHitAnalyzerBar:
+            // A bar answers the click so it does not fall through to the card.
+            Repaint();
+            break;
         case kHitHeader:
             g_dragging = true;
             GetCursorPos(&g_dragCursor);
@@ -11642,6 +13638,11 @@ void OnWheel(HWND hwnd, WPARAM wParam, POINT pt) {
         return;
     }
     const int direction = delta > 0 ? -1 : 1;
+    if (g_app.tool == kToolAnalyzer) {
+        // The wheel walks the bars a line at a time.
+        AnalyzerScrollBy(direction);
+        return;
+    }
     if (g_app.tool == kToolTempo) {
         // The wheel fine tunes the tempo one BPM at a time, ten with Shift.
         const bool shift = GetKeyState(VK_SHIFT) < 0;
@@ -11744,6 +13745,113 @@ void OnKeyDown(WPARAM key) {
             Repaint();
             return;
         }
+    }
+    if (g_app.tool == kToolAnalyzer) {
+        if (MenuHit(g_exportMenu)) {
+            if (key == VK_ESCAPE) {
+                MenuHide(g_exportMenu);
+                Repaint();
+                return;
+            }
+            if (key == VK_RETURN) {
+                const int format = g_exportMenu.cursor;
+                MenuHide(g_exportMenu);
+                if (format >= 0 && format < kAnalyzerFormatCount) {
+                    AnalyzerExport(format);
+                }
+                Repaint();
+                return;
+            }
+            if (key == VK_UP || key == VK_DOWN) {
+                MenuMoveCursor(g_exportMenu, key == VK_DOWN ? 1 : -1);
+                Repaint();
+                return;
+            }
+            return;  // Every other key is the list's while it is up.
+        }
+        if (ctrl && key == 'O') {
+            AnalyzerBrowse();
+            return;
+        }
+        if (key == VK_ESCAPE && AnalyzerBusy()) {
+            AnalyzerCancel();
+            return;
+        }
+        if (g_analyzerInput.focused) {
+            const int length = static_cast<int>(g_analyzerInput.text.size());
+            if (key == VK_BACK) {
+                AnalyzerErase(false);
+                return;
+            }
+            if (key == VK_DELETE) {
+                AnalyzerErase(true);
+                return;
+            }
+            if (key == VK_LEFT || key == VK_RIGHT) {
+                AnalyzerSetCaret(g_analyzerInput.caret +
+                                     (key == VK_RIGHT ? 1 : -1),
+                                 shift);
+                Repaint();
+                return;
+            }
+            if (key == VK_HOME || key == VK_END) {
+                AnalyzerSetCaret(key == VK_HOME ? 0 : length, shift);
+                Repaint();
+                return;
+            }
+            if (ctrl && key == 'A') {
+                AnalyzerSetCaret(0, false);
+                AnalyzerSetCaret(length, true);
+                Repaint();
+                return;
+            }
+            if (ctrl && key == 'V') {
+                AnalyzerPaste();
+                return;
+            }
+            if (key == VK_RETURN || key == VK_SPACE) {
+                // A link has no spaces in it, so Space goes to the transport
+                // rather than into the field.
+                if (AnalyzerBusy()) {
+                    AnalyzerCancel();
+                } else {
+                    AnalyzerSubmitUrl();
+                }
+                return;
+            }
+            if (key == VK_ESCAPE) {
+                if (!g_analyzerInput.text.empty()) {
+                    AnalyzerClearField();
+                } else {
+                    g_analyzerInput.focused = false;
+                    CloseFlyout();
+                }
+                return;
+            }
+            return;
+        }
+        if (key == VK_ESCAPE) {
+            CloseFlyout();
+            return;
+        }
+        if (key == VK_RETURN) {
+            g_analyzerInput.focused = true;
+            SetFocus(g_panel.Hwnd());
+            Repaint();
+            return;
+        }
+        if (key == VK_SPACE) {
+            if (AnalyzerBusy()) {
+                AnalyzerCancel();
+            } else {
+                AnalyzerSubmitUrl();
+            }
+            return;
+        }
+        if (key == VK_UP || key == VK_DOWN) {
+            AnalyzerScrollBy(key == VK_DOWN ? 1 : -1);
+        }
+        return;
     }
     if (g_app.tool == kToolTempo) {
         if (key == VK_ESCAPE) {
@@ -12197,6 +14305,7 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                     (transportKey && (g_app.tool == kToolTempo ||
                                       g_app.tool == kToolMetronome ||
                                       g_app.tool == kToolStrum ||
+                                      g_app.tool == kToolAnalyzer ||
                                       g_app.tool == kToolCircle ||
                                       g_app.tool == kToolTrainer)) ||
                     (g_app.tool == kToolCircle && wParam >= '1' &&
@@ -12216,6 +14325,11 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                 if (g_app.tool == kToolChords && !MenuHit(g_toolMenu)) {
                     AppendQueryChar(c);
                 }
+                if (c != L' ' && AnalyzerFieldActive() &&
+                    !MenuHit(g_exportMenu)) {
+                    AnalyzerTypeChar(c);
+                    return 0;  // A character went into the URL field.
+                }
             }
             return 0;
         }
@@ -12223,7 +14337,8 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
             if (wParam == kAnimationTimer) {
                 UpdateAnimation();
             } else if (wParam == kCaretTimer && g_phase != kPhaseClosed &&
-                       (g_searchFocused || TempoEntryActive()) &&
+                       (g_searchFocused || TempoEntryActive() ||
+                        AnalyzerFieldActive()) &&
                        g_windowActive) {
                 Repaint();  // Moves the blinking caret along.
             } else if (wParam == kFlashTimer) {
@@ -12320,7 +14435,8 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                 LPCWSTR cursor = IDC_ARROW;
                 if (g_dragging || g_hover.id == kHitHeader) {
                     cursor = IDC_SIZEALL;
-                } else if (g_selecting || g_hover.id == kHitSearch) {
+                } else if (g_selecting || g_hover.id == kHitSearch ||
+                           g_hover.id == kHitAnalyzerField) {
                     cursor = IDC_IBEAM;
                 } else if (g_hover.id == kHitTab || g_hover.id == kHitRow ||
                            g_hover.id == kHitClose ||
@@ -12344,6 +14460,11 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                            g_hover.id == kHitTunerMenuRow ||
                            g_hover.id == kHitTunerString ||
                            g_hover.id == kHitStrumTempo ||
+                           g_hover.id == kHitAnalyzerBrowse ||
+                           g_hover.id == kHitAnalyzerAction ||
+                           g_hover.id == kHitAnalyzerAcappella ||
+                           g_hover.id == kHitAnalyzerExport ||
+                           g_hover.id == kHitAnalyzerExportRow ||
                            g_hover.id == kHitPrevious ||
                            g_hover.id == kHitNext || g_hover.id == kHitDot) {
                     cursor = IDC_HAND;
@@ -12418,6 +14539,12 @@ LRESULT CALLBACK MessageWndProc(HWND hwnd,
         case kMessageSettings:
             ApplySettings();
             RepositionPanel();
+            return 0;
+        case kMessageAnalyzer:
+            // The worker finished a step; drawing happens on this thread only.
+            if (g_phase != kPhaseClosed) {
+                Repaint();
+            }
             return 0;
         case WM_SETTINGCHANGE:
             // The app theme and the accent color live in the registry, so a
@@ -12538,6 +14665,9 @@ DWORD WINAPI WorkerThreadProc(LPVOID) {
     TunerHalt();
     TrainerHalt();
     StrumHalt();
+    // The analyzer's worker may still be mid-request, so it is stopped before
+    // the windows it reports to go away.
+    AnalyzerHalt();
     // And let any chord or scale clip finish before the process unwinds.
     ClipStop();
     DestroyWindows();
