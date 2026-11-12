@@ -12,7 +12,7 @@ keeps running when you click away from it. Everything except the analyzer is
 drawn and synthesised by the mod itself - no images, no audio files - so it
 behaves the same on any machine.
 
-![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot.png)
+![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot-1.1.0.png)
 
 ## What's in it
 
