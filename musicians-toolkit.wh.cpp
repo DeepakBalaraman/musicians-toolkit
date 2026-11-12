@@ -71,10 +71,10 @@ It then plays like a chord player, with the chart under a playhead.
   SoundCloud is fetched with [yt-dlp](https://github.com/yt-dlp/yt-dlp) when it
   is installed. Set the path to `yt-dlp.exe` under Settings > Analyzer, or leave
   it empty and the usual install folders and **PATH** are searched. Without an
-  extractor a link plays silently, with the chart keeping time on its own - and
-  while a link's chart has nothing to play, the chip beside the URL field turns
-  into **Audio**, so the song can be picked by hand and played under that same
-  chart without a second run.
+  extractor a link plays silently, with the chart keeping time on its own. While
+  a chart has nothing the player can take - a link with no audio, or a video
+  file - the chip beside the URL field turns into **Audio**, so the song can be
+  picked by hand and played under that same chart without a second run.
 - **Progress** - the bar under the chart shows the run as it goes, step by
   step. **Space** cancels a run that is taking too long.
 - **Acappella** - for a solo vocal recording, which is measured differently.
@@ -3499,6 +3499,10 @@ std::atomic<bool> g_analyzerCancel(false);
 // hand its song to the run that replaced it.
 std::atomic<unsigned> g_analyzerEpoch(0);
 HANDLE g_analyzerThread = nullptr;
+// Workers that were still busy when a newer one was wanted. Their handles are
+// kept rather than dropped, because the unload path has to be able to wait for
+// them: a thread running this module's code after it is unloaded is a crash.
+std::vector<HANDLE> g_analyzerRetired;
 bool g_analyzerAcappella = false;
 bool g_analyzerSeeded = false;
 // A wheel turn or a drag on the chart holds the view still for a moment, so
@@ -3519,6 +3523,10 @@ struct AnalyzerInput {
 };
 
 AnalyzerInput g_analyzerInput;
+// The first character the URL field shows. A link is usually wider than the box,
+// so the field slides forward to keep the caret - and the end of the link being
+// edited - in view.
+int g_analyzerFieldStart = 0;
 
 enum Tool {
     kToolChords,
@@ -4869,6 +4877,15 @@ void AnalyzerScrollBy(int rows);
 void AnalyzerSubmitUrl();
 void AnalyzerFetchLinkAudio(const std::wstring& url);
 void AnalyzerAudioHalt();
+// The card's state predicates are read by the footer and the card, which are
+// painted before any of the analyzer's own functions are defined.
+bool AnalyzerBusy();
+bool AnalyzerReady();
+bool AnalyzerHasAudio();
+bool AnalyzerPlayablePath(const std::wstring& path, bool fetched);
+// Reading a song off the disk is the worker's job, so a large file never stalls
+// the panel while it is being read.
+bool AnalyzerReadFile(const std::wstring& path, std::vector<uint8_t>& out);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Popup lists
@@ -9702,25 +9719,30 @@ void PaintTrainer(Surface& s, const Theme& t) {
                 t.textFaint);
 }
 
-// The x coordinate of a caret position inside the analyzer's URL field.
+// The x coordinate of a caret position inside the analyzer's URL field. Only
+// the visible window is measured, so the caret lands on the glyph under it
+// while the link is scrolled.
 int AnalyzerFieldEdge(int index) {
     const int left = static_cast<int>(g_layout.analyzerField.left) + S(10);
-    index = std::clamp(index, 0, static_cast<int>(g_analyzerInput.text.size()));
-    if (index == 0) {
-        return left;
+    const int count = static_cast<int>(g_analyzerInput.text.size());
+    index = std::clamp(index, 0, count);
+    const int start = std::clamp(g_analyzerFieldStart, 0, count);
+    if (index <= start) {
+        return left;  // Everything before the window sits on its left edge.
     }
     HFONT font = g_fonts.Get(S(static_cast<float>(kFontSearch)), FW_NORMAL);
-    const std::wstring prefix =
-        g_analyzerInput.text.substr(0, static_cast<size_t>(index));
-    return left + g_text.Measure(font, prefix).cx;
+    const std::wstring visible = g_analyzerInput.text.substr(
+        static_cast<size_t>(start), static_cast<size_t>(index - start));
+    return left + g_text.Measure(font, visible).cx;
 }
 
 // The caret position nearest to a click in the field.
 int AnalyzerFieldIndex(int x) {
     const int count = static_cast<int>(g_analyzerInput.text.size());
-    int best = 0;
-    int bestDistance = std::abs(x - AnalyzerFieldEdge(0));
-    for (int i = 1; i <= count; i++) {
+    const int start = std::clamp(g_analyzerFieldStart, 0, count);
+    int best = start;
+    int bestDistance = std::abs(x - AnalyzerFieldEdge(start));
+    for (int i = start + 1; i <= count; i++) {
         const int distance = std::abs(x - AnalyzerFieldEdge(i));
         if (distance < bestDistance) {
             bestDistance = distance;
@@ -9728,6 +9750,40 @@ int AnalyzerFieldIndex(int x) {
         }
     }
     return best;
+}
+
+// Slides the visible window so the caret stays inside the box, dropping
+// characters off the front. Without this a long link hides the very end the
+// caret is editing, and a caret you cannot see is a guess.
+void AnalyzerFieldFollow() {
+    const RECT& field = g_layout.analyzerField;
+    const int width = (field.right - S(8)) - (field.left + S(10));
+    const int count = static_cast<int>(g_analyzerInput.text.size());
+    if (width <= 0) {
+        g_analyzerFieldStart = 0;
+        return;
+    }
+    HFONT font = g_fonts.Get(S(static_cast<float>(kFontSearch)), FW_NORMAL);
+    auto tail = [&](int from) {
+        return g_analyzerInput.text.substr(
+            static_cast<size_t>(from),
+            static_cast<size_t>(g_analyzerInput.caret - from));
+    };
+    // The field may now be longer than it shows, so the window slides back as
+    // far as it can, then forward until the caret and the text behind it fit.
+    int start = std::clamp(g_analyzerFieldStart, 0, count);
+    if (start > g_analyzerInput.caret) {
+        start = g_analyzerInput.caret;
+    }
+    while (start > 0 &&
+           g_text.Measure(font, tail(start - 1)).cx <= width) {
+        start--;
+    }
+    while (start < g_analyzerInput.caret &&
+           g_text.Measure(font, tail(start)).cx > width) {
+        start++;
+    }
+    g_analyzerFieldStart = start;
 }
 
 // The chord that sounds at a moment: the last cell to start at or before it.
@@ -9802,7 +9858,11 @@ void PaintAnalyzer(Surface& s, const Theme& t) {
     const bool ready = phase == kAnalyzerReady;
     const bool failed = phase == kAnalyzerFailed;
     const bool playing = g_analyzer.playing;
-    const bool hasAudio = !g_analyzer.audioPath.empty();
+    // Having a path is not the same as having sound: a video is analyzed
+    // happily but cannot be handed to the media player, so its chart counts as
+    // one with nothing to play and keeps the Audio chip.
+    const bool hasAudio =
+        AnalyzerPlayablePath(g_analyzer.audioPath, g_analyzer.audioFetched);
     const int count = static_cast<int>(g_analyzer.bars.size());
     const int measureCount = static_cast<int>(g_analyzer.measures.size());
     const double length = g_analyzer.length;
@@ -9850,8 +9910,14 @@ void PaintAnalyzer(Surface& s, const Theme& t) {
                           selRight + S(1.0f), cy + S(9.0f), S(2.0f),
                           t.selection);
         }
-        g_text.Draw(s, fieldFont, g_analyzerInput.text, fieldText,
-                    DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.text);
+        // Only the visible window is drawn, so a long link shows the end the
+        // caret is editing rather than the part before it.
+        const int window = std::clamp(
+            g_analyzerFieldStart, 0,
+            static_cast<int>(g_analyzerInput.text.size()));
+        g_text.Draw(s, fieldFont,
+                    g_analyzerInput.text.substr(static_cast<size_t>(window)),
+                    fieldText, DT_LEFT | DT_VCENTER | DT_SINGLELINE, t.text);
     }
     if (focused && g_windowActive &&
         g_analyzerInput.caret == g_analyzerInput.anchor) {
@@ -9866,8 +9932,9 @@ void PaintAnalyzer(Surface& s, const Theme& t) {
     }
 
     // The chip offers the one thing the card still lacks. Before a chart there
-    // is no song at all, so it browses; a link's chart with nothing to play
-    // turns it into Audio, and once the song is on the card it browses again.
+    // is no song at all, so it browses; a chart with nothing the media player
+    // can take - a silent link, a video file - turns it into Audio, and once a
+    // playable song is on the card it browses again.
     const bool attach = ready && !hasAudio;
     PaintChip(s, t, g_layout.analyzerBrowse, attach ? L"Audio" : L"Browse",
               chipFont, false, g_hover.id == kHitAnalyzerBrowse);
@@ -12272,12 +12339,14 @@ void TrainerTick() {
 
 struct AnalyzerRequest {
     int kind = 0;  // 0 URL, 1 upload, 2 export.
+    unsigned epoch = 0;  // The run this request belongs to.
     std::wstring baseUrl;
     std::wstring url;
     std::wstring filename;
     std::wstring jobId;
     std::wstring source;
     std::wstring exportFolder;
+    std::wstring filePath;  // Where the song is read from, on the worker.
     std::vector<uint8_t> file;
     int format = 0;
     bool acappella = false;
@@ -12289,6 +12358,7 @@ struct HttpResult {
     std::wstring contentType;
     std::wstring disposition;
     int retryAfter = 0;
+    bool tooLarge = false;  // The answer was bigger than this module will take.
 };
 
 std::string NarrowText(const std::wstring& text) {
@@ -12436,6 +12506,12 @@ bool HttpRequest(PCWSTR verb,
             Wh_Log(L"Analyzer: WinHttpOpenRequest failed (%u)",
                    GetLastError());
         } else {
+            // A song link usually redirects to a CDN before the bytes start,
+            // and the API may move between hosts, so a redirect is followed
+            // rather than treated as the final answer.
+            DWORD redirects = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+            WinHttpSetOption(request, WINHTTP_OPTION_REDIRECT_POLICY,
+                             &redirects, sizeof(redirects));
             std::wstring headers;
             if (contentType && *contentType) {
                 headers = L"Content-Type: ";
@@ -12509,7 +12585,13 @@ bool HttpRequest(PCWSTR verb,
                         break;
                     }
                     if (out.body.size() + available > 64u * 1024 * 1024) {
-                        break;  // A sane export never reaches this.
+                        // A chart is small and an export is bounded, so reaching
+                        // this means the answer is not something to keep: what
+                        // arrived is dropped rather than written out as a file
+                        // that would only turn out to be half of itself.
+                        out.tooLarge = true;
+                        Wh_Log(L"Analyzer: the answer passed 64 MB");
+                        break;
                     }
                     const size_t offset = out.body.size();
                     out.body.resize(offset + available);
@@ -12576,7 +12658,16 @@ void AnalyzerPost() {
     }
 }
 
-void AnalyzerFail(const std::wstring& text) {
+// A run that has been replaced - the card moved on to another song - says
+// nothing at all, so it cannot paint over what came after it.
+bool AnalyzerStale(unsigned epoch) {
+    return g_analyzerEpoch.load() != epoch;
+}
+
+void AnalyzerFail(const std::wstring& text, unsigned epoch) {
+    if (AnalyzerStale(epoch)) {
+        return;
+    }
     AcquireSRWLockExclusive(&g_analyzerLock);
     g_analyzer.phase = kAnalyzerFailed;
     g_analyzer.busy = false;
@@ -12594,11 +12685,17 @@ void AnalyzerNote(const std::wstring& text) {
     AnalyzerPost();
 }
 
-void AnalyzerCancelled() {
+void AnalyzerCancelled(unsigned epoch) {
+    if (AnalyzerStale(epoch)) {
+        return;
+    }
     AcquireSRWLockExclusive(&g_analyzerLock);
     g_analyzer.phase = kAnalyzerIdle;
     g_analyzer.busy = false;
     g_analyzer.status = L"Cancelled";
+    // The status line is only painted for a live run, so the cancel is said on
+    // the note line instead, which is the one that survives the run.
+    g_analyzer.exportNote = L"Cancelled";
     g_analyzer.progress = 0;
     ReleaseSRWLockExclusive(&g_analyzerLock);
     AnalyzerPost();
@@ -12620,10 +12717,12 @@ void AnalyzerSleep(int ms) {
 // is what puts the playhead on the chord being strummed rather than on the bar
 // it belongs to. A missing layout (a silent clip, which the service still
 // accepts) falls back to the segments, and "N" is its word for no chord.
-void AnalyzerApplyResult(const HttpResult& response, const std::wstring& source) {
+void AnalyzerApplyResult(const HttpResult& response,
+                         const std::wstring& source,
+                         unsigned epoch) {
     JsonValue doc;
     if (!JsonParse(response.body, doc)) {
-        AnalyzerFail(L"Couldn't read the analysis");
+        AnalyzerFail(L"Couldn't read the analysis", epoch);
         return;
     }
 
@@ -12769,6 +12868,12 @@ void AnalyzerApplyResult(const HttpResult& response, const std::wstring& source)
     const int measureCount = static_cast<int>(measures.size());
     const int chordCount = static_cast<int>(bars.size());
     AcquireSRWLockExclusive(&g_analyzerLock);
+    if (g_analyzerEpoch.load() != epoch) {
+        // The card moved on to another song while this one was being read, so
+        // the chart is not this thread's to publish.
+        ReleaseSRWLockExclusive(&g_analyzerLock);
+        return;
+    }
     g_analyzer.phase = kAnalyzerReady;
     g_analyzer.busy = false;
     g_analyzer.progress = 100;
@@ -12797,6 +12902,7 @@ void AnalyzerApplyResult(const HttpResult& response, const std::wstring& source)
 
 void AnalyzerRunJob(AnalyzerRequest& request) {
     const std::wstring base = request.baseUrl;
+    const unsigned epoch = request.epoch;
     std::wstring jobId;
     HttpResult response;
     bool sent = false;
@@ -12809,6 +12915,13 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
         sent = HttpRequest(L"POST", base + L"/api/v1/analyze/url", &body,
                            L"application/json", response);
     } else {
+        // The song is read here, not on the panel thread, so choosing a large
+        // file never leaves the flyout frozen while its bytes are fetched.
+        if (request.file.empty() &&
+            !AnalyzerReadFile(request.filePath, request.file)) {
+            AnalyzerFail(L"Couldn't read that file, or it is over 100 MB", epoch);
+            return;
+        }
         const std::string boundary = "----MusiciansToolkitBoundary";
         const std::string body =
             BuildMultipart(request.file, request.filename,
@@ -12818,16 +12931,21 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
         sent = HttpRequest(L"POST", base + L"/api/v1/analyze", &body,
                            type.c_str(), response);
     }
+    // Another run may own the card by now; a straggler that has been overtaken
+    // must not report on, or draw over, the song that replaced it.
+    if (AnalyzerStale(epoch)) {
+        return;
+    }
     if (g_analyzerCancel.load()) {
-        AnalyzerCancelled();
+        AnalyzerCancelled(epoch);
         return;
     }
     if (!sent) {
-        AnalyzerFail(L"Couldn't reach the analyzer");
+        AnalyzerFail(L"Couldn't reach the analyzer", epoch);
         return;
     }
     if (response.status != 200 && response.status != 202) {
-        AnalyzerFail(HttpErrorText(response));
+        AnalyzerFail(HttpErrorText(response), epoch);
         return;
     }
     JsonValue envelope;
@@ -12835,7 +12953,7 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
         jobId = envelope.Str(L"job_id");
     }
     if (jobId.empty()) {
-        AnalyzerFail(L"The service didn't start a job");
+        AnalyzerFail(L"The service didn't start a job", epoch);
         return;
     }
     {
@@ -12851,6 +12969,9 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
     const double deadline = NowMs() + 15.0 * 60.0 * 1000.0;
     bool complete = false;
     while (!g_analyzerCancel.load() && NowMs() < deadline) {
+        if (AnalyzerStale(epoch)) {
+            return;
+        }
         HttpResult poll;
         if (HttpRequest(L"GET", base + L"/api/v1/jobs/" + jobId, nullptr,
                         nullptr, poll)) {
@@ -12871,7 +12992,7 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
                         if (text.empty()) {
                             text = HttpErrorText(poll);
                         }
-                        AnalyzerFail(text);
+                        AnalyzerFail(text, epoch);
                         return;
                     }
                     const int percent =
@@ -12880,6 +13001,9 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
                     std::wstring message = doc.Str(L"message");
                     if (message.empty()) {
                         message = L"Analyzing\x2026";
+                    }
+                    if (AnalyzerStale(epoch)) {
+                        return;
                     }
                     AcquireSRWLockExclusive(&g_analyzerLock);
                     g_analyzer.phase = kAnalyzerRunning;
@@ -12892,7 +13016,7 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
                 AnalyzerSleep(std::max(1500, poll.retryAfter * 1000));
                 continue;
             } else if (poll.status > 0) {
-                AnalyzerFail(HttpErrorText(poll));
+                AnalyzerFail(HttpErrorText(poll), epoch);
                 return;
             }
         } else if (g_analyzerCancel.load()) {
@@ -12901,11 +13025,11 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
         AnalyzerSleep(1500);
     }
     if (g_analyzerCancel.load()) {
-        AnalyzerCancelled();
+        AnalyzerCancelled(epoch);
         return;
     }
     if (!complete) {
-        AnalyzerFail(L"The analysis took too long");
+        AnalyzerFail(L"The analysis took too long", epoch);
         return;
     }
 
@@ -12919,17 +13043,20 @@ void AnalyzerRunJob(AnalyzerRequest& request) {
     if (!HttpRequest(L"GET", base + L"/api/v1/jobs/" + jobId + L"/result",
                      nullptr, nullptr, result)) {
         if (g_analyzerCancel.load()) {
-            AnalyzerCancelled();
+            AnalyzerCancelled(epoch);
         } else {
-            AnalyzerFail(L"Couldn't fetch the analysis");
+            AnalyzerFail(L"Couldn't fetch the analysis", epoch);
         }
         return;
     }
     if (result.status != 200 || result.body.empty()) {
-        AnalyzerFail(HttpErrorText(result));
+        AnalyzerFail(HttpErrorText(result), epoch);
         return;
     }
-    AnalyzerApplyResult(result, request.source);
+    if (AnalyzerStale(epoch)) {
+        return;
+    }
+    AnalyzerApplyResult(result, request.source, epoch);
     // The chart is up; now the sound. A file the user picked is already on
     // disk, so this only does anything for a pasted link.
     AnalyzerFetchLinkAudio(request.url);
@@ -12948,6 +13075,8 @@ void AnalyzerRunExport(AnalyzerRequest& request) {
     if (!HttpRequest(L"GET", url, nullptr, nullptr, response)) {
         if (g_analyzerCancel.load()) {
             AnalyzerNote(L"Cancelled");
+        } else if (response.tooLarge) {
+            AnalyzerNote(L"The export is too large to save");
         } else {
             AnalyzerNote(L"Couldn't reach the analyzer");
         }
@@ -13041,22 +13170,50 @@ DWORD WINAPI AnalyzerThreadProc(LPVOID param) {
     return 0;
 }
 
+// A worker that was still busy when a newer one started. Its handle cannot be
+// simply dropped - the unload path has to be able to wait for it - so it is
+// kept here, and the ones that have finished since are let go first, so a long
+// session does not hoard a handle for every song that was started in a hurry.
+void AnalyzerRetire(HANDLE thread) {
+    for (size_t i = 0; i < g_analyzerRetired.size();) {
+        if (WaitForSingleObject(g_analyzerRetired[i], 0) == WAIT_OBJECT_0) {
+            CloseHandle(g_analyzerRetired[i]);
+            g_analyzerRetired.erase(g_analyzerRetired.begin() + i);
+        } else {
+            i++;
+        }
+    }
+    g_analyzerRetired.push_back(thread);
+}
+
 void AnalyzerStartRequest(AnalyzerRequest* request) {
-    g_analyzerCancel.store(false);
     if (g_analyzerThread) {
-        // Only an export can still be in flight here - a job holds the card
-        // busy until its thread is done - so this wait is a short one. It is
-        // still waited on rather than closed outright, so no thread is ever
-        // left running without a handle the unload path can join.
-        WaitForSingleObject(g_analyzerThread, 5000);
-        CloseHandle(g_analyzerThread);
+        // An earlier thread can still be here: an export, a run the user has
+        // just cancelled, or a job that is fetching its audio. A job that has
+        // already published its chart only fetches sound from here on, so its
+        // handle is simply kept for the unload path rather than waited on.
+        // Anything that could still write to the card is told to stop and
+        // waited for first, because a straggler handed a fresh stop flag would
+        // carry on polling for the song that replaced it.
+        if (AnalyzerReady()) {
+            AnalyzerRetire(g_analyzerThread);
+        } else {
+            g_analyzerCancel.store(true);
+            if (WaitForSingleObject(g_analyzerThread, 5000) == WAIT_OBJECT_0) {
+                CloseHandle(g_analyzerThread);
+            } else {
+                AnalyzerRetire(g_analyzerThread);
+            }
+        }
         g_analyzerThread = nullptr;
     }
+    g_analyzerCancel.store(false);
     g_analyzerThread =
         CreateThread(nullptr, 0, AnalyzerThreadProc, request, 0, nullptr);
     if (!g_analyzerThread) {
+        const unsigned epoch = request->epoch;
         delete request;
-        AnalyzerFail(L"Couldn't start the analysis thread");
+        AnalyzerFail(L"Couldn't start the analysis thread", epoch);
     }
 }
 
@@ -13071,6 +13228,13 @@ void AnalyzerHalt() {
         CloseHandle(g_analyzerThread);
         g_analyzerThread = nullptr;
     }
+    // A worker that was still busy when a newer one started is waited for too,
+    // so nothing is left executing this module once it has unloaded.
+    for (HANDLE thread : g_analyzerRetired) {
+        WaitForSingleObject(thread, 16000);
+        CloseHandle(thread);
+    }
+    g_analyzerRetired.clear();
     // The worker may have just started a fetch, so it is joined last and the
     // file it left behind goes with the mod.
     AnalyzerAudioHalt();
@@ -13093,7 +13257,8 @@ bool AnalyzerReady() {
 
 bool AnalyzerHasAudio() {
     AcquireSRWLockShared(&g_analyzerLock);
-    const bool has = !g_analyzer.audioPath.empty();
+    const bool has =
+        AnalyzerPlayablePath(g_analyzer.audioPath, g_analyzer.audioFetched);
     ReleaseSRWLockShared(&g_analyzerLock);
     return has;
 }
@@ -13158,6 +13323,17 @@ bool AnalyzerStreamExtension(const std::wstring& path) {
     const std::wstring extension = AnalyzerExtension(path);
     return AnalyzerAudioExtension(path) || extension == L"webm" ||
            extension == L"m4b";
+}
+
+// Whether the song on the card is one the media player will actually take. A
+// video picked for analysis has a path like any other but no sound the panel
+// can play, so for it the chip keeps offering an audio file.
+bool AnalyzerPlayablePath(const std::wstring& path, bool fetched) {
+    if (path.empty()) {
+        return false;
+    }
+    return fetched ? AnalyzerStreamExtension(path)
+                   : AnalyzerAudioExtension(path);
 }
 
 void AnalyzerAudioClose() {
@@ -13751,6 +13927,15 @@ bool AnalyzerDownloadUrl(const std::wstring& url, const std::wstring& path) {
         file.body.size() < 4096) {
         return false;
     }
+    // A link can answer with a page - a login wall, a moved song, an error
+    // document - and a few kilobytes of HTML is not a song; writing it to disk
+    // would only make the media player fail later, without saying why.
+    const std::wstring type = Lower(file.contentType);
+    if (type.rfind(L"text/", 0) == 0 || type.find(L"html") != std::wstring::npos ||
+        type.find(L"json") != std::wstring::npos) {
+        Wh_Log(L"Analyzer: the link answered %s, not audio", type.c_str());
+        return false;
+    }
     HANDLE handle = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr,
                                 CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (handle == INVALID_HANDLE_VALUE) {
@@ -13832,9 +14017,21 @@ bool AnalyzerRunExtractor(const std::wstring& exe,
     if (find == INVALID_HANDLE_VALUE) {
         return false;
     }
-    outPath = folder + L"\\" + entry.cFileName;
+    // The directory listing is in no particular order, and a stray cover image
+    // or a part file may sit beside the song, so the first entry the media
+    // player could take is the one that counts.
+    std::wstring found;
+    do {
+        const std::wstring candidate = folder + L"\\" + entry.cFileName;
+        if (!(entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+            AnalyzerStreamExtension(candidate)) {
+            found = candidate;
+            break;
+        }
+    } while (FindNextFileW(find, &entry));
     FindClose(find);
-    return AnalyzerStreamExtension(outPath);
+    outPath = found;
+    return !outPath.empty();
 }
 
 // The fetch, as one thread at a time. The epoch says which run asked for it.
@@ -13853,11 +14050,16 @@ void AnalyzerAudioSettle(const std::wstring& path,
     const bool current =
         g_analyzerEpoch.load() == epoch && g_analyzer.phase == kAnalyzerReady;
     if (current) {
-        g_analyzer.exportNote = note;
         if (!path.empty() && g_analyzer.audioPath.empty()) {
             g_analyzer.pendingAudio = path;
+            g_analyzer.exportNote = note;
             keep = true;
+        } else if (path.empty()) {
+            g_analyzer.exportNote = note;  // Why there is no sound.
         }
+        // A song that arrives after the user attached one of their own is
+        // dropped quietly: the card already has a song, and its own note is
+        // the one that tells the truth.
     }
     ReleaseSRWLockExclusive(&g_analyzerLock);
     if (!path.empty() && !keep) {
@@ -13938,17 +14140,21 @@ void AnalyzerFetchLinkAudio(const std::wstring& url) {
         ReleaseSRWLockExclusive(&g_analyzerLock);
         AnalyzerPost();
     }
-    g_analyzerAudioCancel.store(false);
     if (g_analyzerAudioThread) {
-        // Only one fetch runs at a time; the older one gives up first.
+        // Only one fetch runs at a time: two would share the one folder and
+        // delete each other's song, so the older one is given up first.
         g_analyzerAudioCancel.store(true);
         if (WaitForSingleObject(g_analyzerAudioThread, 3000) != WAIT_OBJECT_0) {
+            // It is still in there and cannot be stopped in time. Its own settling
+            // finds the card has moved on and says nothing, so the truth is said
+            // here instead of leaving the note claiming a fetch that is not to be.
+            AnalyzerNote(L"Couldn't fetch the audio for this link");
             return;
         }
         CloseHandle(g_analyzerAudioThread);
         g_analyzerAudioThread = nullptr;
-        g_analyzerAudioCancel.store(false);
     }
+    g_analyzerAudioCancel.store(false);
     AnalyzerAudioJob* job = new AnalyzerAudioJob();
     job->url = url;
     job->epoch = epoch;
@@ -14014,12 +14220,22 @@ void AnalyzerUseAudio(const std::wstring& path, bool fetched) {
 // path, after the media player has let go of the file.
 void AnalyzerAudioHalt() {
     g_analyzerAudioCancel.store(true);
+    bool joined = true;
     if (g_analyzerAudioThread) {
-        WaitForSingleObject(g_analyzerAudioThread, 5000);
+        // The extractor gives up within a fifth of a second and a download
+        // within one read, so a wait this long is enough. A thread that is
+        // still in there after it may be writing, so its folder is left alone
+        // rather than emptied underneath it.
+        if (WaitForSingleObject(g_analyzerAudioThread, 20000) != WAIT_OBJECT_0) {
+            Wh_Log(L"Analyzer: the audio fetch outlasted the unload");
+            joined = false;
+        }
         CloseHandle(g_analyzerAudioThread);
         g_analyzerAudioThread = nullptr;
     }
-    AnalyzerClearAudioFolder(AnalyzerAudioFolder());
+    if (joined) {
+        AnalyzerClearAudioFolder(AnalyzerAudioFolder());
+    }
 }
 
 void AnalyzerSubmitUrl() {
@@ -14038,6 +14254,7 @@ void AnalyzerSubmitUrl() {
     g_analyzerInput.focused = false;
     AnalyzerRequest* request = new AnalyzerRequest();
     request->kind = 0;
+    request->epoch = g_analyzerEpoch.load();
     request->baseUrl = g_settings.analyzerBaseUrl;
     request->url = url;
     request->source = url;
@@ -14045,9 +14262,8 @@ void AnalyzerSubmitUrl() {
     AnalyzerStartRequest(request);
 }
 
-void AnalyzerSubmitFile(const std::wstring& path,
-                        std::vector<uint8_t>&& data) {
-    if (AnalyzerBusy() || data.empty()) {
+void AnalyzerSubmitFile(const std::wstring& path) {
+    if (AnalyzerBusy()) {
         return;
     }
     const std::wstring name = FileNameOf(path);
@@ -14058,11 +14274,12 @@ void AnalyzerSubmitFile(const std::wstring& path,
     g_analyzerInput.focused = false;
     AnalyzerRequest* request = new AnalyzerRequest();
     request->kind = 1;
+    request->epoch = g_analyzerEpoch.load();
     request->baseUrl = g_settings.analyzerBaseUrl;
     request->filename = name;
     request->source = name;
     request->acappella = g_analyzerAcappella;
-    request->file = std::move(data);
+    request->filePath = path;
     AnalyzerStartRequest(request);
 }
 
@@ -14146,12 +14363,9 @@ void AnalyzerBrowse() {
             path)) {
         return;
     }
-    std::vector<uint8_t> data;
-    if (!AnalyzerReadFile(path, data)) {
-        AnalyzerNote(L"Couldn't read that file, or it is over 100 MB");
-        return;
-    }
-    AnalyzerSubmitFile(path, std::move(data));
+    // The file is handed over by its path: the worker reads it, so a big song
+    // does not hold the panel up while it is fetched.
+    AnalyzerSubmitFile(path);
 }
 
 // A chart built from a link has no file of its own. When the link could not
@@ -14237,6 +14451,7 @@ void AnalyzerSetCaret(int index, bool extend) {
     if (!extend) {
         g_analyzerInput.anchor = g_analyzerInput.caret;
     }
+    AnalyzerFieldFollow();
 }
 
 void AnalyzerDeleteSelection() {
@@ -14261,6 +14476,7 @@ void AnalyzerTypeChar(wchar_t c) {
         static_cast<size_t>(g_analyzerInput.caret), 1, c);
     g_analyzerInput.caret++;
     g_analyzerInput.anchor = g_analyzerInput.caret;
+    AnalyzerFieldFollow();
     g_caretStart = NowMs();
     Repaint();
 }
@@ -14280,6 +14496,7 @@ void AnalyzerErase(bool forward) {
         g_analyzerInput.caret--;
         g_analyzerInput.anchor = g_analyzerInput.caret;
     }
+    AnalyzerFieldFollow();
     g_caretStart = NowMs();
     Repaint();
 }
@@ -14288,6 +14505,7 @@ void AnalyzerClearField() {
     g_analyzerInput.text.clear();
     g_analyzerInput.caret = 0;
     g_analyzerInput.anchor = 0;
+    g_analyzerFieldStart = 0;
     Repaint();
 }
 
@@ -14323,6 +14541,7 @@ void AnalyzerPaste() {
         static_cast<size_t>(g_analyzerInput.caret), clean);
     g_analyzerInput.caret += static_cast<int>(clean.size());
     g_analyzerInput.anchor = g_analyzerInput.caret;
+    AnalyzerFieldFollow();
     g_caretStart = NowMs();
     Repaint();
 }
