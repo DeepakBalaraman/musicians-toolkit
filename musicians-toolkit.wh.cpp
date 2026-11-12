@@ -18,7 +18,7 @@
 
 # Musician's Toolkit
 
-![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot-1.1.0.png)
+![Sample Screenshot in action](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot-1.1.0.png)
 
 A chord library, a song analyzer, a tuner, a metronome, a strumming trainer, a
 circle of fifths, a tap tempo and a note drill, for guitar, ukulele and piano.
@@ -230,7 +230,7 @@ listens and you play it before the clock runs out.
 - **Note trainer** - seconds per note, chromatic or naturals.
 
 ## GitHub Repo
-The source code of this mod can be found in this ![GitHub Repo](https://github.com/DeepakBalaraman/musicians-toolkit).
+The source code of this mod can be found in this [GitHub Repo](https://github.com/DeepakBalaraman/musicians-toolkit).
 
 ## Credits
 
