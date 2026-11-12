@@ -6,13 +6,14 @@ song analyzer that plays the chart, a chromatic tuner, a metronome, a strumming
 pattern builder, an interactive circle of fifths, a tap tempo and a timed note
 trainer.
 
-Press **Win+Y** to open it. The panel floats above your other windows, so a
-click or a chord chart can sit beside your DAW, tab app or video lesson, and it
-keeps running when you click away from it. Everything except the analyzer is
-drawn and synthesised by the mod itself - no images, no audio files - so it
-behaves the same on any machine.
+Press **Win+Y** to open it, or click the icon it leaves in the notification
+area. The panel floats above your other windows, so a click or a chord chart can
+sit beside your DAW, tab app or video lesson, and it keeps running when you
+click away from it. Everything except the analyzer is drawn and synthesised by
+the mod itself - no images, no audio files - so it behaves the same on any
+machine.
 
-![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot-1.1.0.png)
+![Sample Screenshot](https://raw.githubusercontent.com/DeepakBalaraman/musicians-toolkit/master/assets/screenshot.png)
 
 ## What's in it
 
@@ -40,7 +41,8 @@ behaves the same on any machine.
 2. Open Windhawk, go to the **Mods** tab and click **Create new mod**.
 3. Set the id to `musicians-toolkit`, replace the template code with the whole
    of `musicians-toolkit.wh.cpp`, and click **Compile mod**.
-4. Turn the mod on and press **Win+Y**.
+4. Turn the mod on and press **Win+Y**, or click the icon it puts in the
+   notification area.
 
 The mod is a single file and needs nothing beside it: the chord shapes are
 packed into the source. It loads into `windhawk.exe` only, so it does not
@@ -52,6 +54,7 @@ inject anything into the programs you have running.
 | --- | --- |
 | `Win+Y` | Open or close the panel. The key and the modifiers are configurable. |
 | `Ctrl+Tab` | Switch tools. |
+| Tray icon | A click opens or closes the panel; a right-click names every tool so one can be opened in a step. |
 | `Tab` | Play the chord on the card, and step through the pattern list without opening it. |
 | `Shift+Tab` | Switch instrument. |
 | `Up` / `Down` | Move through search results, step the metronome, walk the analyzer's chart, hop between the two rings of the circle. |
@@ -125,7 +128,7 @@ the panel does not stop a run: it is there when you come back.
 | --- | --- |
 | Startup | The tool and instrument the panel opens with. |
 | Appearance | Theme, accent colour, panel opacity. |
-| Placement | Corner, monitor, offsets, and whether the panel closes when it loses focus. |
+| Placement | Corner, monitor, offsets, whether the panel closes when it loses focus, and whether it keeps a tray icon. |
 | Shortcut | The key and modifiers that open the panel. |
 | Metronome | Volume, background playback, default meter and subdivision. |
 | Chords | Whether to hide the finger numbers. |
