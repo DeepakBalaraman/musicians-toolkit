@@ -2,7 +2,7 @@
 // @id              musicians-toolkit
 // @name            Musician's Toolkit
 // @description     An all-in-one toolkit flyout for musicians, containing a chord library, a song analyzer, a metronome, a tuner, a tap tempo calculator, a strumming pattern builder, an interactive circle of fifths and a timed note trainer for guitar, ukulele and piano.
-// @version         1.3.0
+// @version         1.1.0
 // @author          DpakB
 // @homepage        https://dpakb.com
 // @github          https://github.com/DeepakBalaraman
@@ -42,7 +42,10 @@ letter, and the one you settle on is drawn underneath.
 - **Fingerings** - the arrow keys, or the slider under the diagram, step
   through the other ways to play the same chord.
 - **Hear it** - the speaker on the card plays the chord, strummed on an
-  acoustic guitar or played on a piano.
+  acoustic guitar or played on a piano. **Tab** asks for the same chord from the
+  keyboard, and **Space** or **Enter** do too, so one hand can stay on the
+  arrows while the other types.
+- **Instrument** - **Shift+Tab** cycles guitar, ukulele and piano.
 
 ## Song Analyzer
 
@@ -193,7 +196,10 @@ listens and you play it before the clock runs out.
 
 - **Win+Y** - open or close the panel.
 - **Ctrl+Tab** - switch tools.
-- **Tab** - switch instruments.
+- **Tab** - play the chord on the card, or step through the pattern list.
+- **Shift+Tab** - switch instruments.
+- **Space / Enter** - play the chord on the card as well; Space also taps the
+  tempo, starts the trainer, works the transport and cancels an analyzer run.
 - **Up / Down** - move through search results, step the metronome, hop
   between the rings of the circle.
 - **Left / Right** - step through fingerings, halve or double a tap tempo,
@@ -4590,6 +4596,11 @@ struct CircleState {
 
 CircleState g_circle;
 
+// When the chord card's speaker last sounded, from the pointer or from a key.
+// The ring under it stays lit while this is fresh, so a press is never a
+// silent question.
+double g_chordFlashAt = -1000.0;
+
 // A key badge reports which ring it sits on in the index it hands back: the
 // twelve spokes are the majors outside, and the twelve past them are the
 // relative minors inside the same spokes.
@@ -7334,12 +7345,22 @@ void PaintPlayButton(Surface& s, const Theme& t) {
     const float cx = L(box.left + box.right) * 0.5f;
     const float cy = L(box.top + box.bottom) * 0.5f;
 
+    // A key press lands here too, so the speaker keeps a short accent ring of
+    // its own that fades out on the shared fast timer.
+    const double since = NowMs() - g_chordFlashAt;
+    const float flash = available && since >= 0.0 && since < 180.0
+                            ? 1.0f - static_cast<float>(since) / 180.0f
+                            : 0.0f;
+
     if (hovered) {
         FillCircle(s, cx, cy, S(11.0f),
                    pressed ? WithAlpha(t.text, 0.22f) : t.controlHover);
+    } else if (flash > 0.0f) {
+        FillCircle(s, cx, cy, S(11.0f), WithAlpha(t.accent, 0.28f * flash));
     }
-    const Color color = available ? (hovered ? t.text : t.textMuted)
-                                  : WithAlpha(t.textMuted, 0.35f);
+    const Color color = available
+                            ? (hovered || flash > 0.0f ? t.text : t.textMuted)
+                            : WithAlpha(t.textMuted, 0.35f);
 
     PaintGlyph(s, cx, cy, L'\xE768', S(15.0f), color);
 }
@@ -10194,9 +10215,12 @@ void PaintFooter(Surface& s, const Theme& t) {
 
     std::vector<FooterItem> items;
     if (g_app.tool == kToolChords) {
+        // Tab is the speaker now, so the instrument walk moved to Shift+Tab;
+        // the arrows keep the fingerings, which are the same axis the list of
+        // voicings has always used.
         items = {
-            {L"\x2191\x2193", L"browse"},
-            {L"Tab", L"instrument"},
+            {L"Tab", L"play"},
+            {L"Shift+Tab", L"instrument"},
             {L"\x2190\x2192", L"fingering"},
             {L"Esc", L"close"}
         };
@@ -11999,6 +12023,12 @@ void ChordPlaySelected() {
     }
     PlayAcousticClip(voicing->notes, voicing->noteCount, 0.0f,
                      g_app.instrument == kInstrumentPiano);
+    // The pointer and the keyboard both arrive here, so the speaker lights up
+    // for either, and one timer runs the ring out.
+    g_chordFlashAt = NowMs();
+    if (g_panel.Hwnd()) {
+        SetTimer(g_panel.Hwnd(), kFlashTimer, 16, nullptr);
+    }
 }
 
 // Pick a spoke and the ring it is read on. A key outside the twelve wraps, so
@@ -15695,9 +15725,11 @@ void OnKeyDown(WPARAM key) {
             }
             return;
         case VK_RETURN:
-            if (!g_app.query.empty()) {
-                ClearQuery();
-            }
+        case VK_SPACE:
+            // The chord answers to the thumb and to the hand that rests beside
+            // the arrows, so reading the diagram never costs a trip back to the
+            // mouse. Enter used to clear the search; Esc still does.
+            ChordPlaySelected();
             return;
         case VK_DELETE:
             DeleteQueryChar();
@@ -15737,6 +15769,9 @@ void OnKeyDown(WPARAM key) {
             g_app.voicing = 0;
             Repaint();
             return;
+        // The fingerings stay on the horizontal arrows; the three keys between
+        // M and right Shift (comma, period, slash) are left untouched so an
+        // inversion walk can take them if the library ever grows one.
         case VK_LEFT:
             StepVoicing(-1);
             Repaint();
@@ -15745,14 +15780,17 @@ void OnKeyDown(WPARAM key) {
             StepVoicing(1);
             Repaint();
             return;
-        case VK_TAB: {
-            const int next = (g_app.instrument + (shift ? kInstrumentCount - 1 : 1)) %
-                             kInstrumentCount;
-            g_searchFocused = true;
-            SetInstrument(next, true);
-            Repaint();
+        case VK_TAB:
+            if (shift) {
+                // Tab took over the speaker, so the instrument walk lives on
+                // Shift+Tab and runs forward, the way Tab walks it elsewhere.
+                g_searchFocused = true;
+                SetInstrument((g_app.instrument + 1) % kInstrumentCount, true);
+                Repaint();
+            } else {
+                ChordPlaySelected();
+            }
             return;
-        }
         case VK_BACK:
             EraseQueryChar();
             return;
@@ -15806,6 +15844,8 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                                       g_app.tool == kToolAnalyzer ||
                                       g_app.tool == kToolCircle ||
                                       g_app.tool == kToolTrainer)) ||
+                    (g_app.tool == kToolChords && transportKey) ||
+                    (g_app.tool == kToolChords && wParam == VK_TAB) ||
                     (g_app.tool == kToolCircle && wParam >= '1' &&
                      wParam <= '7');
                 if (repeat && singleShot) {
@@ -15820,7 +15860,10 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                 if (TempoEntryType(c)) {
                     return 0;  // A digit went into the tempo field.
                 }
-                if (g_app.tool == kToolChords && !MenuHit(g_toolMenu)) {
+                // Space sounds the chord instead of joining the query, and
+                // the filter would have dropped the gap anyway.
+                if (g_app.tool == kToolChords && !MenuHit(g_toolMenu) &&
+                    c != L' ') {
                     AppendQueryChar(c);
                 }
                 if (c != L' ' && AnalyzerFieldActive() &&
@@ -15840,11 +15883,15 @@ LRESULT CALLBACK PanelWndProc(HWND hwnd,
                        g_windowActive) {
                 Repaint();  // Moves the blinking caret along.
             } else if (wParam == kFlashTimer) {
-                if (NowMs() - g_tap.flashAt > 320.0) {
+                // The tap dial and the chord card's speaker share this timer,
+                // so it only stops once both flashes have run out.
+                const double now = NowMs();
+                if (now - g_tap.flashAt > 320.0 &&
+                    now - g_chordFlashAt > 180.0) {
                     KillTimer(hwnd, kFlashTimer);
                 }
                 if (g_phase != kPhaseClosed) {
-                    Repaint();  // Runs the tap flash out.
+                    Repaint();  // Runs the flashes out.
                 }
             } else if (wParam == kPulseTimer) {
                 if ((!g_metro.running && !g_strum.running) ||
