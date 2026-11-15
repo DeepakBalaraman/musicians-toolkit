@@ -53,8 +53,8 @@ inject anything into the programs you have running.
 | `Win+Y` | Open or close the panel. The key and the modifiers are configurable. |
 | `Ctrl+Tab` | Switch tools. |
 | Tray icon | A click opens or closes the panel; a right-click names every tool so one can be opened in a step. |
-| `Tab` | Play the chord on the card, and step through the pattern list without opening it. |
-| `Shift+Tab` | Switch instrument. |
+| `Tab` | Play the chord on the card, step through the pattern list without opening it, or step forward through the instruments in Circle of fifths and Note trainer. |
+| `Shift+Tab` | Step back through the instruments, in every tool that has more than one. |
 | `Up` / `Down` | Move through search results, step the metronome, hop between the two rings of the circle. |
 | `Left` / `Right` | Step through fingerings, halve or double a tap tempo, change the metronome's meter. |
 | `D` `U` `X` `M` `R` | Lay a downstroke, upstroke, muted downstroke, muted upstroke or a rest on the strumming grid. |
